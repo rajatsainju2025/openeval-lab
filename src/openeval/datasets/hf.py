@@ -31,4 +31,6 @@ class HFDataset(Dataset):
                 reference = ref["text"][0] if ref["text"] else ""
             else:
                 reference = ref
-            yield Example(id=str(row.get("id", i)), input=row[self.input_field], reference=reference, meta=row)
+            yield Example(
+                id=str(row.get("id", i)), input=row[self.input_field], reference=reference, meta=row
+            )

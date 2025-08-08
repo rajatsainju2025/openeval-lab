@@ -51,10 +51,15 @@
                 <td>
                   {% if r.metrics %}
                     {% for name, vals in r.metrics.items() %}
-                      <div><strong>{{ name }}</strong>:
-                        {% for k, v in vals.items() %}
-                          {{ k }}={{ '%.3f'|format(v) }}
-                        {% endfor %}
+                      <div>
+                        <strong>{{ name }}</strong>:
+                        {% if 'error' in vals %}
+                          <span class="muted">{{ vals.error }}</span>
+                        {% else %}
+                          {% for k, v in vals.items() %}
+                            {{ k }}={{ '%.3f'|format(v) }}
+                          {% endfor %}
+                        {% endif %}
                       </div>
                     {% endfor %}
                   {% endif %}

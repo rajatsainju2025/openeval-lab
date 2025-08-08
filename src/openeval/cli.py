@@ -7,7 +7,6 @@ from typing import Optional
 import typer
 from rich import print
 
-from .core import Adapter, Dataset, Metric, Task
 from .spec import EvalSpec, load_spec
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -49,7 +48,7 @@ def init(
     if fmt.lower() == "yaml" or out.suffix.lower() in {".yaml", ".yml"}:
         try:
             import yaml  # type: ignore
-        except Exception as e:  # pragma: no cover
+        except Exception:  # pragma: no cover
             raise typer.Exit(code=2)
         out.write_text(yaml.safe_dump(ex, sort_keys=False))
     else:
@@ -63,7 +62,9 @@ def run(
     seed: Optional[int] = typer.Option(0, help="Deterministic seed"),
     records: bool = typer.Option(False, "--records", help="Include per-example records in output"),
     artifacts: Optional[Path] = typer.Option(None, "--artifacts", help="Dir to write results"),
-    timestamped: bool = typer.Option(True, help="When writing to --artifacts, save as runs/<timestamp>.json"),
+    timestamped: bool = typer.Option(
+        True, help="When writing to --artifacts, save as runs/<timestamp>.json"
+    ),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -96,14 +97,22 @@ app.add_typer(runs_app, name="runs")
 @runs_app.command("collect")
 def runs_collect(
     dir: Path = typer.Option(Path("runs"), "--dir", help="Directory containing run .json files"),
-    out: Path = typer.Option(Path("runs/index.json"), "--out", help="Where to save the aggregated index"),
+    out: Path = typer.Option(
+        Path("runs/index.json"), "--out", help="Where to save the aggregated index"
+    ),
 ):
     """Aggregate run JSON files into an index for the leaderboard."""
     dir.mkdir(parents=True, exist_ok=True)
     entries = []
     for p in sorted(dir.glob("*.json")):
+        # Skip the output file itself and any obvious aggregate files
+        if p.resolve() == out.resolve() or p.name.lower().startswith("index"):
+            continue
         try:
             data = json.loads(p.read_text())
+            # Heuristic: only include single-run payloads with metrics and task
+            if not isinstance(data, dict) or "metrics" not in data or "task" not in data:
+                continue
             data["_file"] = p.name
             entries.append(data)
         except Exception:

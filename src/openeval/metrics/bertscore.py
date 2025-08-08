@@ -15,7 +15,9 @@ class BERTScore:
         try:
             from bert_score import score as bertscore  # type: ignore
         except Exception as e:  # pragma: no cover - optional dep
-            raise RuntimeError("bert-score not installed. Install with 'pip install -e .[metrics]'") from e
+            raise RuntimeError(
+                "bert-score not installed. Install with 'pip install -e .[metrics]'"
+            ) from e
         cands = [str(p or "") for p in predictions]
         refs = [str(r or "") for r in references]
         P, R, F1 = bertscore(

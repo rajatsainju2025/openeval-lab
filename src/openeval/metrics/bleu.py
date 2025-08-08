@@ -14,7 +14,9 @@ class SacreBLEU:
         try:
             import sacrebleu as sb  # type: ignore
         except Exception as e:  # pragma: no cover - optional dep
-            raise RuntimeError("sacrebleu not installed. Install with 'pip install -e .[metrics]'") from e
+            raise RuntimeError(
+                "sacrebleu not installed. Install with 'pip install -e .[metrics]'"
+            ) from e
         preds = [str(p or "") for p in predictions]
         refs = [[str(r or "") for r in references]]  # sacrebleu expects list of reference sets
         bleu = sb.corpus_bleu(

@@ -19,4 +19,9 @@ class JSONLinesDataset(Dataset):
         with open(self.path, "r", encoding="utf-8") as f:
             for i, line in enumerate(f):
                 obj = json.loads(line)
-                yield Example(id=str(obj.get("id", i)), input=obj[self.text_field], reference=obj[self.ref_field], meta=obj)
+                yield Example(
+                    id=str(obj.get("id", i)),
+                    input=obj[self.text_field],
+                    reference=obj[self.ref_field],
+                    meta=obj,
+                )
