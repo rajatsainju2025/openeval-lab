@@ -45,6 +45,10 @@ Reproducibility
 - Each result includes a manifest (python/platform/packages) and dataset/spec hashes.
 - Create a lockfile: `openeval lock --from runs/<ts>.json --out openeval-lock.json`.
 
+Planning & tracking
+- 10-day contribution plan: see `docs/10-day-contribution-plan.md`.
+- Project board (GitHub Projects): https://github.com/rajatsainju2025/openeval-lab/projects – use label `plan-10d` on issues.
+
 Goals:
 - Reproducible, configurable evals for LLMs/agents
 - Clean plug-in APIs; small, testable units
