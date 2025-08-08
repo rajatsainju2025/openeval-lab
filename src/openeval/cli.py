@@ -61,6 +61,8 @@ def init(
 def run(
     spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
     seed: Optional[int] = typer.Option(0, help="Deterministic seed"),
+    records: bool = typer.Option(False, "--records", help="Include per-example records in output"),
+    artifacts: Optional[Path] = typer.Option(None, "--artifacts", help="Dir to write results"),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -68,10 +70,16 @@ def run(
     except SystemExit as e:
         raise typer.Exit(code=2) from e
 
-    result = task.evaluate(adapter, dataset, metrics, seed=seed)
-    with open(out, "w", encoding="utf-8") as f:
+    result = task.evaluate(adapter, dataset, metrics, seed=seed, collect_records=records)
+
+    out_path = Path(out)
+    if artifacts:
+        artifacts.mkdir(parents=True, exist_ok=True)
+        out_path = artifacts / out_path.name
+
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
-    print({"saved": out})
+    print({"saved": str(out_path)})
 
 
 if __name__ == "__main__":

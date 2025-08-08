@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
@@ -19,4 +20,11 @@ app = FastAPI(title="OpenEval Lab Dashboard")
 @app.get("/", response_class=HTMLResponse)
 def index():
     tpl = jinja.get_template("index.html")
-    return tpl.render(title="OpenEval Lab", content="Minimal dashboard coming soon.")
+    data = {}
+    p = Path("results.json")
+    if p.exists():
+        try:
+            data = json.loads(p.read_text())
+        except Exception:
+            data = {}
+    return tpl.render(title="OpenEval Lab", data=data)

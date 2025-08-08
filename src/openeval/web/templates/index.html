@@ -8,12 +8,41 @@
       body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; color: #111; margin: 2rem; }
       .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);} 
       .muted { color: #666; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 12px; }
+      .kv { padding: 8px 12px; border: 1px solid #eee; border-radius: 8px; }
+      code { background: #f7f7f7; padding: 2px 4px; border-radius: 4px; }
     </style>
   </head>
   <body>
     <div class="card">
       <h1>{{ title }}</h1>
-      <p class="muted">{{ content }}</p>
+      {% if data and data.metrics %}
+        <p class="muted">Task <code>{{ data.task }}</code> on <code>{{ data.dataset }}</code> (n={{ data.size }}) using <code>{{ data.adapter }}</code></p>
+        <div class="grid">
+          {% for mname, vals in data.metrics.items() %}
+            <div class="kv"><strong>{{ mname }}</strong><br/>
+            {% for k,v in vals.items() %}
+              {{ k }}: {{ '%.3f'|format(v) }}<br/>
+            {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">{{ content or 'Run `openeval run examples/qa_spec.json --records` to populate results.json' }}</p>
+      {% endif %}
+
+      {% if data and data.records %}
+        <h3>Sample records</h3>
+        <ol>
+          {% for r in data.records[:5] %}
+            <li>
+              <div><strong>Q:</strong> {{ r.input }}</div>
+              <div><strong>Ref:</strong> {{ r.reference }}</div>
+              <div><strong>Pred:</strong> {{ r.prediction }}</div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
     </div>
   </body>
 </html>

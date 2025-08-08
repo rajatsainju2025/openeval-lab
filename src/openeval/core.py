@@ -54,20 +54,38 @@ class Task(ABC):
     def postprocess(self, raw_output: str) -> Any:
         return raw_output.strip()
 
-    def evaluate(self, adapter: Adapter, dataset: Dataset, metrics: List[Metric], *, seed: Optional[int] = 0) -> Dict[str, Any]:
+    def evaluate(
+        self,
+        adapter: Adapter,
+        dataset: Dataset,
+        metrics: List[Metric],
+        *,
+        seed: Optional[int] = 0,
+        collect_records: bool = False,
+    ) -> Dict[str, Any]:
         set_seed(seed)
         predictions: List[Any] = []
         references: List[Any] = []
+        records: List[Dict[str, Any]] = []
         for ex in iter(dataset):
             prompt = self.build_prompt(ex)
             raw = adapter.generate(prompt)
             pred = self.postprocess(raw)
             predictions.append(pred)
             references.append(ex.reference)
+            if collect_records:
+                records.append(
+                    {
+                        "id": ex.id,
+                        "input": ex.input,
+                        "reference": ex.reference,
+                        "prediction": pred,
+                    }
+                )
         results: Dict[str, Any] = {}
         for m in metrics:
             results[m.name] = m.compute(predictions, references)
-        return {
+        payload: Dict[str, Any] = {
             "task": self.name,
             "dataset": getattr(dataset, "name", dataset.__class__.__name__),
             "size": len(predictions),
@@ -75,3 +93,6 @@ class Task(ABC):
             "adapter": getattr(adapter, "name", adapter.__class__.__name__),
             "seed": seed,
         }
+        if collect_records:
+            payload["records"] = records
+        return payload
