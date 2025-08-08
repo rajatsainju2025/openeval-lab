@@ -8,6 +8,11 @@ An extensible, reproducible evaluation framework for LLMs and multimodal agents.
 - Simple CLI and minimal web dashboard
 - MIT License
 
+Quickstart:
+- Install: `pip install -e '.[dev]'`
+- Run example: `openeval run examples/qa_spec.json`
+- View dashboard: `uvicorn openeval.web.app:app --reload`
+
 Roadmap:
 - [ ] Core abstractions (Task, Dataset, Adapter, Metric)
 - [ ] CLI: `openeval run <spec>`
