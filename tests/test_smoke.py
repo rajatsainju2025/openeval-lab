@@ -19,3 +19,25 @@ def test_smoke(tmp_path):
     assert result["size"] == 1
     assert metric.name in result["metrics"]
     assert "accuracy" in result["metrics"][metric.name]
+
+
+def test_cli(tmp_path):
+    from openeval.cli import app
+    from typer.testing import CliRunner
+
+    spec = tmp_path / "spec.json"
+    data = {
+        "task": "openeval.tasks.qa.QATask",
+        "dataset": "openeval.datasets.jsonl.JSONLinesDataset",
+        "adapter": "openeval.adapters.echo.EchoAdapter",
+        "dataset_kwargs": {"path": str(tmp_path / "toy.jsonl")},
+        "metrics": [{"name": "openeval.metrics.accuracy.ExactMatch"}],
+        "output": str(tmp_path / "out.json"),
+    }
+    (tmp_path / "toy.jsonl").write_text('{"id":1,"input":"x","reference":"x"}\n')
+    spec.write_text(__import__("json").dumps(data))
+
+    runner = CliRunner()
+    res = runner.invoke(app, ["run", str(spec)])
+    assert res.exit_code == 0
+    assert (tmp_path / "out.json").exists()
