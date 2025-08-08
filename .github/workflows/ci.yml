@@ -24,4 +24,10 @@ jobs:
           black --check .
       - name: Test
         run: |
-          pytest -q
+          pytest -q --cov-report xml --cov=.
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
