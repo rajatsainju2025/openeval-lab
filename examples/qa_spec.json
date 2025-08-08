@@ -5,7 +5,8 @@
   "task_kwargs": {"instruction": "Answer the question succinctly."},
   "dataset_kwargs": {"path": "examples/qa_toy.jsonl"},
   "metrics": [
-    {"name": "openeval.metrics.accuracy.ExactMatch"}
+    {"name": "openeval.metrics.accuracy.ExactMatch"},
+    {"name": "openeval.metrics.accuracy.TokenF1"}
   ],
   "output": "results.json"
 }
