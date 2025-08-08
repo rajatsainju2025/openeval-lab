@@ -3,8 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol
+from pathlib import Path
 
-from .utils import set_seed
+from .utils import set_seed, hash_file
 
 
 class Adapter(Protocol):
@@ -93,6 +94,16 @@ class Task(ABC):
             "adapter": getattr(adapter, "name", adapter.__class__.__name__),
             "seed": seed,
         }
+        # dataset fingerprint if file-backed
+        ds_path = getattr(dataset, "path", None)
+        if ds_path is not None:
+            p = Path(ds_path)
+            if p.is_file():
+                try:
+                    payload["dataset_path"] = str(p)
+                    payload["dataset_hash_sha256"] = hash_file(p)
+                except Exception:
+                    pass
         if collect_records:
             payload["records"] = records
         return payload
