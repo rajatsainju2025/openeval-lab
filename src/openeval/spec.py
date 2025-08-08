@@ -10,6 +10,11 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .core import Adapter, Dataset, Metric, Task
 
+try:
+    import yaml  # type: ignore
+except Exception:  # pragma: no cover
+    yaml = None  # type: ignore
+
 
 class MetricSpec(BaseModel):
     name: str
@@ -28,6 +33,10 @@ class EvalSpec(BaseModel):
     metrics: List[MetricSpec] = Field(default_factory=list)
     output: str = "results.json"
 
+    @classmethod
+    def json_schema(cls) -> dict[str, Any]:
+        return cls.model_json_schema()
+
 
 def _load_dotted(path: str):
     # support both module.Class and module:Class (colon)
@@ -37,9 +46,17 @@ def _load_dotted(path: str):
     return getattr(mod, cls_name)
 
 
+def _read_spec_file(p: Path) -> dict[str, Any]:
+    if p.suffix.lower() in {".yaml", ".yml"}:
+        if yaml is None:
+            raise SystemExit("PyYAML not installed; install openeval-lab to parse YAML specs.")
+        return yaml.safe_load(p.read_text())
+    return json.loads(p.read_text())
+
+
 def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
     p = Path(path)
-    data = json.loads(p.read_text())
+    data = _read_spec_file(p)
     try:
         spec = EvalSpec(**data)
     except ValidationError as e:

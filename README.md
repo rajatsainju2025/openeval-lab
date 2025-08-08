@@ -13,6 +13,15 @@ Quickstart:
 - Run example: `openeval run examples/qa_spec.json`
 - View dashboard: `uvicorn openeval.web.app:app --reload`
 
+Examples:
+- QA task on JSONL: see `examples/`
+- Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`
+
+Goals:
+- Reproducible, configurable evals for LLMs/agents
+- Clean plug-in APIs; small, testable units
+- Minimal but useful dashboard
+
 Roadmap:
 - [ ] Core abstractions (Task, Dataset, Adapter, Metric)
 - [ ] CLI: `openeval run <spec>`
