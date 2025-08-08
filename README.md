@@ -1,5 +1,7 @@
 # OpenEval Lab
 
+[![CI](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci.yml)
+
 An extensible, reproducible evaluation framework for LLMs and multimodal agents.
 
 - Plugin-based tasks, datasets, adapters, and metrics
@@ -12,6 +14,10 @@ Quickstart:
 - Install: `pip install -e '.[dev]'`
 - Run example: `openeval run examples/qa_spec.json`
 - View dashboard: `uvicorn openeval.web.app:app --reload`
+
+Optional extras:
+- OpenAI adapter: `pip install -e '.[openai]'`
+- Hugging Face datasets: `pip install -e '.[hf]'`
 
 Examples:
 - QA task on JSONL: see `examples/`
