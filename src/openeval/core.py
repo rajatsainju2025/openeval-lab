@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol
 
+from .utils import set_seed
+
 
 class Adapter(Protocol):
     """Model API adapter."""
@@ -52,7 +54,8 @@ class Task(ABC):
     def postprocess(self, raw_output: str) -> Any:
         return raw_output.strip()
 
-    def evaluate(self, adapter: Adapter, dataset: Dataset, metrics: List[Metric]) -> Dict[str, Any]:
+    def evaluate(self, adapter: Adapter, dataset: Dataset, metrics: List[Metric], *, seed: Optional[int] = 0) -> Dict[str, Any]:
+        set_seed(seed)
         predictions: List[Any] = []
         references: List[Any] = []
         for ex in iter(dataset):
@@ -69,4 +72,6 @@ class Task(ABC):
             "dataset": getattr(dataset, "name", dataset.__class__.__name__),
             "size": len(predictions),
             "metrics": results,
+            "adapter": getattr(adapter, "name", adapter.__class__.__name__),
+            "seed": seed,
         }
