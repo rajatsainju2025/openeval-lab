@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol
 from pathlib import Path
+import time
 
 from .utils import set_seed, hash_file
 
@@ -68,9 +69,14 @@ class Task(ABC):
         predictions: List[Any] = []
         references: List[Any] = []
         records: List[Dict[str, Any]] = []
+        latencies: List[float] = []
+        t0 = time.perf_counter()
         for ex in iter(dataset):
             prompt = self.build_prompt(ex)
+            s = time.perf_counter()
             raw = adapter.generate(prompt)
+            e = time.perf_counter()
+            latencies.append(e - s)
             pred = self.postprocess(raw)
             predictions.append(pred)
             references.append(ex.reference)
@@ -81,8 +87,10 @@ class Task(ABC):
                         "input": ex.input,
                         "reference": ex.reference,
                         "prediction": pred,
+                        "latency_ms": (e - s) * 1000.0,
                     }
                 )
+        total_duration = time.perf_counter() - t0
         results: Dict[str, Any] = {}
         for m in metrics:
             results[m.name] = m.compute(predictions, references)
@@ -93,6 +101,11 @@ class Task(ABC):
             "metrics": results,
             "adapter": getattr(adapter, "name", adapter.__class__.__name__),
             "seed": seed,
+            "timing": {
+                "avg_latency_ms": (sum(latencies) / len(latencies) * 1000.0) if latencies else 0.0,
+                "total_seconds": total_duration,
+                "throughput_eps": (len(predictions) / total_duration) if total_duration > 0 else 0.0,
+            },
         }
         # dataset fingerprint if file-backed
         ds_path = getattr(dataset, "path", None)
