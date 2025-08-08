@@ -1,0 +1,14 @@
+{
+  "task": "openeval.tasks.qa.QATask",
+  "dataset": "openeval.datasets.jsonl.JSONLinesDataset",
+  "adapter": "openeval.adapters.echo.EchoAdapter",
+  "task_kwargs": {},
+  "dataset_kwargs": { "path": "examples/qa_toy.jsonl" },
+  "adapter_kwargs": {},
+  "metrics": [
+    { "name": "openeval.metrics.accuracy.ExactMatch" },
+    { "name": "openeval.metrics.bleu.SacreBLEU", "kwargs": { "lowercase": true } },
+    { "name": "openeval.metrics.bertscore.BERTScore", "kwargs": { "lang": "en" } }
+  ],
+  "output": "results.json"
+}

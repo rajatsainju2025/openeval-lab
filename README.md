@@ -33,6 +33,13 @@ Multi-run leaderboard:
 Examples:
 - QA task on JSONL and CSV: see `examples/`
 - Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`
+- Advanced metrics: `examples/qa_metrics_spec.json` (requires `pip install -e '.[metrics]'`)
+
+Demo: leaderboard workflow
+- Install metrics: `pip install -e '.[metrics]'`
+- Run a few variants and save timestamped runs: `openeval run examples/qa_metrics_spec.json --records --artifacts runs`
+- Aggregate: `openeval runs collect --dir runs`
+- Start dashboard: `uvicorn openeval.web.app:app --reload` then open http://localhost:8000/leaderboard
 
 Goals:
 - Reproducible, configurable evals for LLMs/agents
