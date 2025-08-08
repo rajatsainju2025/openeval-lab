@@ -35,7 +35,12 @@
           <tbody>
             {% for r in runs %}
               <tr>
-                <td><code>{{ r._file }}</code></td>
+                <td>
+                  <div><code>{{ r._file }}</code>{% if r.run_name %} — {{ r.run_name }}{% endif %}</div>
+                  {% if r.spec_hash_sha256 %}
+                    <div class="muted" style="font-size: 12px;">spec: {{ r.spec_hash_sha256[:12] }}…</div>
+                  {% endif %}
+                </td>
                 <td><code>{{ r.task }}</code></td>
                 <td>
                   <div><code>{{ r.dataset }}</code></div>

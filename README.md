@@ -26,9 +26,9 @@ Dashboard & artifacts:
 - The dashboard reads `results.json` from the CWD; copy your artifact there to preview.
 
 Multi-run leaderboard:
-- Every run can be saved with `--artifacts runs` to write `results.json`.
+- Every run can be saved with `--artifacts runs` to write timestamped `runs/<ts>.json`.
 - New command `openeval runs collect --dir runs` aggregates all `*.json` into `runs/index.json`.
-- Dashboard page `/leaderboard` compares metrics, latency, adapter, and dataset fingerprint.
+- Dashboard page `/leaderboard` compares metrics, latency, adapter, dataset fingerprint, spec hash, and optional run_name.
 
 Examples:
 - QA task on JSONL and CSV: see `examples/`
@@ -37,9 +37,13 @@ Examples:
 
 Demo: leaderboard workflow
 - Install metrics: `pip install -e '.[metrics]'`
-- Run a few variants and save timestamped runs: `openeval run examples/qa_metrics_spec.json --records --artifacts runs`
+- Run variants named and saved: `openeval run examples/qa_metrics_spec.json --run-name bleu+bertscore --records --artifacts runs`
 - Aggregate: `openeval runs collect --dir runs`
 - Start dashboard: `uvicorn openeval.web.app:app --reload` then open http://localhost:8000/leaderboard
+
+Reproducibility
+- Each result includes a manifest (python/platform/packages) and dataset/spec hashes.
+- Create a lockfile: `openeval lock --from runs/<ts>.json --out openeval-lock.json`.
 
 Goals:
 - Reproducible, configurable evals for LLMs/agents

@@ -8,6 +8,7 @@ import typer
 from rich import print
 
 from .spec import EvalSpec, load_spec
+from .utils import hash_file
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -65,6 +66,7 @@ def run(
     timestamped: bool = typer.Option(
         True, help="When writing to --artifacts, save as runs/<timestamp>.json"
     ),
+    run_name: Optional[str] = typer.Option(None, "--run-name", help="Optional label for this run"),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -73,6 +75,15 @@ def run(
         raise typer.Exit(code=2) from e
 
     result = task.evaluate(adapter, dataset, metrics, seed=seed, collect_records=records)
+
+    # enrich with spec metadata and optional run name
+    result["spec_path"] = str(spec)
+    try:
+        result["spec_hash_sha256"] = hash_file(spec)
+    except Exception:
+        pass
+    if run_name:
+        result["run_name"] = run_name
 
     out_path = Path(out)
     if artifacts:
@@ -120,6 +131,34 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+@app.command("lock")
+def lock(
+    from_run: Path = typer.Option(..., "--from", help="Path to a run JSON to lock"),
+    out: Path = typer.Option(Path("openeval-lock.json"), "--out", help="Lockfile path"),
+):
+    """Create a reproducibility lockfile from a run JSON."""
+    try:
+        payload = json.loads(Path(from_run).read_text())
+    except Exception as e:
+        raise typer.Exit(code=2) from e
+
+    lock = {
+        "task": payload.get("task"),
+        "adapter": payload.get("adapter"),
+        "dataset": payload.get("dataset"),
+        "size": payload.get("size"),
+        "seed": payload.get("seed"),
+        "dataset_path": payload.get("dataset_path"),
+        "dataset_hash_sha256": payload.get("dataset_hash_sha256"),
+        "spec_path": payload.get("spec_path"),
+        "spec_hash_sha256": payload.get("spec_hash_sha256"),
+        "manifest": payload.get("manifest", {}),
+        "metrics_present": list((payload.get("metrics") or {}).keys()),
+    }
+    out.write_text(json.dumps(lock, indent=2))
+    print({"saved": str(out)})
 
 
 if __name__ == "__main__":

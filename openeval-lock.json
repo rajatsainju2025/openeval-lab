@@ -1,0 +1,43 @@
+{
+  "task": "qa",
+  "adapter": "echo",
+  "dataset": "jsonl",
+  "size": 2,
+  "seed": 0,
+  "dataset_path": "examples/qa_toy.jsonl",
+  "dataset_hash_sha256": "9c52486013430898a086358be77233b1d6d990c776d7bd9ce9f9c5eedbf72540",
+  "spec_path": "examples/qa_metrics_spec.json",
+  "spec_hash_sha256": "21966537231b2aec5d13b477d5638e92a0f3f54d179d1904327864d1723d6f0c",
+  "manifest": {
+    "timestamp": "2025-08-08T12:59:01",
+    "openeval_version": "0.0.1",
+    "python": {
+      "version": "3.12.7",
+      "executable": "/Users/rsainju/Research/1_Research_Personal/untitled folder/.venv/bin/python3"
+    },
+    "platform": {
+      "system": "Darwin",
+      "release": "24.6.0",
+      "machine": "arm64"
+    },
+    "packages": {
+      "fastapi": "0.116.1",
+      "jinja2": "3.1.6",
+      "numpy": "2.3.2",
+      "pandas": "2.3.1"
+    },
+    "adapter": {
+      "name": "echo",
+      "class": "openeval.adapters.echo.EchoAdapter"
+    },
+    "task": {
+      "name": "qa",
+      "class": "openeval.tasks.qa.QATask"
+    }
+  },
+  "metrics_present": [
+    "exact_match",
+    "sacrebleu",
+    "bertscore"
+  ]
+}
