@@ -28,3 +28,17 @@ def index():
         except Exception:
             data = {}
     return tpl.render(title="OpenEval Lab", data=data)
+
+
+@app.get("/leaderboard", response_class=HTMLResponse)
+def leaderboard():
+    tpl = jinja.get_template("leaderboard.html")
+    index_p = Path("runs/index.json")
+    runs = []
+    if index_p.exists():
+        try:
+            payload = json.loads(index_p.read_text())
+            runs = payload.get("runs", [])
+        except Exception:
+            runs = []
+    return tpl.render(title="Leaderboard", runs=runs)

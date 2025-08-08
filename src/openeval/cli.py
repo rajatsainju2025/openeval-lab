@@ -63,6 +63,7 @@ def run(
     seed: Optional[int] = typer.Option(0, help="Deterministic seed"),
     records: bool = typer.Option(False, "--records", help="Include per-example records in output"),
     artifacts: Optional[Path] = typer.Option(None, "--artifacts", help="Dir to write results"),
+    timestamped: bool = typer.Option(True, help="When writing to --artifacts, save as runs/<timestamp>.json"),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -75,11 +76,41 @@ def run(
     out_path = Path(out)
     if artifacts:
         artifacts.mkdir(parents=True, exist_ok=True)
-        out_path = artifacts / out_path.name
+        if timestamped:
+            import datetime as _dt
+
+            ts = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+            out_path = artifacts / f"{ts}.json"
+        else:
+            out_path = artifacts / out_path.name
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
     print({"saved": str(out_path)})
+
+
+runs_app = typer.Typer(help="Manage and aggregate runs")
+app.add_typer(runs_app, name="runs")
+
+
+@runs_app.command("collect")
+def runs_collect(
+    dir: Path = typer.Option(Path("runs"), "--dir", help="Directory containing run .json files"),
+    out: Path = typer.Option(Path("runs/index.json"), "--out", help="Where to save the aggregated index"),
+):
+    """Aggregate run JSON files into an index for the leaderboard."""
+    dir.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for p in sorted(dir.glob("*.json")):
+        try:
+            data = json.loads(p.read_text())
+            data["_file"] = p.name
+            entries.append(data)
+        except Exception:
+            continue
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"runs": entries}, indent=2))
+    print({"saved": str(out), "count": len(entries)})
 
 
 if __name__ == "__main__":

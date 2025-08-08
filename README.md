@@ -18,11 +18,17 @@ Quickstart:
 Optional extras:
 - OpenAI adapter: `pip install -e '.[openai]'`
 - Hugging Face datasets: `pip install -e '.[hf]'`
+- Advanced metrics (SacreBLEU, BERTScore): `pip install -e '.[metrics]'`
 
 Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
 - Use `--artifacts DIR` to write outputs to a directory.
 - The dashboard reads `results.json` from the CWD; copy your artifact there to preview.
+
+Multi-run leaderboard:
+- Every run can be saved with `--artifacts runs` to write `results.json`.
+- New command `openeval runs collect --dir runs` aggregates all `*.json` into `runs/index.json`.
+- Dashboard page `/leaderboard` compares metrics, latency, adapter, and dataset fingerprint.
 
 Examples:
 - QA task on JSONL and CSV: see `examples/`

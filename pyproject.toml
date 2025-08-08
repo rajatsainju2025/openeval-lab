@@ -40,6 +40,10 @@ openai = [
 hf = [
   "datasets>=3.0.0",
 ]
+metrics = [
+  "sacrebleu>=2.4.0",
+  "bert-score>=0.3.13",
+]
 
 [project.urls]
 Homepage = "https://github.com/your-username/openeval-lab"
