@@ -1,0 +1,11 @@
+{
+  "task": "openeval.tasks.qa.QATask",
+  "dataset": "openeval.datasets.csv.CSVDataset",
+  "adapter": "openeval.adapters.echo.EchoAdapter",
+  "dataset_kwargs": {"path": "examples/qa_toy.csv"},
+  "metrics": [
+    {"name": "openeval.metrics.accuracy.ExactMatch"},
+    {"name": "openeval.metrics.accuracy.TokenF1"}
+  ],
+  "output": "results.json"
+}
