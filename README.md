@@ -12,15 +12,20 @@ An extensible, reproducible evaluation framework for LLMs and multimodal agents.
 
 Quickstart:
 - Install: `pip install -e '.[dev]'`
-- Run example: `openeval run examples/qa_spec.json`
+- Run example: `openeval run examples/qa_spec.json --records --artifacts artifacts`
 - View dashboard: `uvicorn openeval.web.app:app --reload`
 
 Optional extras:
 - OpenAI adapter: `pip install -e '.[openai]'`
 - Hugging Face datasets: `pip install -e '.[hf]'`
 
+Dashboard & artifacts:
+- Pass `--records` to include per-example outputs in results.
+- Use `--artifacts DIR` to write outputs to a directory.
+- The dashboard reads `results.json` from the CWD; copy your artifact there to preview.
+
 Examples:
-- QA task on JSONL: see `examples/`
+- QA task on JSONL and CSV: see `examples/`
 - Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`
 
 Goals:
