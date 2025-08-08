@@ -11,19 +11,25 @@
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 12px; }
       .kv { padding: 8px 12px; border: 1px solid #eee; border-radius: 8px; }
       code { background: #f7f7f7; padding: 2px 4px; border-radius: 4px; }
+      a { color: #0a66c2; text-decoration: none; }
     </style>
   </head>
   <body>
     <div class="card">
       <h1>{{ title }}</h1>
+      <div class="muted" style="margin-bottom:8px"><a href="/leaderboard">Leaderboard</a></div>
       {% if data and data.metrics %}
-        <p class="muted">Task <code>{{ data.task }}</code> on <code>{{ data.dataset }}</code> (n={{ data.size }}) using <code>{{ data.adapter }}</code></p>
+        <p class="muted">Task <code>{{ data.task }}</code> on <code>{{ data.dataset }}</code> (n={{ data.size }}) using <code>{{ data.adapter }}</code>{% if data.seed is not none %} • seed={{ data.seed }}{% endif %}{% if data.timing %} • avg_latency={{ '%.1f'|format(data.timing.avg_latency_ms or 0) }}ms • throughput={{ '%.2f'|format(data.timing.throughput_eps or 0) }} eps{% endif %}</p>
         <div class="grid">
           {% for mname, vals in data.metrics.items() %}
             <div class="kv"><strong>{{ mname }}</strong><br/>
-            {% for k,v in vals.items() %}
-              {{ k }}: {{ '%.3f'|format(v) }}<br/>
-            {% endfor %}
+            {% if 'error' in vals %}
+              <span class="muted">{{ vals.error }}</span><br/>
+            {% else %}
+              {% for k,v in vals.items() %}
+                {{ k }}: {{ '%.3f'|format(v) }}<br/>
+              {% endfor %}
+            {% endif %}
             </div>
           {% endfor %}
         </div>

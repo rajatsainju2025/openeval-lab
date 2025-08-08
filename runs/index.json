@@ -68,6 +68,72 @@
         }
       ],
       "_file": "20250808-120644.json"
+    },
+    {
+      "task": "qa",
+      "dataset": "csv",
+      "size": 2,
+      "metrics": {
+        "exact_match": {
+          "accuracy": 0.0
+        },
+        "token_f1": {
+          "f1": 0.0
+        }
+      },
+      "adapter": "echo",
+      "seed": 0,
+      "timing": {
+        "avg_latency_ms": 0.00043748877942562103,
+        "total_seconds": 0.00037349999183788896,
+        "throughput_eps": 5354.752459721778
+      },
+      "manifest": {
+        "timestamp": "2025-08-08T12:10:32",
+        "openeval_version": "0.0.1",
+        "python": {
+          "version": "3.12.7",
+          "executable": "/Users/rsainju/Research/1_Research_Personal/untitled folder/.venv/bin/python3"
+        },
+        "platform": {
+          "system": "Darwin",
+          "release": "24.6.0",
+          "machine": "arm64"
+        },
+        "packages": {
+          "fastapi": "0.116.1",
+          "jinja2": "3.1.6",
+          "numpy": "2.3.2",
+          "pandas": "2.3.1"
+        },
+        "adapter": {
+          "name": "echo",
+          "class": "openeval.adapters.echo.EchoAdapter"
+        },
+        "task": {
+          "name": "qa",
+          "class": "openeval.tasks.qa.QATask"
+        }
+      },
+      "dataset_path": "examples/qa_toy.csv",
+      "dataset_hash_sha256": "2f15c34ef7c3936cfa5fb3373de1f2cd52f50f08052488329e7f50eaba05b19c",
+      "records": [
+        {
+          "id": "1",
+          "input": "What is 2+2?",
+          "reference": "4",
+          "prediction": "Answer the question concisely.",
+          "latency_ms": 0.0005830079317092896
+        },
+        {
+          "id": "2",
+          "input": "Capital of France?",
+          "reference": "Paris",
+          "prediction": "Answer the question concisely.",
+          "latency_ms": 0.0002919696271419525
+        }
+      ],
+      "_file": "20250808-121032.json"
     }
   ]
 }
