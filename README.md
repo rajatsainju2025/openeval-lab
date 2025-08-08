@@ -32,7 +32,7 @@ Multi-run leaderboard:
 
 Examples:
 - QA task on JSONL and CSV: see `examples/`
-- Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`
+- Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`, then `openeval run examples/qa_openai_spec.json --records --artifacts runs` (costs may apply)
 - Advanced metrics: `examples/qa_metrics_spec.json` (requires `pip install -e '.[metrics]'`)
 
 Demo: leaderboard workflow
@@ -58,3 +58,11 @@ Roadmap:
 - [ ] Dataset loaders (HF Datasets, local)
 - [ ] Reproducibility: lockfiles, hashes
 - [ ] Web dashboard (FastAPI + SvelteKit or Streamlit-lite)
+
+## OpenAI Example Usage and Safety Notes
+
+When using the OpenAI adapter, be aware of the following:
+
+- You need to set the `OPENAI_API_KEY` environment variable with your OpenAI API key.
+- Usage of the OpenAI API may incur costs, depending on your usage and OpenAI's pricing.
+- Ensure that your usage complies with OpenAI's use case policy and guidelines.

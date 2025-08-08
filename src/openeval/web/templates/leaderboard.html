@@ -12,13 +12,29 @@
       th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; }
       th { background: #fafafa; }
       code { background: #f7f7f7; padding: 2px 4px; border-radius: 4px; }
+      .controls { display: flex; gap: 12px; margin-bottom: 12px; }
+      select, input { padding: 6px 8px; }
     </style>
   </head>
   <body>
     <div class="card">
       <h1>{{ title }}</h1>
       {% if runs and runs|length > 0 %}
-        <table>
+        <div class="controls">
+          <label>Sort by
+            <select id="sortKey">
+              <option value="exact_match.accuracy">exact_match.accuracy</option>
+              <option value="token_f1.f1">token_f1.f1</option>
+              <option value="sacrebleu.bleu">sacrebleu.bleu</option>
+              <option value="bertscore.f1">bertscore.f1</option>
+              <option value="timing.throughput_eps">timing.throughput_eps</option>
+            </select>
+          </label>
+          <label>Adapter <input id="filterAdapter" placeholder="contains..." /></label>
+          <label>Task <input id="filterTask" placeholder="contains..." /></label>
+          <button onclick="applySortFilter()">Apply</button>
+        </div>
+        <table id="tbl">
           <thead>
             <tr>
               <th>Run</th>
@@ -41,7 +57,7 @@
                     <div class="muted" style="font-size: 12px;">spec: {{ r.spec_hash_sha256[:12] }}…</div>
                   {% endif %}
                 </td>
-                <td><code>{{ r.task }}</code></td>
+                <td class="task"><code>{{ r.task }}</code></td>
                 <td>
                   <div><code>{{ r.dataset }}</code></div>
                   {% if r.dataset_path %}
@@ -51,9 +67,9 @@
                     <div class="muted" style="font-size: 12px;">sha256: {{ r.dataset_hash_sha256[:12] }}…</div>
                   {% endif %}
                 </td>
-                <td><code>{{ r.adapter }}</code></td>
+                <td class="adapter"><code>{{ r.adapter }}</code></td>
                 <td>{{ r.size }}</td>
-                <td>
+                <td class="metrics">
                   {% if r.metrics %}
                     {% for name, vals in r.metrics.items() %}
                       <div>
@@ -62,15 +78,15 @@
                           <span class="muted">{{ vals.error }}</span>
                         {% else %}
                           {% for k, v in vals.items() %}
-                            {{ k }}={{ '%.3f'|format(v) }}
+                            <span data-k="{{ name }}.{{ k }}" data-v="{{ v }}">{{ k }}={{ '%.3f'|format(v) }}</span>
                           {% endfor %}
                         {% endif %}
                       </div>
                     {% endfor %}
                   {% endif %}
                 </td>
-                <td>{{ '%.1f'|format(r.timing.avg_latency_ms or 0) }}</td>
-                <td>{{ '%.2f'|format(r.timing.throughput_eps or 0) }}</td>
+                <td data-k="timing.avg_latency_ms" data-v="{{ r.timing.avg_latency_ms or 0 }}">{{ '%.1f'|format(r.timing.avg_latency_ms or 0) }}</td>
+                <td data-k="timing.throughput_eps" data-v="{{ r.timing.throughput_eps or 0 }}">{{ '%.2f'|format(r.timing.throughput_eps or 0) }}</td>
                 <td>{{ r.seed }}</td>
               </tr>
             {% endfor %}
@@ -80,5 +96,45 @@
         <p class="muted">No runs found. Generate with `openeval run ... --artifacts runs` then `openeval runs collect --dir runs`.</p>
       {% endif %}
     </div>
+    <script>
+      function getMetricValue(row, key) {
+        if (key.startsWith('timing.')) {
+          const cell = row.querySelector(`[data-k="${key}"]`);
+          return cell ? parseFloat(cell.getAttribute('data-v')) : NaN;
+        }
+        // search spans in metrics cell
+        const spans = row.querySelectorAll('.metrics span[data-k]');
+        for (const s of spans) {
+          if (s.getAttribute('data-k') === key) {
+            const v = parseFloat(s.getAttribute('data-v'));
+            if (!isNaN(v)) return v;
+          }
+        }
+        return NaN;
+      }
+      function applySortFilter() {
+        const tbody = document.querySelector('#tbl tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const sortKey = document.getElementById('sortKey').value;
+        const fAdapter = (document.getElementById('filterAdapter').value||'').toLowerCase();
+        const fTask = (document.getElementById('filterTask').value||'').toLowerCase();
+        const filtered = rows.filter(r => {
+          const a = (r.querySelector('.adapter').innerText||'').toLowerCase();
+          const t = (r.querySelector('.task').innerText||'').toLowerCase();
+          return (fAdapter==='' || a.includes(fAdapter)) && (fTask==='' || t.includes(fTask));
+        });
+        filtered.sort((r1, r2) => {
+          const v1 = getMetricValue(r1, sortKey);
+          const v2 = getMetricValue(r2, sortKey);
+          if (isNaN(v1) && isNaN(v2)) return 0;
+          if (isNaN(v1)) return 1;
+          if (isNaN(v2)) return -1;
+          return v2 - v1; // descending
+        });
+        // Reattach sorted filtered, then append remaining ones
+        for (const r of filtered) tbody.appendChild(r);
+        for (const r of rows) if (!filtered.includes(r)) tbody.appendChild(r);
+      }
+    </script>
   </body>
 </html>
