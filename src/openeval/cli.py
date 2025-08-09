@@ -180,5 +180,20 @@ def lock(
     print({"saved": str(out)})
 
 
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind"),
+    port: int = typer.Option(8000, "--port", help="Port to bind"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload (dev only)"),
+):
+    """Launch the dashboard server."""
+    try:
+        import uvicorn  # type: ignore
+    except Exception as e:  # pragma: no cover
+        print({"error": f"uvicorn not available: {e}"})
+        raise typer.Exit(code=2)
+    uvicorn.run("openeval.web.app:app", host=host, port=port, reload=reload)
+
+
 if __name__ == "__main__":
     app()
