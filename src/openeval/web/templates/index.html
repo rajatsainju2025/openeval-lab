@@ -19,7 +19,7 @@
       <h1>{{ title }}</h1>
       <div class="muted" style="margin-bottom:8px"><a href="/leaderboard">Leaderboard</a></div>
       {% if data and data.metrics %}
-        <p class="muted">Task <code>{{ data.task }}</code> on <code>{{ data.dataset }}</code> (n={{ data.size }}) using <code>{{ data.adapter }}</code>{% if data.seed is not none %} • seed={{ data.seed }}{% endif %}{% if data.timing %} • avg_latency={{ '%.1f'|format(data.timing.avg_latency_ms or 0) }}ms • throughput={{ '%.2f'|format(data.timing.throughput_eps or 0) }} eps{% endif %}</p>
+        <p class="muted">Task <code>{{ data.task }}</code> on <code>{{ data.dataset }}</code> (n={{ data.size }}) using <code>{{ data.adapter }}</code>{% if data.seed is not none %} • seed={{ data.seed }}{% endif %}{% if data.timing %} • avg_latency={{ '%.1f'|format(data.timing.avg_latency_ms or 0) }}ms • throughput={{ '%.2f'|format(data.timing.throughput_eps or 0) }} eps • errors={{ data.timing.request_errors or 0 }}/{{ data.timing.request_successes or 0 + data.timing.request_errors or 0 }} ({{ '%.1f'|format((data.timing.error_rate or 0)*100) }}%){% endif %}</p>
         <div class="grid">
           {% for mname, vals in data.metrics.items() %}
             <div class="kv"><strong>{{ mname }}</strong><br/>
@@ -45,6 +45,7 @@
               <div><strong>Q:</strong> {{ r.input }}</div>
               <div><strong>Ref:</strong> {{ r.reference }}</div>
               <div><strong>Pred:</strong> {{ r.prediction }}</div>
+              {% if r.error %}<div class="muted"><strong>Error:</strong> {{ r.error }}</div>{% endif %}
             </li>
           {% endfor %}
         </ol>
