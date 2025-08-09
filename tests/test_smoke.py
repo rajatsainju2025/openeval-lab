@@ -1,3 +1,4 @@
+from openeval.core import Example
 from openeval.tasks.qa import QATask
 from openeval.adapters.echo import EchoAdapter
 from openeval.datasets.jsonl import JSONLinesDataset
@@ -14,7 +15,7 @@ def test_smoke(tmp_path):
     ds = JSONLinesDataset(path=p)
     metric = ExactMatch()
 
-    result = task.evaluate(adapter, ds, [metric])
+    result = task.evaluate(adapter, ds, [metric], concurrency=1, max_retries=0, request_timeout=None)
     assert result["size"] == 1
     assert metric.name in result["metrics"]
     assert "accuracy" in result["metrics"][metric.name]
@@ -37,6 +38,15 @@ def test_cli(tmp_path):
     spec.write_text(__import__("json").dumps(data))
 
     runner = CliRunner()
-    res = runner.invoke(app, ["run", str(spec)])
+    res = runner.invoke(app, [
+        "run",
+        str(spec),
+        "--concurrency",
+        "2",
+        "--max-retries",
+        "1",
+        "--request-timeout",
+        "1",
+    ])
     assert res.exit_code == 0
     assert (tmp_path / "out.json").exists()
