@@ -11,19 +11,21 @@ Guidelines
 - After each milestone, aggregate runs and verify dashboard.
 
 Day 1 (2025-08-09) – Concurrency, retries, timeouts for adapters
-1) feat(utils): add retry/backoff helper (exponential jitter) and timeout context.
-2) feat(adapters): shared request executor with asyncio/semaphore + sync wrapper.
-3) feat(cli): add --concurrency, --max-retries, --request-timeout options to run.
-4) refactor(openai): use executor; surface adapter_kwargs for concurrency.
-5) test(utils): unit tests for retry/backoff behavior.
-6) test(openai): mock client; verify retries and timeout handling.
-7) docs(README): document new flags with OpenAI example.
-8) docs(examples): add examples/qa_openai_concurrency.json.
-9) feat(core): track request error counts in manifest.timing/errors.
-10) web(index): show error rate and request stats if present.
-11) web(leaderboard): add column toggle for error rate.
-12) chore: ruff rules for asyncio/safety; update pre-commit hooks.
-13) ci: add matrix run for Python 3.10–3.12 (non-required).
+1) feat(utils): add retry/backoff helper (exponential jitter) and timeout context. [done]
+2) feat(adapters): shared request executor with asyncio/semaphore + sync wrapper. [done]
+3) feat(cli): add --concurrency, --max-retries, --request-timeout options to run. [done]
+4) refactor(openai): use executor; surface adapter_kwargs for concurrency. [n/a]
+5) test(utils): unit tests for retry/backoff behavior. [done]
+6) test(openai): mock client; verify retries and timeout handling. [n/a]
+7) docs(README): document new flags with OpenAI example. [done]
+8) docs(examples): add examples/qa_openai_concurrency.json. [todo]
+9) feat(core): track request error counts in manifest.timing/errors. [done]
+10) web(index): show error rate and request stats if present. [done]
+11) web(leaderboard): add column toggle for error rate. [done]
+12) chore: ruff rules for asyncio/safety; update pre-commit hooks. [todo]
+13) ci: add matrix run for Python 3.10–3.12 (non-required). [done]
+
+Note: Added `openeval web` command to launch dashboard easily. [done]
 
 Day 2 (2025-08-10) – Prediction cache
 1) feat(cache): add file-based cache (SQLite or JSONL) keyed by adapter/model/prompt hash.
