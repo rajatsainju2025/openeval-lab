@@ -46,8 +46,8 @@ metrics = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-username/openeval-lab"
-Repository = "https://github.com/your-username/openeval-lab"
+Homepage = "https://github.com/rajatsainju2025/openeval-lab"
+Repository = "https://github.com/rajatsainju2025/openeval-lab"
 
 [project.scripts]
 openeval = "openeval.cli:app"
