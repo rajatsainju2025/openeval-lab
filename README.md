@@ -30,6 +30,10 @@ Multi-run leaderboard:
 - New command `openeval runs collect --dir runs` aggregates all `*.json` into `runs/index.json`.
 - Dashboard page `/leaderboard` compares metrics, latency, adapter, dataset fingerprint, spec hash, and optional run_name.
 
+Day 1 features (concurrency & reliability):
+- New CLI flags: `--concurrency N`, `--max-retries N`, `--request-timeout SEC`.
+- Core now executes requests concurrently with retry+timeout, and tracks error rate in timing.
+
 Examples:
 - QA task on JSONL and CSV: see `examples/`
 - Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`, then `openeval run examples/qa_openai_spec.json --records --artifacts runs` (costs may apply)

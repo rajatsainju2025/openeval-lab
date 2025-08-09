@@ -67,12 +67,24 @@ def run(
         True, help="When writing to --artifacts, save as runs/<timestamp>.json"
     ),
     run_name: Optional[str] = typer.Option(None, "--run-name", help="Optional label for this run"),
+    concurrency: int = typer.Option(1, help="Max concurrent requests (adapters may ignore)"),
+    max_retries: int = typer.Option(0, help="Max retries per request on failure"),
+    request_timeout: Optional[float] = typer.Option(None, help="Timeout per request (seconds)"),
 ):
     """Run an evaluation from a spec file."""
     try:
         task, dataset, adapter, metrics, out = load_spec(spec)
     except SystemExit as e:
         raise typer.Exit(code=2) from e
+
+    # attach runtime adapter knobs when available
+    if hasattr(adapter, "set_runtime_options"):
+        try:
+            adapter.set_runtime_options(
+                concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout
+            )
+        except Exception:
+            pass
 
     result = task.evaluate(adapter, dataset, metrics, seed=seed, collect_records=records)
 
