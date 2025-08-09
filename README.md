@@ -13,7 +13,7 @@ An extensible, reproducible evaluation framework for LLMs and multimodal agents.
 Quickstart:
 - Install: `pip install -e '.[dev]'`
 - Run example: `openeval run examples/qa_spec.json --records --artifacts artifacts`
-- View dashboard: `uvicorn openeval.web.app:app --reload`
+- View dashboard: `openeval web --reload` (then open http://localhost:8000)
 
 Optional extras:
 - OpenAI adapter: `pip install -e '.[openai]'`
@@ -28,7 +28,8 @@ Dashboard & artifacts:
 Multi-run leaderboard:
 - Every run can be saved with `--artifacts runs` to write timestamped `runs/<ts>.json`.
 - New command `openeval runs collect --dir runs` aggregates all `*.json` into `runs/index.json`.
-- Dashboard page `/leaderboard` compares metrics, latency, adapter, dataset fingerprint, spec hash, and optional run_name.
+- Dashboard page `/leaderboard` compares metrics, latency, error rate, adapter, dataset fingerprint, spec hash, and optional run_name.
+- Columns include avg latency, throughput, and error rate; sort client-side by metric or error rate.
 
 Day 1 features (concurrency & reliability):
 - New CLI flags: `--concurrency N`, `--max-retries N`, `--request-timeout SEC`.
@@ -43,7 +44,7 @@ Demo: leaderboard workflow
 - Install metrics: `pip install -e '.[metrics]'`
 - Run variants named and saved: `openeval run examples/qa_metrics_spec.json --run-name bleu+bertscore --records --artifacts runs`
 - Aggregate: `openeval runs collect --dir runs`
-- Start dashboard: `uvicorn openeval.web.app:app --reload` then open http://localhost:8000/leaderboard
+- Start dashboard: `openeval web --reload` then open http://localhost:8000/leaderboard
 
 Reproducibility
 - Each result includes a manifest (python/platform/packages) and dataset/spec hashes.

@@ -28,6 +28,7 @@
               <option value="sacrebleu.bleu">sacrebleu.bleu</option>
               <option value="bertscore.f1">bertscore.f1</option>
               <option value="timing.throughput_eps">timing.throughput_eps</option>
+              <option value="timing.error_rate">timing.error_rate</option>
             </select>
           </label>
           <label>Adapter <input id="filterAdapter" placeholder="contains..." /></label>
@@ -45,6 +46,7 @@
               <th>Metrics</th>
               <th>Latency (ms)</th>
               <th>Throughput (eps)</th>
+              <th>Error Rate</th>
               <th>Seed</th>
             </tr>
           </thead>
@@ -87,6 +89,7 @@
                 </td>
                 <td data-k="timing.avg_latency_ms" data-v="{{ r.timing.avg_latency_ms or 0 }}">{{ '%.1f'|format(r.timing.avg_latency_ms or 0) }}</td>
                 <td data-k="timing.throughput_eps" data-v="{{ r.timing.throughput_eps or 0 }}">{{ '%.2f'|format(r.timing.throughput_eps or 0) }}</td>
+                <td data-k="timing.error_rate" data-v="{{ r.timing.error_rate or 0 }}">{{ '%.1f'|format((r.timing.error_rate or 0)*100) }}%</td>
                 <td>{{ r.seed }}</td>
               </tr>
             {% endfor %}
