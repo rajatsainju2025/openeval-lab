@@ -80,13 +80,20 @@ def run(
     # attach runtime adapter knobs when available
     if hasattr(adapter, "set_runtime_options"):
         try:
-            adapter.set_runtime_options(
-                concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout
-            )
+            adapter.set_runtime_options(concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout)
         except Exception:
             pass
 
-    result = task.evaluate(adapter, dataset, metrics, seed=seed, collect_records=records)
+    result = task.evaluate(
+        adapter,
+        dataset,
+        metrics,
+        seed=seed,
+        collect_records=records,
+        concurrency=concurrency,
+        max_retries=max_retries,
+        request_timeout=request_timeout,
+    )
 
     # enrich with spec metadata and optional run name
     result["spec_path"] = str(spec)
