@@ -28,18 +28,18 @@ Day 1 (2025-08-09) – Concurrency, retries, timeouts for adapters
 Note: Added `openeval web` command to launch dashboard easily. [done]
 
 Day 2 (2025-08-10) – Prediction cache
-1) feat(cache): add file-based cache (SQLite or JSONL) keyed by adapter/model/prompt hash.
-2) feat(cli): add --cache-dir and --cache-mode (off, read, write, rw) to run.
-3) refactor(core): integrate cache read/write around adapter.generate.
-4) feat(core): manifest.cache with hits/misses/ratio.
-5) test(cache): unit tests for cache hit/miss and invalidation by model/adapter.
-6) docs(README): caching usage and caveats; deterministic prompts guidance.
-7) docs(examples): add examples/qa_cache_spec.json.
-8) web(index): show cache hit ratio and annotate cached records.
-9) web(leaderboard): filter/sort by cache hit ratio.
-10) perf: fast prompt hashing utilizing blake3 (optional dependency).
-11) chore: optional extra [perf] for blake3 and sqlite3 helpers.
-12) ci: cache test artifacts between steps (actions/cache for .pytest_cache).
+1) feat(cache): add file-based cache (SQLite or JSONL) keyed by adapter/model/prompt hash. [done]
+2) feat(cli): add --cache-dir and --cache-mode (off, read, write, rw) to run. [done]
+3) refactor(core): integrate cache read/write around adapter.generate. [done]
+4) feat(core): manifest.cache with hits/misses/ratio. [done]
+5) test(cache): unit tests for cache hit/miss and invalidation by model/adapter. [done]
+6) docs(README): caching usage and caveats; deterministic prompts guidance. [done]
+7) docs(examples): add examples/qa_cache_spec.json. [done]
+8) web(index): show cache hit ratio and annotate cached records. [done]
+9) web(leaderboard): filter/sort by cache hit ratio. [done]
+10) perf: fast prompt hashing utilizing blake3 (optional dependency). [todo]
+11) chore: optional extra [perf] for blake3 and sqlite3 helpers. [todo]
+12) ci: cache test artifacts between steps (actions/cache for .pytest_cache). [todo]
 
 Day 3 (2025-08-11) – Summarization task + ROUGE
 1) feat(tasks): add SummarizationTask with prompt template/options.
