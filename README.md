@@ -20,6 +20,11 @@ Optional extras:
 - Hugging Face datasets: `pip install -e '.[hf]'`
 - Advanced metrics (SacreBLEU, BERTScore): `pip install -e '.[metrics]'`
 
+Caching (Day 2):
+- Flags: `--cache off|read|write|rw`, `--cache-dir .openeval-cache`, `--cache-ttl SECONDS`.
+- Example: `openeval run examples/qa_spec.json --cache rw --cache-dir .openeval-cache --records`.
+- Stats: hit/miss/hit-rate recorded under `timing.*`; dashboard shows cache hit rate and marks cached records.
+
 Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
 - Use `--artifacts DIR` to write outputs to a directory.
@@ -28,8 +33,8 @@ Dashboard & artifacts:
 Multi-run leaderboard:
 - Every run can be saved with `--artifacts runs` to write timestamped `runs/<ts>.json`.
 - New command `openeval runs collect --dir runs` aggregates all `*.json` into `runs/index.json`.
-- Dashboard page `/leaderboard` compares metrics, latency, error rate, adapter, dataset fingerprint, spec hash, and optional run_name.
-- Columns include avg latency, throughput, and error rate; sort client-side by metric or error rate.
+- Dashboard page `/leaderboard` compares metrics, latency, error rate, cache hit rate, adapter, dataset fingerprint, spec hash, and optional run_name.
+- Columns include avg latency, throughput, error rate, and cache hit rate; sort client-side.
 
 Day 1 features (concurrency & reliability):
 - New CLI flags: `--concurrency N`, `--max-retries N`, `--request-timeout SEC`.
