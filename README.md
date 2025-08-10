@@ -18,12 +18,21 @@ Quickstart:
 Optional extras:
 - OpenAI adapter: `pip install -e '.[openai]'`
 - Hugging Face datasets: `pip install -e '.[hf]'`
-- Advanced metrics (SacreBLEU, BERTScore): `pip install -e '.[metrics]'`
+- Advanced metrics (SacreBLEU, BERTScore, ROUGE-L): `pip install -e '.[metrics]'`
 
 Caching (Day 2):
 - Flags: `--cache off|read|write|rw`, `--cache-dir .openeval-cache`, `--cache-ttl SECONDS`.
 - Example: `openeval run examples/qa_spec.json --cache rw --cache-dir .openeval-cache --records`.
 - Stats: hit/miss/hit-rate recorded under `timing.*`; dashboard shows cache hit rate and marks cached records.
+
+Summarization + ROUGE-L (Day 3):
+- Try summarization: `openeval run examples/sum_spec.json --records --artifacts runs`
+- Datasets: `examples/sum_toy.jsonl`
+- Metric: ROUGE-L via `openeval.metrics.rouge.ROUGEL` (install `.[metrics]`)
+
+Spec tools:
+- Print schema: `openeval schema`
+- Validate a spec: `openeval validate examples/qa_spec.json`
 
 Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
