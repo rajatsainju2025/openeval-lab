@@ -70,6 +70,9 @@ def run(
     concurrency: int = typer.Option(1, help="Max concurrent requests (adapters may ignore)"),
     max_retries: int = typer.Option(0, help="Max retries per request on failure"),
     request_timeout: Optional[float] = typer.Option(None, help="Timeout per request (seconds)"),
+    cache_dir: Optional[Path] = typer.Option(None, "--cache-dir", help="Prediction cache directory"),
+    cache_mode: str = typer.Option("off", "--cache", help="Cache mode: off|read|write|rw"),
+    cache_ttl: Optional[float] = typer.Option(None, "--cache-ttl", help="Cache TTL seconds (optional)"),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -78,11 +81,19 @@ def run(
         raise typer.Exit(code=2) from e
 
     # attach runtime adapter knobs when available
-    if hasattr(adapter, "set_runtime_options"):
+    _set_opts = getattr(adapter, "set_runtime_options", None)
+    if callable(_set_opts):
         try:
-            adapter.set_runtime_options(concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout)
+            _set_opts(concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout)
         except Exception:
             pass
+
+    # Pass cache options into task via special attributes on adapter (simple plumbing)
+    if cache_dir is not None:
+        setattr(adapter, "_cache_dir", str(cache_dir))
+    setattr(adapter, "_cache_mode", cache_mode)
+    if cache_ttl is not None:
+        setattr(adapter, "_cache_ttl", float(cache_ttl))
 
     result = task.evaluate(
         adapter,
