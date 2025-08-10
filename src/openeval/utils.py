@@ -34,6 +34,18 @@ def hash_file(path: Path | str, *, algo: str = "sha256", chunk_size: int = 1 << 
     return h.hexdigest()
 
 
+def hash_prompt(key_parts: list[str], algo: str = "sha256") -> str:
+    """Hash adapter/model/prompt/kwargs into a stable cache key.
+
+    key_parts: ordered list of stable strings (e.g., adapter name, model, prompt, sorted kwargs JSON)
+    """
+    h = hashlib.new(algo)
+    for part in key_parts:
+        h.update(part.encode("utf-8"))
+        h.update(b"\x1f")  # unit separator
+    return h.hexdigest()
+
+
 T = TypeVar("T")
 
 
