@@ -1,0 +1,8 @@
+{
+  "task": "openeval.tasks.summarization.SummarizationTask",
+  "dataset": "openeval.datasets.jsonl.JSONLinesDataset",
+  "adapter": "openeval.adapters.echo.EchoAdapter",
+  "dataset_kwargs": { "path": "examples/sum_toy.jsonl" },
+  "metrics": [ { "name": "openeval.metrics.rouge.ROUGEL" } ],
+  "output": "results.json"
+}
