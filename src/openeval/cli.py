@@ -206,5 +206,17 @@ def web(
     uvicorn.run("openeval.web.app:app", host=host, port=port, reload=reload)
 
 
+@app.command()
+def validate(spec: Path = typer.Argument(..., help="Path to JSON/YAML spec to validate")):
+    """Validate a spec file (schema + importability)."""
+    try:
+        # Attempt full load to validate dotted imports and kwargs
+        load_spec(spec)
+        print({"valid": True, "spec": str(spec)})
+    except SystemExit as e:
+        print({"valid": False, "spec": str(spec), "error": str(e)})
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
