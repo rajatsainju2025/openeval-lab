@@ -10,7 +10,8 @@ import platform
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .utils import set_seed, hash_file, retry_call, run_with_timeout
+from .utils import set_seed, hash_file, retry_call, run_with_timeout, hash_prompt
+from .cache import PredictionCache, CacheStats
 
 
 class Adapter(Protocol):
@@ -78,15 +79,61 @@ class Task(ABC):
         references: List[Any] = [None] * n
         per_latency: List[float] = [0.0] * n
         per_error: List[Optional[str]] = [None] * n
+        per_cached: List[bool] = [False] * n
 
         success_count = 0
         error_count = 0
 
+        # Cache plumbing (adapter attributes set by CLI)
+        cache_mode = str(getattr(adapter, "_cache_mode", "off")).lower()
+        cache_dir = getattr(adapter, "_cache_dir", None)
+        cache_ttl = getattr(adapter, "_cache_ttl", None)
+        cache: Optional[PredictionCache] = None
+        cache_stats = CacheStats()
+        if cache_mode != "off" and cache_dir is not None:
+            try:
+                cache = PredictionCache(Path(cache_dir))
+            except Exception:
+                cache = None
+
+        def _cache_key(prompt: str) -> str:
+            adapter_name = getattr(adapter, "name", adapter.__class__.__name__)
+            # Future: include model and adapter kwargs; here we only include adapter name and prompt
+            return hash_prompt([adapter_name, prompt])
+
+        def _maybe_read_cache(prompt: str) -> Optional[str]:
+            if cache is None or cache_mode not in {"read", "rw", "write"}:
+                return None
+            if cache_mode == "write":
+                return None
+            try:
+                val = cache.get(_cache_key(prompt), ttl=cache_ttl)
+            except Exception:
+                return None
+            if val is not None:
+                cache_stats.hits += 1
+            else:
+                cache_stats.misses += 1
+            return val
+
+        def _maybe_write_cache(prompt: str, output: str) -> None:
+            if cache is None or cache_mode not in {"write", "rw"}:
+                return
+            try:
+                cache.set(_cache_key(prompt), output)
+            except Exception:
+                pass
+
         def _call_generate(prompt: str) -> str:
-            return retry_call(
+            cached = _maybe_read_cache(prompt)
+            if cached is not None:
+                return cached
+            out = retry_call(
                 lambda: run_with_timeout(lambda: adapter.generate(prompt), request_timeout),
                 retries=max_retries,
             )
+            _maybe_write_cache(prompt, out)
+            return out
 
         t0 = time.perf_counter()
         if max(1, int(concurrency)) <= 1:
@@ -95,7 +142,16 @@ class Task(ABC):
                 prompt = self.build_prompt(ex)
                 s = time.perf_counter()
                 try:
-                    raw = _call_generate(prompt)
+                    cached = _maybe_read_cache(prompt)
+                    if cached is not None:
+                        raw = cached
+                        per_cached[i] = True
+                    else:
+                        raw = retry_call(
+                            lambda: run_with_timeout(lambda: adapter.generate(prompt), request_timeout),
+                            retries=max_retries,
+                        )
+                        _maybe_write_cache(prompt, raw)
                     e = time.perf_counter()
                     per_latency[i] = e - s
                     success_count += 1
@@ -117,20 +173,31 @@ class Task(ABC):
                         def _job():
                             s = time.perf_counter()
                             try:
-                                raw = _call_generate(pr)
+                                cached = _maybe_read_cache(pr)
+                                if cached is not None:
+                                    raw = cached
+                                    cached_flag = True
+                                else:
+                                    raw = retry_call(
+                                        lambda: run_with_timeout(lambda: adapter.generate(pr), request_timeout),
+                                        retries=max_retries,
+                                    )
+                                    _maybe_write_cache(pr, raw)
+                                    cached_flag = False
                                 e = time.perf_counter()
-                                return idx, self.postprocess(raw), (e - s), None
+                                return idx, self.postprocess(raw), (e - s), None, cached_flag
                             except Exception as err:
                                 e = time.perf_counter()
-                                return idx, "", (e - s), str(err)
+                                return idx, "", (e - s), str(err), False
 
                         return _job
 
                     futures.append(pool.submit(make_job(i, prompt)))
                 for fut in as_completed(futures):
-                    idx, pred, dur, err = fut.result()
+                    idx, pred, dur, err, cached_flag = fut.result()
                     predictions[idx] = pred
                     per_latency[idx] = dur
+                    per_cached[idx] = cached_flag
                     if err is None:
                         success_count += 1
                     else:
@@ -208,6 +275,9 @@ class Task(ABC):
                 "request_successes": success_count,
                 "request_errors": error_count,
                 "error_rate": (error_count / n) if n > 0 else 0.0,
+                "cache_hits": cache_stats.hits,
+                "cache_misses": cache_stats.misses,
+                "cache_hit_rate": cache_stats.hit_rate,
             },
             "manifest": manifest,
         }
@@ -233,6 +303,14 @@ class Task(ABC):
                 }
                 if per_error[i] is not None:
                     rec["error"] = per_error[i]
+                if per_cached[i]:
+                    rec["cached"] = True
                 records.append(rec)
             payload["records"] = records
+        # close cache connection
+        if cache is not None:
+            try:
+                cache.close()
+            except Exception:
+                pass
         return payload
