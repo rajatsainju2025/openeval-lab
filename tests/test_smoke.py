@@ -47,6 +47,12 @@ def test_cli(tmp_path):
         "1",
         "--request-timeout",
         "1",
+        "--cache",
+        "rw",
+        "--cache-dir",
+        str(tmp_path / ".cache"),
+        "--cache-ttl",
+        "60",
     ])
     assert res.exit_code == 0
     assert (tmp_path / "out.json").exists()
