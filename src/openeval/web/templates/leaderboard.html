@@ -14,6 +14,8 @@
       code { background: #f7f7f7; padding: 2px 4px; border-radius: 4px; }
       .controls { display: flex; gap: 12px; margin-bottom: 12px; }
       select, input { padding: 6px 8px; }
+      a.rowlink { color: #0366d6; text-decoration: none; }
+      a.rowlink:hover { text-decoration: underline; }
     </style>
   </head>
   <body>
@@ -56,7 +58,7 @@
             {% for r in runs %}
               <tr>
                 <td>
-                  <div><code>{{ r._file }}</code>{% if r.run_name %} — {{ r.run_name }}{% endif %}</div>
+                  <div><a class="rowlink" href="/run/{{ r._file }}"><code>{{ r._file }}</code></a>{% if r.run_name %} — {{ r.run_name }}{% endif %}</div>
                   {% if r.spec_hash_sha256 %}
                     <div class="muted" style="font-size: 12px;">spec: {{ r.spec_hash_sha256[:12] }}…</div>
                   {% endif %}

@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <style>
+      body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; color: #111; margin: 2rem; }
+      .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);} 
+      .muted { color: #666; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; }
+      th { background: #fafafa; }
+      code { background: #f7f7f7; padding: 2px 4px; border-radius: 4px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .meta { font-size: 14px; }
+      .pagination a { margin-right: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>{{ title }}</h1>
+      {% if data %}
+        <div class="row">
+          <div class="meta">
+            <p><strong>Task:</strong> <code>{{ data.task }}</code> &nbsp; <strong>Dataset:</strong> <code>{{ data.dataset }}</code> &nbsp; <strong>Adapter:</strong> <code>{{ data.adapter }}</code></p>
+            <p><strong>Size:</strong> {{ data.size }} &nbsp; <strong>Seed:</strong> {{ data.seed }}</p>
+            {% if data.dataset_path %}<p class="muted">{{ data.dataset_path }}</p>{% endif %}
+            {% if data.dataset_hash_sha256 %}<p class="muted">dataset sha256: {{ data.dataset_hash_sha256[:16] }}…</p>{% endif %}
+            {% if data.spec_hash_sha256 %}<p class="muted">spec sha256: {{ data.spec_hash_sha256[:16] }}…</p>{% endif %}
+            {% if data.timing %}
+              <p>
+                <strong>Latency:</strong> {{ '%.1f'|format(data.timing.avg_latency_ms or 0) }} ms &nbsp;
+                <strong>Throughput:</strong> {{ '%.2f'|format(data.timing.throughput_eps or 0) }} eps &nbsp;
+                {% if data.timing.error_rate is not none %}<strong>Error rate:</strong> {{ '%.1f'|format((data.timing.error_rate or 0)*100) }}% &nbsp;{% endif %}
+                {% if data.timing.cache_hit_rate is not none %}<strong>Cache hit rate:</strong> {{ '%.1f'|format((data.timing.cache_hit_rate or 0)*100) }}%{% endif %}
+              </p>
+            {% endif %}
+          </div>
+          <div>
+            {% if data.metrics %}
+              <h3>Metrics</h3>
+              {% for name, vals in data.metrics.items() %}
+                <div>
+                  <strong>{{ name }}</strong>:
+                  {% if 'error' in vals %}
+                    <span class="muted">{{ vals.error }}</span>
+                  {% else %}
+                    {% for k, v in vals.items() %}
+                      <span>{{ k }}={{ '%.3f'|format(v) }}</span>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+        <hr />
+        <h3>Records ({{ pagination.total }} total)</h3>
+        {% if records and records|length > 0 %}
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>ID</th>
+                <th>Input</th>
+                <th>Reference</th>
+                <th>Prediction</th>
+                <th>Latency (ms)</th>
+                <th>Cached</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in records %}
+                <tr>
+                  <td>{{ loop.index0 + pagination.offset + 1 }}</td>
+                  <td>{{ r.id or r.example_id }}</td>
+                  <td style="max-width: 420px; overflow: hidden; text-overflow: ellipsis;">{{ r.input }}</td>
+                  <td style="max-width: 320px; overflow: hidden; text-overflow: ellipsis;">{{ r.reference }}</td>
+                  <td style="max-width: 420px; overflow: hidden; text-overflow: ellipsis;">{{ r.prediction }}</td>
+                  <td>{{ '%.2f'|format(r.latency_ms or 0) }}</td>
+                  <td>{% if r.cached %}yes{% else %}no{% endif %}</td>
+                  <td class="muted">{{ r.error }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="pagination">
+            {% set prev = pagination.offset - pagination.limit %}
+            {% set next = pagination.offset + pagination.limit %}
+            {% if prev >= 0 %}
+              <a href="/run/{{ file }}?offset={{ prev }}&limit={{ pagination.limit }}">Prev</a>
+            {% endif %}
+            {% if next < pagination.total %}
+              <a href="/run/{{ file }}?offset={{ next }}&limit={{ pagination.limit }}">Next</a>
+            {% endif %}
+          </p>
+        {% else %}
+          <p class="muted">No records found. Ensure you ran with --records and saved artifacts.</p>
+        {% endif %}
+      {% else %}
+        <p class="muted">Run file not found under <code>runs/</code>.</p>
+      {% endif %}
+    </div>
+  </body>
+</html>

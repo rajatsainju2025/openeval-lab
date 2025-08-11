@@ -38,6 +38,7 @@ Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
 - Use `--artifacts DIR` to write outputs to a directory.
 - The dashboard reads `results.json` from the CWD; copy your artifact there to preview.
+- Leaderboard rows link to detailed run pages at `/run/<file>` with paginated records.
 
 Multi-run leaderboard:
 - Every run can be saved with `--artifacts runs` to write timestamped `runs/<ts>.json`.
@@ -59,6 +60,7 @@ Demo: leaderboard workflow
 - Run variants named and saved: `openeval run examples/qa_metrics_spec.json --run-name bleu+bertscore --records --artifacts runs`
 - Aggregate: `openeval runs collect --dir runs`
 - Start dashboard: `openeval web --reload` then open http://localhost:8000/leaderboard
+- Click a run filename to open its detail page at `/run/<file>`.
 
 Reproducibility
 - Each result includes a manifest (python/platform/packages) and dataset/spec hashes.
