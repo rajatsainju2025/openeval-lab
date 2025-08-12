@@ -259,5 +259,67 @@ def write_out(
             print(r)
 
 
+@app.command()
+def library(
+    action: str = typer.Argument(..., help="Action: list|info|export"),
+    task_id: Optional[str] = typer.Argument(None, help="Task ID for info/export actions"),
+    category: Optional[str] = typer.Option(None, "--category", help="Filter by category"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Output file for export"),
+):
+    """Interact with the curated task library."""
+    from .library import get_task_library
+    
+    lib = get_task_library()
+    
+    if action == "list":
+        tasks = lib.list_tasks(category=category)
+        if not tasks:
+            print("No tasks found")
+            return
+        
+        print(f"Found {len(tasks)} tasks:")
+        for task in tasks:
+            print(f"  {task['id']} ({task['category']}): {task['description']}")
+    
+    elif action == "info":
+        if not task_id:
+            print("Task ID required for info action")
+            raise typer.Exit(1)
+        
+        task = lib.get_task(task_id)
+        if not task:
+            print(f"Task {task_id} not found")
+            raise typer.Exit(1)
+        
+        print(json.dumps(task, indent=2))
+    
+    elif action == "export":
+        if not task_id:
+            print("Task ID required for export action")
+            raise typer.Exit(1)
+        
+        if not output:
+            output = Path(f"{task_id}_spec.json")
+        
+        try:
+            lib.export_task(task_id, str(output))
+            print(f"Exported {task_id} to {output}")
+        except ValueError as e:
+            print(str(e))
+            raise typer.Exit(1)
+    
+    elif action == "categories":
+        categories = lib.list_categories()
+        print("Available categories:")
+        for cat in categories:
+            tasks = lib.get_category_tasks(cat)
+            print(f"  {cat} ({len(tasks)} tasks)")
+    
+    else:
+        print(f"Unknown action: {action}")
+        print("Available actions: list, info, export, categories")
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

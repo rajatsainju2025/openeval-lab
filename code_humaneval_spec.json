@@ -1,0 +1,21 @@
+{
+  "task": "openeval.tasks.code:HumanEvalTask",
+  "dataset": {
+    "type": "openeval.datasets.code:HumanEvalDataset",
+    "path": "examples/code_toy.jsonl"
+  },
+  "adapter": {
+    "type": "openeval.adapters.echo:EchoAdapter"
+  },
+  "metrics": [
+    {
+      "type": "openeval.metrics.code_execution:HumanEvalMetric",
+      "timeout": 3.0,
+      "k_values": [
+        1,
+        10,
+        100
+      ]
+    }
+  ]
+}
