@@ -70,9 +70,13 @@ def run(
     concurrency: int = typer.Option(1, help="Max concurrent requests (adapters may ignore)"),
     max_retries: int = typer.Option(0, help="Max retries per request on failure"),
     request_timeout: Optional[float] = typer.Option(None, help="Timeout per request (seconds)"),
-    cache_dir: Optional[Path] = typer.Option(None, "--cache-dir", help="Prediction cache directory"),
+    cache_dir: Optional[Path] = typer.Option(
+        None, "--cache-dir", help="Prediction cache directory"
+    ),
     cache_mode: str = typer.Option("off", "--cache", help="Cache mode: off|read|write|rw"),
-    cache_ttl: Optional[float] = typer.Option(None, "--cache-ttl", help="Cache TTL seconds (optional)"),
+    cache_ttl: Optional[float] = typer.Option(
+        None, "--cache-ttl", help="Cache TTL seconds (optional)"
+    ),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -84,7 +88,9 @@ def run(
     _set_opts = getattr(adapter, "set_runtime_options", None)
     if callable(_set_opts):
         try:
-            _set_opts(concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout)
+            _set_opts(
+                concurrency=concurrency, max_retries=max_retries, request_timeout=request_timeout
+            )
         except Exception:
             pass
 
@@ -223,7 +229,9 @@ def write_out(
     spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
     out: Optional[Path] = typer.Option(None, "--out", help="Write prompts to this file (JSONL)"),
     limit: Optional[int] = typer.Option(None, "--limit", help="Max examples to render"),
-    preview: int = typer.Option(5, "--preview", help="How many prompts to print when not writing to a file"),
+    preview: int = typer.Option(
+        5, "--preview", help="How many prompts to print when not writing to a file"
+    ),
 ):
     """Render task prompts for the dataset in a spec (for debugging)."""
     try:
@@ -236,12 +244,14 @@ def write_out(
     count = 0
     for ex in dataset:
         prompt = task.build_prompt_with_template(ex)
-        rows.append({
-            "id": ex.id,
-            "input": ex.input,
-            "reference": ex.reference,
-            "prompt": prompt,
-        })
+        rows.append(
+            {
+                "id": ex.id,
+                "input": ex.input,
+                "reference": ex.reference,
+                "prompt": prompt,
+            }
+        )
         count += 1
         if limit is not None and count >= limit:
             break
@@ -268,53 +278,53 @@ def library(
 ):
     """Interact with the curated task library."""
     from .library import get_task_library
-    
+
     lib = get_task_library()
-    
+
     if action == "list":
         tasks = lib.list_tasks(category=category)
         if not tasks:
             print("No tasks found")
             return
-        
+
         print(f"Found {len(tasks)} tasks:")
         for task in tasks:
             print(f"  {task['id']} ({task['category']}): {task['description']}")
-    
+
     elif action == "info":
         if not task_id:
             print("Task ID required for info action")
             raise typer.Exit(1)
-        
+
         task = lib.get_task(task_id)
         if not task:
             print(f"Task {task_id} not found")
             raise typer.Exit(1)
-        
+
         print(json.dumps(task, indent=2))
-    
+
     elif action == "export":
         if not task_id:
             print("Task ID required for export action")
             raise typer.Exit(1)
-        
+
         if not output:
             output = Path(f"{task_id}_spec.json")
-        
+
         try:
             lib.export_task(task_id, str(output))
             print(f"Exported {task_id} to {output}")
         except ValueError as e:
             print(str(e))
             raise typer.Exit(1)
-    
+
     elif action == "categories":
         categories = lib.list_categories()
         print("Available categories:")
         for cat in categories:
             tasks = lib.get_category_tasks(cat)
             print(f"  {cat} ({len(tasks)} tasks)")
-    
+
     else:
         print(f"Unknown action: {action}")
         print("Available actions: list, info, export, categories")

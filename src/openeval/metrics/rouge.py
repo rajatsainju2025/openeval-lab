@@ -10,7 +10,9 @@ class ROUGEL:
         try:
             from rouge_score import rouge_scorer  # noqa: F401
         except Exception as e:  # pragma: no cover - optional dep
-            raise RuntimeError("rouge-score not installed; install with `pip install -e '.[metrics]'`") from e
+            raise RuntimeError(
+                "rouge-score not installed; install with `pip install -e '.[metrics]'`"
+            ) from e
 
     def compute(self, predictions: Iterable[str], references: Iterable[str]) -> Mapping[str, float]:
         from rouge_score import rouge_scorer

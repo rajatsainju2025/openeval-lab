@@ -86,4 +86,3 @@ class PredictionCache:
                 "INSERT OR REPLACE INTO kv(key, value, created_at) VALUES(?,?,?)",
                 (key, payload, time.time()),
             )
-

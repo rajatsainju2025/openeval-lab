@@ -57,22 +57,9 @@ class LLMJudge:
         return "Tie"
 
     def _prompts_for(self, prompt: str, pred: str, ref: str) -> Tuple[str, str]:
-        common = (
-            f"{self.instruction}\n\n"
-            f"Prompt:\n{prompt}\n\n"
-        )
-        p1 = (
-            common
-            + f"Response A:\n{pred}\n\n"
-            + f"Response B:\n{ref}\n\n"
-            + "Answer:"
-        )
-        p2 = (
-            common
-            + f"Response A:\n{ref}\n\n"
-            + f"Response B:\n{pred}\n\n"
-            + "Answer:"
-        )
+        common = f"{self.instruction}\n\n" f"Prompt:\n{prompt}\n\n"
+        p1 = common + f"Response A:\n{pred}\n\n" + f"Response B:\n{ref}\n\n" + "Answer:"
+        p2 = common + f"Response A:\n{ref}\n\n" + f"Response B:\n{pred}\n\n" + "Answer:"
         return p1, p2
 
     def compute(self, predictions: Iterable[str], references: Iterable[str]) -> Mapping[str, float]:

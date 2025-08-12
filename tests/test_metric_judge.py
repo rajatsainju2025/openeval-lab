@@ -18,10 +18,12 @@ def test_llm_judge_order_balance():
         def __init__(self):
             super().__init__()
             self.calls = []
+
         def generate(self, prompt: str, **kwargs):
             # Return 'A' on first call, 'B' on second call
             self.calls.append(prompt)
             return "A" if len(self.calls) % 2 == 1 else "B"
+
     m = LLMJudge(judge_adapter="echo")
     # monkeypatch load to use FakeAdapter
     m._load_adapter = lambda: FakeAdapter()

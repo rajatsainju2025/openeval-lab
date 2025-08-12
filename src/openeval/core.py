@@ -54,7 +54,7 @@ class Dataset(ABC):
 
 class Task(ABC):
     name: str
-    
+
     def __init__(self, prompt_template: Optional[Union[str, PromptTemplate]] = None):
         """Initialize task with optional prompt template."""
         self._prompt_template_raw = prompt_template
@@ -65,21 +65,16 @@ class Task(ABC):
 
     @abstractmethod
     def build_prompt(self, ex: Example) -> str: ...
-    
+
     def build_prompt_with_template(self, ex: Example, **extra_vars) -> str:
         """Build prompt using template if available, otherwise fallback to build_prompt."""
         if self.prompt_template is not None:
             # Prepare template variables
-            variables = {
-                'input': ex.input,
-                'reference': ex.reference,
-                'id': ex.id,
-                **extra_vars
-            }
+            variables = {"input": ex.input, "reference": ex.reference, "id": ex.id, **extra_vars}
             # Add meta fields as top-level variables
             if ex.meta:
                 variables.update(ex.meta)
-            
+
             return self.prompt_template.render(**variables)
         else:
             return self.build_prompt(ex)
@@ -175,7 +170,9 @@ class Task(ABC):
                         per_cached[i] = True
                     else:
                         raw = retry_call(
-                            lambda: run_with_timeout(lambda: adapter.generate(prompt), request_timeout),
+                            lambda: run_with_timeout(
+                                lambda: adapter.generate(prompt), request_timeout
+                            ),
                             retries=max_retries,
                         )
                         _maybe_write_cache(prompt, raw)
@@ -206,7 +203,9 @@ class Task(ABC):
                                     cached_flag = True
                                 else:
                                     raw = retry_call(
-                                        lambda: run_with_timeout(lambda: adapter.generate(pr), request_timeout),
+                                        lambda: run_with_timeout(
+                                            lambda: adapter.generate(pr), request_timeout
+                                        ),
                                         retries=max_retries,
                                     )
                                     _maybe_write_cache(pr, raw)

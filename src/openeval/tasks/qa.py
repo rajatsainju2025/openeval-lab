@@ -12,7 +12,11 @@ class QATask(Task):
     name: str = "qa"
     instruction: str = "Answer the question concisely."
 
-    def __init__(self, instruction: str = "Answer the question concisely.", prompt_template: Optional[Union[str, PromptTemplate]] = None):
+    def __init__(
+        self,
+        instruction: str = "Answer the question concisely.",
+        prompt_template: Optional[Union[str, PromptTemplate]] = None,
+    ):
         """Initialize QA task with optional template."""
         self.instruction = instruction
         if prompt_template is None:
@@ -23,10 +27,10 @@ class QATask(Task):
     def build_prompt(self, ex: Example) -> str:
         """Fallback prompt building if no template is used."""
         return f"{self.instruction}\n\nQ: {ex.input}\nA:"
-    
+
     def build_prompt_with_template(self, ex: Example, **extra_vars) -> str:
         """Build prompt with template, including instruction."""
-        extra_vars.setdefault('instruction', self.instruction)
+        extra_vars.setdefault("instruction", self.instruction)
         return super().build_prompt_with_template(ex, **extra_vars)
 
     def postprocess(self, raw_output: str):

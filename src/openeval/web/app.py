@@ -61,7 +61,7 @@ def run_detail(file: str, offset: int = 0, limit: int = 50):
     # slice records for pagination without mutating original
     records = list(data.get("records", []))
     total = len(records)
-    page = records[offset: offset + limit] if records else []
+    page = records[offset : offset + limit] if records else []
     return tpl.render(
         title=f"Run {file}",
         file=file,
