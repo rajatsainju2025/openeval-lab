@@ -8,6 +8,7 @@ from typing import Any, List, Tuple
 from pydantic import BaseModel, Field, ValidationError
 
 from .core import Adapter, Dataset, Metric, Task
+from .registry import lookup
 
 try:
     import yaml  # type: ignore
@@ -45,6 +46,12 @@ def _load_dotted(path: str):
     return getattr(mod, cls_name)
 
 
+def _resolve_or_load(kind: str, value: str):
+    # allow short names via registry (e.g., 'qa', 'jsonl', 'echo', 'exact_match')
+    dotted = lookup(kind, value) or value
+    return _load_dotted(dotted)
+
+
 def _read_spec_file(p: Path) -> dict[str, Any]:
     if p.suffix.lower() in {".yaml", ".yml"}:
         if yaml is None:
@@ -61,9 +68,9 @@ def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], s
     except ValidationError as e:
         raise SystemExit(f"Invalid spec: {e}")
 
-    task_cls = _load_dotted(spec.task)
-    dataset_cls = _load_dotted(spec.dataset)
-    adapter_cls = _load_dotted(spec.adapter)
+    task_cls = _resolve_or_load("task", spec.task)
+    dataset_cls = _resolve_or_load("dataset", spec.dataset)
+    adapter_cls = _resolve_or_load("adapter", spec.adapter)
 
     task: Task = task_cls(**spec.task_kwargs)
     dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
@@ -71,7 +78,7 @@ def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], s
 
     metrics: list[Metric] = []
     for m in spec.metrics:
-        m_cls = _load_dotted(m.name)
+        m_cls = _resolve_or_load("metric", m.name)
         metrics.append(m_cls(**m.kwargs))
 
     return task, dataset, adapter, metrics, spec.output

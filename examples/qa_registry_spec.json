@@ -1,0 +1,13 @@
+{
+  "task": "qa",
+  "dataset": "jsonl",
+  "adapter": "echo",
+  "task_kwargs": {"instruction": "Answer the question concisely."},
+  "dataset_kwargs": {"path": "examples/qa_toy.jsonl"},
+  "adapter_kwargs": {},
+  "metrics": [
+    {"name": "exact_match"},
+    {"name": "token_f1"}
+  ],
+  "output": "results.json"
+}

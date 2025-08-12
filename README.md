@@ -33,6 +33,7 @@ Summarization + ROUGE-L (Day 3):
 Spec tools:
 - Print schema: `openeval schema`
 - Validate a spec: `openeval validate examples/qa_spec.json`
+- Use short names via registry: `task: qa`, `dataset: jsonl`, `adapter: echo`, `metrics: [{"name": "exact_match"}]`.
 
 Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
