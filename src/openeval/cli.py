@@ -235,7 +235,7 @@ def write_out(
     rows = []
     count = 0
     for ex in dataset:
-        prompt = task.build_prompt(ex)
+        prompt = task.build_prompt_with_template(ex)
         rows.append({
             "id": ex.id,
             "input": ex.input,

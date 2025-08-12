@@ -63,4 +63,4 @@ line-length = 100
 line-length = 100
 
 [tool.pytest.ini_options]
-addopts = "-q --cov=openeval --cov-report=xml"
+addopts = "-q"

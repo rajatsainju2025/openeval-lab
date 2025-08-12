@@ -1,0 +1,16 @@
+{
+  "task": "openeval.tasks.qa:QATask",
+  "task_kwargs": {
+    "prompt_template": "{{instruction}}\n\nQuestion: {{input}}\nAnswer:"
+  },
+  "dataset": "openeval.datasets.jsonl:JSONLinesDataset",
+  "dataset_kwargs": {
+    "path": "examples/qa_toy.jsonl"
+  },
+  "adapter": "openeval.adapters.echo:EchoAdapter",
+  "metrics": [
+    {
+      "name": "openeval.metrics.accuracy:ExactMatch"
+    }
+  ]
+}

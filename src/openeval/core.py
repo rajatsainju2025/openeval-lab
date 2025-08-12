@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Union
 from pathlib import Path
 import time
 import sys
@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .utils import set_seed, hash_file, retry_call, run_with_timeout, hash_prompt
 from .cache import PredictionCache, CacheStats
+from .prompt import PromptTemplate, build_prompt
 
 
 class Adapter(Protocol):
@@ -53,9 +54,35 @@ class Dataset(ABC):
 
 class Task(ABC):
     name: str
+    
+    def __init__(self, prompt_template: Optional[Union[str, PromptTemplate]] = None):
+        """Initialize task with optional prompt template."""
+        self._prompt_template_raw = prompt_template
+        if isinstance(prompt_template, str):
+            self.prompt_template = PromptTemplate(prompt_template)
+        else:
+            self.prompt_template = prompt_template
 
     @abstractmethod
     def build_prompt(self, ex: Example) -> str: ...
+    
+    def build_prompt_with_template(self, ex: Example, **extra_vars) -> str:
+        """Build prompt using template if available, otherwise fallback to build_prompt."""
+        if self.prompt_template is not None:
+            # Prepare template variables
+            variables = {
+                'input': ex.input,
+                'reference': ex.reference,
+                'id': ex.id,
+                **extra_vars
+            }
+            # Add meta fields as top-level variables
+            if ex.meta:
+                variables.update(ex.meta)
+            
+            return self.prompt_template.render(**variables)
+        else:
+            return self.build_prompt(ex)
 
     def postprocess(self, raw_output: str) -> Any:
         return raw_output.strip()
@@ -139,7 +166,7 @@ class Task(ABC):
         if max(1, int(concurrency)) <= 1:
             for i, ex in enumerate(examples):
                 references[i] = ex.reference
-                prompt = self.build_prompt(ex)
+                prompt = self.build_prompt_with_template(ex)
                 s = time.perf_counter()
                 try:
                     cached = _maybe_read_cache(prompt)
@@ -167,7 +194,7 @@ class Task(ABC):
                 futures = []
                 for i, ex in enumerate(examples):
                     references[i] = ex.reference
-                    prompt = self.build_prompt(ex)
+                    prompt = self.build_prompt_with_template(ex)
 
                     def make_job(idx: int, pr: str):
                         def _job():
