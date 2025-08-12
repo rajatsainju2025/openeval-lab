@@ -29,6 +29,7 @@
               <option value="token_f1.f1">token_f1.f1</option>
               <option value="sacrebleu.bleu">sacrebleu.bleu</option>
               <option value="bertscore.f1">bertscore.f1</option>
+              <option value="llm_judge.win_rate">llm_judge.win_rate</option>
               <option value="timing.throughput_eps">timing.throughput_eps</option>
               <option value="timing.error_rate">timing.error_rate</option>
               <option value="timing.cache_hit_rate">timing.cache_hit_rate</option>
@@ -36,7 +37,7 @@
           </label>
           <label>Adapter <input id="filterAdapter" placeholder="contains..." /></label>
           <label>Task <input id="filterTask" placeholder="contains..." /></label>
-          <button onclick="applySortFilter()">Apply</button>
+          <button onclick="applySortFilter();return false;">Apply</button>
         </div>
         <table id="tbl">
           <thead>
