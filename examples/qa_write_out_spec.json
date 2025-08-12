@@ -1,0 +1,8 @@
+{
+  "task": "qa",
+  "dataset": "jsonl",
+  "adapter": "echo",
+  "dataset_kwargs": { "path": "examples/qa_toy.jsonl" },
+  "metrics": [{ "name": "exact_match" }],
+  "output": "results.json"
+}
