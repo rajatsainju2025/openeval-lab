@@ -281,10 +281,12 @@ class PearsonCorrelation(Metric):
         n = len(pred_list)
         if n <= 2:
             p_value = 1.0
+        elif abs(r) >= 0.999:  # Near perfect correlation
+            p_value = 0.001  # Very significant
         else:
-            t_stat = r * math.sqrt((n - 2) / (1 - r**2)) if abs(r) < 1 else float('inf')
+            t_stat = r * math.sqrt((n - 2) / (1 - r**2))
             # Simple approximation for p-value
-            p_value = 2 * (1 - abs(t_stat) / (abs(t_stat) + math.sqrt(n - 2)))
+            p_value = max(0.0, min(1.0, 2 * (1 - abs(t_stat) / (abs(t_stat) + math.sqrt(n - 2)))))
         
         return {
             "pearson_r": r,
