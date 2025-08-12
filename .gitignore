@@ -2,11 +2,16 @@ __pycache__/
 *.pyc
 .venv/
 .env
+# build artifacts
 dist/
 build/
 *.egg-info/
+# IDE/OS
 .idea/
 .vscode/
 .DS_Store
+# OpenEval outputs
 results.json
 artifacts/
+runs/
+.openeval-cache/
