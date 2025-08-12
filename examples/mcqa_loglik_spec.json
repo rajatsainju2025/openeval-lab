@@ -1,0 +1,15 @@
+{
+  "task": "openeval.tasks.mcqa:MCQATask",
+  "dataset": {
+    "type": "openeval.datasets.mcqa:MCQADataset",
+    "path": "examples/mcqa_toy.jsonl"
+  },
+  "adapter": {
+    "type": "openeval.loglikelihood:MockLogLikelihoodAdapter"
+  },
+  "metrics": [
+    {
+      "type": "openeval.metrics.loglik_accuracy:LogLikelihoodAccuracy"
+    }
+  ]
+}
