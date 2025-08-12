@@ -35,6 +35,7 @@ Spec tools:
 - Validate a spec: `openeval validate examples/qa_spec.json`
 - Use short names via registry: `task: qa`, `dataset: jsonl`, `adapter: echo`, `metrics: [{"name": "exact_match"}]`.
 - Render prompts (debugging): `openeval write_out examples/qa_spec.json --limit 5` or write JSONL with `--out prompts.jsonl`.
+- More examples: see `examples/qa_write_out.md`.
 
 Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
