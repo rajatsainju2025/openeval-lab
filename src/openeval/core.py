@@ -225,6 +225,21 @@ class Task(ABC):
             except Exception:
                 return None
 
+        # Try to include git commit hash if available
+        git: Dict[str, Any] = {}
+        try:
+            import subprocess
+
+            # Use git rev-parse in the project root; if it fails, ignore
+            rev = (
+                subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+                .decode()
+                .strip()
+            )
+            git["commit"] = rev
+        except Exception:
+            pass
+
         manifest: Dict[str, Any] = {
             "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
             "openeval_version": _maybe_ver("openeval-lab"),
@@ -251,6 +266,7 @@ class Task(ABC):
                 }.items()
                 if v is not None
             },
+            "git": git if git else None,
             "adapter": {
                 "name": getattr(adapter, "name", adapter.__class__.__name__),
                 "class": f"{adapter.__class__.__module__}.{adapter.__class__.__name__}",
@@ -260,6 +276,9 @@ class Task(ABC):
                 "class": f"{self.__class__.__module__}.{self.__class__.__name__}",
             },
         }
+        # Drop None git if not available
+        if manifest.get("git") is None:
+            manifest.pop("git", None)
 
         payload: Dict[str, Any] = {
             "task": self.name,

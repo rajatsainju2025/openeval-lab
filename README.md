@@ -34,6 +34,7 @@ Spec tools:
 - Print schema: `openeval schema`
 - Validate a spec: `openeval validate examples/qa_spec.json`
 - Use short names via registry: `task: qa`, `dataset: jsonl`, `adapter: echo`, `metrics: [{"name": "exact_match"}]`.
+- Render prompts (debugging): `openeval write_out examples/qa_spec.json --limit 5` or write JSONL with `--out prompts.jsonl`.
 
 Dashboard & artifacts:
 - Pass `--records` to include per-example outputs in results.
@@ -55,6 +56,7 @@ Examples:
 - QA task on JSONL and CSV: see `examples/`
 - Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`, then `openeval run examples/qa_openai_spec.json --records --artifacts runs` (costs may apply)
 - Advanced metrics: `examples/qa_metrics_spec.json` (requires `pip install -e '.[metrics]'`)
+- LLM-as-a-judge: `examples/qa_judge_spec.json` (set `OPENAI_API_KEY` and install `.[openai]`).
 
 Demo: leaderboard workflow
 - Install metrics: `pip install -e '.[metrics]'`
@@ -63,8 +65,12 @@ Demo: leaderboard workflow
 - Start dashboard: `openeval web --reload` then open http://localhost:8000/leaderboard
 - Click a run filename to open its detail page at `/run/<file>`.
 
+LLM-as-a-Judge metric
+- Add to metrics: `{ "name": "llm_judge", "kwargs": { "judge_adapter": "openai-chat", "judge_kwargs": {"model": "gpt-4o-mini"}, "max_examples": 200 } }`.
+- Uses balanced position calibration (A/B and B/A). Outputs `win_rate`, `wins`, `losses`, `ties`.
+
 Reproducibility
-- Each result includes a manifest (python/platform/packages) and dataset/spec hashes.
+- Each result includes a manifest (python/platform/packages) and dataset/spec hashes; manifest now includes the current git commit when available.
 - Create a lockfile: `openeval lock --from runs/<ts>.json --out openeval-lock.json`.
 
 Planning & tracking

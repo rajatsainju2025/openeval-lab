@@ -29,6 +29,7 @@ METRICS: Dict[str, str] = {
     "sacrebleu": "openeval.metrics.bleu.SacreBLEU",
     "bertscore": "openeval.metrics.bertscore.BERTScore",
     "rouge_l": "openeval.metrics.rouge.ROUGEL",
+    "llm_judge": "openeval.metrics.judge.LLMJudge",
 }
 
 

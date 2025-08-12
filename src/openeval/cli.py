@@ -218,5 +218,46 @@ def validate(spec: Path = typer.Argument(..., help="Path to JSON/YAML spec to va
         raise typer.Exit(code=1)
 
 
+@app.command("write_out")
+def write_out(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
+    out: Optional[Path] = typer.Option(None, "--out", help="Write prompts to this file (JSONL)"),
+    limit: Optional[int] = typer.Option(None, "--limit", help="Max examples to render"),
+    preview: int = typer.Option(5, "--preview", help="How many prompts to print when not writing to a file"),
+):
+    """Render task prompts for the dataset in a spec (for debugging)."""
+    try:
+        task, dataset, adapter, metrics, _ = load_spec(spec)
+    except SystemExit as e:
+        raise typer.Exit(code=2) from e
+
+    # Iterate and build prompts
+    rows = []
+    count = 0
+    for ex in dataset:
+        prompt = task.build_prompt(ex)
+        rows.append({
+            "id": ex.id,
+            "input": ex.input,
+            "reference": ex.reference,
+            "prompt": prompt,
+        })
+        count += 1
+        if limit is not None and count >= limit:
+            break
+
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        print({"saved": str(out), "count": len(rows)})
+    else:
+        k = min(preview, len(rows))
+        print({"preview_count": k, "total": len(rows)})
+        for r in rows[:k]:
+            print(r)
+
+
 if __name__ == "__main__":
     app()
