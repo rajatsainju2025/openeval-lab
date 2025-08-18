@@ -1,15 +1,230 @@
-"""Performance optimization utilities for OpenEval."""
+"""Advanced optimization and performance monitoring for OpenEval Lab."""
 
+import time
+import threading
+import statistics
 import asyncio
 import concurrent.futures
-import time
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
-from dataclasses import dataclass
+from typing import Dict, List, Any, Optional, Callable, Union, TypeVar
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import gc
+import resource
 from functools import wraps
 
-from openeval.core import Adapter, Dataset, Example
+from .logging import get_logger
+from .core import Adapter, Dataset, Example
 
 T = TypeVar('T')
+
+
+@dataclass
+class PerformanceMetric:
+    """A single performance measurement."""
+    
+    name: str
+    value: float
+    unit: str
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class SystemSnapshot:
+    """System resource usage snapshot."""
+    
+    memory_used_mb: float
+    thread_count: int
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
+@dataclass
+class OptimizationSuggestion:
+    """Performance optimization suggestion."""
+    
+    category: str  # memory, cpu, io, network, concurrency
+    severity: str  # low, medium, high, critical
+    title: str
+    description: str
+    recommendation: str
+    impact: str  # estimated improvement
+    effort: str  # implementation effort (low, medium, high)
+
+
+class PerformanceMonitor:
+    """Real-time performance monitoring and optimization."""
+    
+    def __init__(self, sample_interval: float = 1.0):
+        """Initialize performance monitor."""
+        self.logger = get_logger()
+        self.sample_interval = sample_interval
+        self.monitoring = False
+        self.metrics: List[PerformanceMetric] = []
+        self.snapshots: List[SystemSnapshot] = []
+        self.monitor_thread: Optional[threading.Thread] = None
+        
+        # Performance thresholds
+        self.thresholds = {
+            "response_time_warning": 5.0,    # seconds
+            "response_time_critical": 10.0,
+            "throughput_warning": 0.5,       # samples/sec
+            "error_rate_warning": 0.05,      # 5%
+            "error_rate_critical": 0.10,     # 10%
+        }
+    
+    def start_monitoring(self) -> None:
+        """Start background performance monitoring."""
+        if self.monitoring:
+            return
+        
+        self.monitoring = True
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.monitor_thread.start()
+        self.logger.info("Started performance monitoring")
+    
+    def stop_monitoring(self) -> None:
+        """Stop background performance monitoring."""
+        self.monitoring = False
+        if self.monitor_thread:
+            self.monitor_thread.join(timeout=5.0)
+        self.logger.info("Stopped performance monitoring")
+    
+    def _monitor_loop(self) -> None:
+        """Background monitoring loop."""
+        while self.monitoring:
+            try:
+                # Create snapshot with available info
+                snapshot = SystemSnapshot(
+                    memory_used_mb=self._get_memory_usage(),
+                    thread_count=threading.active_count()
+                )
+                
+                self.snapshots.append(snapshot)
+                
+                # Keep only recent snapshots (last hour)
+                cutoff_time = datetime.utcnow() - timedelta(hours=1)
+                self.snapshots = [
+                    s for s in self.snapshots 
+                    if datetime.fromisoformat(s.timestamp) > cutoff_time
+                ]
+                
+                time.sleep(self.sample_interval)
+                
+            except Exception as e:
+                self.logger.warning(f"Performance monitoring error: {e}")
+                time.sleep(self.sample_interval)
+    
+    def _get_memory_usage(self) -> float:
+        """Get memory usage in MB using resource module."""
+        try:
+            # Use resource module for basic memory info
+            mem_info = resource.getrusage(resource.RUSAGE_SELF)
+            # Convert to MB (getrusage returns in KB on Linux, bytes on macOS)
+            return mem_info.ru_maxrss / 1024  # Assume KB for simplicity
+        except Exception:
+            return 0.0
+    
+    @contextmanager
+    def measure_operation(self, operation_name: str):
+        """Context manager to measure operation performance."""
+        start_time = time.time()
+        start_memory = self._get_memory_usage()
+        
+        # Force garbage collection before measurement
+        gc.collect()
+        
+        try:
+            yield
+        finally:
+            end_time = time.time()
+            duration = end_time - start_time
+            memory_delta = self._get_memory_usage() - start_memory
+            
+            # Record metrics
+            self.record_metric("operation_duration", duration, "seconds", {"operation": operation_name})
+            self.record_metric("operation_memory_delta", memory_delta, "mb", {"operation": operation_name})
+            
+            self.logger.debug(f"Operation '{operation_name}' took {duration:.2f}s")
+    
+    def record_metric(self, name: str, value: float, unit: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Record a performance metric."""
+        metric = PerformanceMetric(
+            name=name,
+            value=value,
+            unit=unit,
+            metadata=metadata or {}
+        )
+        
+        self.metrics.append(metric)
+        
+        # Keep only recent metrics (last hour)
+        cutoff_time = datetime.utcnow() - timedelta(hours=1)
+        self.metrics = [
+            m for m in self.metrics 
+            if datetime.fromisoformat(m.timestamp) > cutoff_time
+        ]
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get current performance summary."""
+        if not self.snapshots:
+            return {"error": "No performance data available"}
+        
+        recent_snapshots = self.snapshots[-10:]  # Last 10 measurements
+        
+        summary = {
+            "current": {
+                "memory_used_mb": recent_snapshots[-1].memory_used_mb,
+                "thread_count": recent_snapshots[-1].thread_count
+            },
+            "averages": {
+                "memory_used_mb": statistics.mean(s.memory_used_mb for s in recent_snapshots)
+            },
+            "peaks": {
+                "max_memory_used_mb": max(s.memory_used_mb for s in recent_snapshots)
+            }
+        }
+        
+        return summary
+
+
+class AdaptiveConcurrencyController:
+    """Dynamically adjust concurrency based on system performance."""
+    
+    def __init__(self, initial_concurrency: int = 4, min_concurrency: int = 1, max_concurrency: int = 16):
+        """Initialize adaptive concurrency controller."""
+        self.logger = get_logger()
+        self.current_concurrency = initial_concurrency
+        self.min_concurrency = min_concurrency
+        self.max_concurrency = max_concurrency
+        
+        # Performance tracking
+        self.throughput_history: List[float] = []
+        self.error_rate_history: List[float] = []
+        self.response_time_history: List[float] = []
+        
+        # Adjustment parameters
+        self.adjustment_interval = 10  # measurements between adjustments
+        self.measurement_count = 0
+        self.last_adjustment_time = time.time()
+    
+    def record_performance(self, throughput: float, error_rate: float, response_time: float) -> None:
+        """Record performance metrics for concurrency adjustment."""
+        self.throughput_history.append(throughput)
+        self.error_rate_history.append(error_rate)
+        self.response_time_history.append(response_time)
+        
+        # Keep only recent history
+        max_history = 20
+        if len(self.throughput_history) > max_history:
+            self.throughput_history = self.throughput_history[-max_history:]
+            self.error_rate_history = self.error_rate_history[-max_history:]
+            self.response_time_history = self.response_time_history[-max_history:]
+    
+    def get_current_concurrency(self) -> int:
+        """Get current optimal concurrency level."""
+        return self.current_concurrency
 
 
 @dataclass
@@ -225,8 +440,8 @@ def memoize_with_ttl(ttl: float = 3600):
             return result
         
         # Add cache management methods
-        wrapper.cache_clear = cache.clear
-        wrapper.cache_stats = cache.stats
+        # Store cache methods
+        wrapper._cache = cache  # type: ignore
         
         return wrapper
     
@@ -321,6 +536,20 @@ class StreamingDataset:
         }
 
 
+# Global performance monitor instance
+performance_monitor = PerformanceMonitor()
+
+
+def monitor_performance(operation_name: str):
+    """Decorator for monitoring function performance."""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            with performance_monitor.measure_operation(operation_name):
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def profile_evaluation(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator to profile evaluation performance."""
     @wraps(func)
@@ -334,7 +563,7 @@ def profile_evaluation(func: Callable[..., T]) -> Callable[..., T]:
             end_time = time.time()
             end_memory = _get_memory_usage()
             
-            # Print performance stats
+            # Log performance stats
             elapsed = end_time - start_time
             memory_delta = end_memory - start_memory
             
@@ -356,8 +585,9 @@ def profile_evaluation(func: Callable[..., T]) -> Callable[..., T]:
 def _get_memory_usage() -> float:
     """Get current memory usage in MB."""
     try:
-        import psutil
-        process = psutil.Process()
-        return process.memory_info().rss / 1024 / 1024
-    except ImportError:
-        return 0.0  # Fallback if psutil not available
+        # Use resource module for basic memory info
+        mem_info = resource.getrusage(resource.RUSAGE_SELF)
+        # Convert to MB (getrusage returns in KB on Linux, bytes on macOS)
+        return mem_info.ru_maxrss / 1024  # Assume KB for simplicity
+    except Exception:
+        return 0.0  # Fallback if not available
