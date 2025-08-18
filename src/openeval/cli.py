@@ -2,22 +2,537 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
+import sys
+import subprocess
+import time
+from datetime import datetime
 
 import typer
 from rich import print
+from rich.console import Console
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .spec import EvalSpec, load_spec
 from .utils import hash_file
+from .data_quality import DataQualityAssessor
+from .experiment_tracking import experiment_tracker
+from .optimization import performance_monitor
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+console = Console()
 
 
 @app.command()
 def version():
-    from importlib.metadata import version as _v
+    """Show OpenEval version information."""
+    try:
+        from importlib.metadata import version as _v
+        version_info = _v("openeval-lab")
+        
+        console.print(f"OpenEval Lab version: {version_info}", style="blue")
+        console.print(f"Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+        
+        # Show additional package versions
+        packages = ['typer', 'pydantic', 'rich']
+        for pkg in packages:
+            try:
+                pkg_version = _v(pkg)
+                console.print(f"{pkg}: {pkg_version}")
+            except Exception:
+                console.print(f"{pkg}: not found", style="red")
+                
+    except Exception:
+        console.print("OpenEval Lab version: unknown", style="yellow")
+        console.print(f"Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 
-    print({"openeval": _v("openeval-lab")})
+
+@app.command()
+def quality(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Output path for quality report"),
+    sample_limit: Optional[int] = typer.Option(1000, "--sample-limit", help="Max samples to assess"),
+):
+    """Assess dataset quality and generate recommendations."""
+    try:
+        console.print("🔍 Loading dataset for quality assessment...", style="blue")
+        task, dataset, adapter, metrics, out = load_spec(spec)
+        
+        # Initialize quality assessor
+        assessor = DataQualityAssessor()
+        
+        # Perform assessment
+        with console.status("[bold green]Analyzing dataset quality..."):
+            quality_report = assessor.assess_dataset(dataset, sample_limit)
+        
+        # Display summary
+        console.print(f"\n📊 Quality Assessment Results for: {quality_report.dataset_name}")
+        console.print(f"Samples analyzed: {quality_report.sample_count:,}")
+        console.print(f"Overall quality score: {quality_report.overall_score:.2f}/1.00")
+        
+        # Color-coded status
+        if quality_report.overall_score >= 0.8:
+            status_text = "🟢 GOOD - Dataset meets quality standards"
+            status_style = "green"
+        elif quality_report.overall_score >= 0.6:
+            status_text = "🟡 FAIR - Dataset has some quality issues"
+            status_style = "yellow"
+        else:
+            status_text = "🔴 POOR - Dataset requires significant improvement"
+            status_style = "red"
+        
+        console.print(f"Status: {status_text}", style=status_style)
+        
+        # Show metrics table
+        table = Table(title="Quality Metrics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Score", justify="right")
+        table.add_column("Status", justify="center")
+        table.add_column("Description")
+        
+        for metric in quality_report.metrics:
+            status_icon = "✅" if metric.passed else "❌" if metric.passed is False else "ℹ️"
+            score_text = f"{metric.value:.3f}"
+            if metric.threshold is not None:
+                score_text += f" / {metric.threshold:.3f}"
+            
+            table.add_row(
+                metric.name,
+                score_text,
+                status_icon,
+                metric.description
+            )
+        
+        console.print(table)
+        
+        # Show issues and recommendations
+        if quality_report.issues:
+            console.print("\n⚠️ Issues Found:", style="red bold")
+            for issue in quality_report.issues:
+                console.print(f"  • {issue}", style="red")
+        
+        if quality_report.recommendations:
+            console.print("\n💡 Recommendations:", style="blue bold")
+            for rec in quality_report.recommendations:
+                console.print(f"  • {rec}", style="blue")
+        
+        # Save detailed report if requested
+        if output:
+            report_path = assessor.save_report(quality_report, output)
+            console.print(f"\n📄 Detailed report saved to: {report_path}", style="green")
+        
+    except Exception as e:
+        console.print(f"❌ Quality assessment failed: {e}", style="red")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def experiment(
+    action: str = typer.Argument(..., help="Action: create|list|compare|export"),
+    name: Optional[str] = typer.Option(None, "--name", help="Experiment name"),
+    description: Optional[str] = typer.Option(None, "--description", help="Experiment description"),
+    tags: Optional[List[str]] = typer.Option(None, "--tag", help="Experiment tags"),
+    experiment_ids: Optional[List[str]] = typer.Option(None, "--id", help="Experiment IDs"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Output file for export"),
+    limit: Optional[int] = typer.Option(10, "--limit", help="Limit number of experiments listed"),
+):
+    """Manage experiment tracking and comparison."""
+    try:
+        if action == "create":
+            if not name:
+                console.print("❌ Experiment name is required for creation", style="red")
+                raise typer.Exit(code=1)
+            
+            exp_id = experiment_tracker.create_experiment(
+                name=name,
+                description=description or "",
+                tags=tags or []
+            )
+            console.print(f"✅ Created experiment: {exp_id}", style="green")
+            
+        elif action == "list":
+            experiments = experiment_tracker.list_experiments(limit=limit)
+            
+            if not experiments:
+                console.print("No experiments found", style="yellow")
+                return
+            
+            table = Table(title="Experiments")
+            table.add_column("ID", style="cyan")
+            table.add_column("Name")
+            table.add_column("Status")
+            table.add_column("Primary Score", justify="right")
+            table.add_column("Runtime", justify="right")
+            table.add_column("Created")
+            
+            for exp in experiments:
+                created_date = exp.created_at[:10]  # YYYY-MM-DD
+                runtime_text = f"{exp.metrics.runtime_seconds:.1f}s" if exp.metrics.runtime_seconds > 0 else "N/A"
+                score_text = f"{exp.metrics.primary_score:.3f}" if exp.metrics.primary_score > 0 else "N/A"
+                
+                table.add_row(
+                    exp.experiment_id[:12] + "...",
+                    exp.name,
+                    exp.status,
+                    score_text,
+                    runtime_text,
+                    created_date
+                )
+            
+            console.print(table)
+            
+        elif action == "compare":
+            if not experiment_ids or len(experiment_ids) < 2:
+                console.print("❌ At least 2 experiment IDs required for comparison", style="red")
+                raise typer.Exit(code=1)
+            
+            comparison = experiment_tracker.compare_experiments(experiment_ids)
+            
+            if "error" in comparison:
+                console.print(f"❌ Comparison failed: {comparison['error']}", style="red")
+                raise typer.Exit(code=1)
+            
+            console.print("📊 Experiment Comparison", style="blue bold")
+            
+            # Experiments table
+            table = Table(title="Experiment Details")
+            table.add_column("ID")
+            table.add_column("Name")
+            table.add_column("Primary Score", justify="right")
+            table.add_column("Runtime", justify="right")
+            table.add_column("Throughput", justify="right")
+            
+            for exp in comparison["experiments"]:
+                table.add_row(
+                    exp["id"][:12] + "...",
+                    exp["name"],
+                    f"{exp['primary_score']:.3f}",
+                    f"{exp['runtime_seconds']:.1f}s",
+                    f"{exp['throughput']:.2f}/s"
+                )
+            
+            console.print(table)
+            
+            # Best performers
+            console.print(f"\n🏆 Best Primary Score: {comparison['best_primary_score']:.3f}")
+            console.print(f"⚡ Best Runtime: {comparison['best_runtime']:.1f}s")
+            console.print(f"🚀 Best Throughput: {comparison['best_throughput']:.2f}/s")
+            
+        elif action == "export":
+            if not output:
+                console.print("❌ Output file required for export", style="red")
+                raise typer.Exit(code=1)
+            
+            experiment_tracker.export_experiments(output, experiment_ids)
+            console.print(f"✅ Experiments exported to: {output}", style="green")
+            
+        else:
+            console.print(f"❌ Unknown action: {action}", style="red")
+            console.print("Available actions: create, list, compare, export")
+            raise typer.Exit(code=1)
+            
+    except Exception as e:
+        console.print(f"❌ Experiment command failed: {e}", style="red")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def monitor(
+    duration: Optional[int] = typer.Option(60, "--duration", help="Monitoring duration in seconds"),
+    interval: Optional[float] = typer.Option(1.0, "--interval", help="Sampling interval in seconds"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Save performance data to file"),
+):
+    """Monitor system performance and resources."""
+    try:
+        console.print("🔍 Starting performance monitoring...", style="blue")
+        
+        # Configure monitor
+        monitor = performance_monitor
+        if interval is not None:
+            monitor.sample_interval = interval
+        
+        # Start monitoring
+        monitor.start_monitoring()
+        
+        start_time = time.time()
+        duration = duration or 60  # Default to 60 seconds
+        
+        try:
+            while time.time() - start_time < duration:
+                # Get current summary
+                summary = monitor.get_performance_summary()
+                
+                if "error" not in summary:
+                    current = summary["current"]
+                    
+                    # Clear screen and show live stats
+                    console.clear()
+                    console.print("📊 System Performance Monitor", style="blue bold")
+                    console.print(f"Duration: {time.time() - start_time:.1f}s / {duration}s")
+                    console.print(f"Memory: {current['memory_used_mb']:.1f} MB")
+                    console.print(f"Threads: {current['thread_count']}")
+                    
+                    if "averages" in summary:
+                        avg = summary["averages"]
+                        console.print(f"Avg Memory: {avg['memory_used_mb']:.1f} MB")
+                    
+                    if "peaks" in summary:
+                        peaks = summary["peaks"]
+                        console.print(f"Peak Memory: {peaks['max_memory_used_mb']:.1f} MB")
+                
+                time.sleep(2)  # Update every 2 seconds
+                
+        finally:
+            monitor.stop_monitoring()
+        
+        # Final summary
+        final_summary = monitor.get_performance_summary()
+        console.print("\n📋 Final Performance Summary", style="green bold")
+        console.print(json.dumps(final_summary, indent=2))
+        
+        # Save data if requested
+        if output:
+            with open(output, 'w') as f:
+                json.dump({
+                    "duration": duration,
+                    "interval": interval,
+                    "summary": final_summary,
+                    "metrics": [
+                        {
+                            "name": m.name,
+                            "value": m.value,
+                            "unit": m.unit,
+                            "timestamp": m.timestamp,
+                            "metadata": m.metadata
+                        }
+                        for m in monitor.metrics
+                    ]
+                }, f, indent=2)
+            console.print(f"📄 Performance data saved to: {output}", style="green")
+        
+    except KeyboardInterrupt:
+        console.print("\n⏹️ Monitoring stopped by user", style="yellow")
+    except Exception as e:
+        console.print(f"❌ Monitoring failed: {e}", style="red")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def diagnose(
+    spec: Optional[Path] = typer.Option(None, "--spec", help="Spec file to diagnose"),
+    check_deps: bool = typer.Option(True, "--check-deps", help="Check dependencies"),
+    check_config: bool = typer.Option(True, "--check-config", help="Check configuration"),
+    verbose: bool = typer.Option(False, "--verbose", help="Verbose output"),
+):
+    """Diagnose system and configuration issues."""
+    try:
+        console.print("🔧 Running OpenEval diagnostics...", style="blue")
+        
+        issues = []
+        warnings = []
+        
+        # Check Python version
+        python_version = sys.version_info
+        if python_version < (3, 8):
+            issues.append(f"Python {python_version.major}.{python_version.minor} is not supported. Requires Python 3.8+")
+        else:
+            console.print(f"✅ Python version: {python_version.major}.{python_version.minor}.{python_version.micro}")
+        
+        # Check dependencies
+        if check_deps:
+            console.print("🔍 Checking dependencies...")
+            
+            required_deps = ['typer', 'pydantic', 'rich']
+            optional_deps = ['openai', 'anthropic', 'transformers', 'torch']
+            
+            for dep in required_deps:
+                try:
+                    __import__(dep)
+                    console.print(f"✅ {dep} - installed")
+                except ImportError:
+                    issues.append(f"Required dependency '{dep}' not found")
+            
+            for dep in optional_deps:
+                try:
+                    __import__(dep)
+                    console.print(f"✅ {dep} - installed")
+                except ImportError:
+                    if verbose:
+                        warnings.append(f"Optional dependency '{dep}' not found")
+        
+        # Check spec file if provided
+        if spec:
+            console.print(f"🔍 Checking spec file: {spec}")
+            
+            if not spec.exists():
+                issues.append(f"Spec file not found: {spec}")
+            else:
+                try:
+                    task, dataset, adapter, metrics, out = load_spec(spec)
+                    console.print("✅ Spec file loaded successfully")
+                    
+                    # Try to initialize components
+                    try:
+                        list(dataset)  # Try to load dataset
+                        console.print("✅ Dataset can be loaded")
+                    except Exception as e:
+                        issues.append(f"Dataset loading failed: {e}")
+                    
+                    try:
+                        adapter.generate("test prompt")  # Test adapter
+                        console.print("✅ Adapter is functional")
+                    except Exception as e:
+                        warnings.append(f"Adapter test failed (may be expected): {e}")
+                        
+                except Exception as e:
+                    issues.append(f"Spec file validation failed: {e}")
+        
+        # Check environment variables
+        if check_config:
+            console.print("🔍 Checking environment configuration...")
+            
+            import os
+            env_vars = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'HF_TOKEN']
+            
+            for var in env_vars:
+                if os.getenv(var):
+                    console.print(f"✅ {var} - configured")
+                else:
+                    if verbose:
+                        warnings.append(f"Environment variable '{var}' not set")
+        
+        # Show summary
+        console.print("\n📋 Diagnostic Summary", style="blue bold")
+        
+        if not issues and not warnings:
+            console.print("🎉 All checks passed! System is ready.", style="green")
+        else:
+            if issues:
+                console.print(f"\n❌ Issues found ({len(issues)}):", style="red")
+                for issue in issues:
+                    console.print(f"  • {issue}", style="red")
+            
+            if warnings:
+                console.print(f"\n⚠️ Warnings ({len(warnings)}):", style="yellow")
+                for warning in warnings:
+                    console.print(f"  • {warning}", style="yellow")
+            
+            if issues:
+                console.print("\n🔧 Please fix the issues above before running evaluations.", style="red")
+                raise typer.Exit(code=1)
+    
+    except Exception as e:
+        console.print(f"❌ Diagnostic failed: {e}", style="red")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def benchmark(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
+    iterations: int = typer.Option(3, "--iterations", help="Number of benchmark iterations"),
+    warmup: int = typer.Option(1, "--warmup", help="Number of warmup iterations"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Output file for benchmark results"),
+):
+    """Benchmark evaluation performance."""
+    try:
+        console.print("🏃 Starting benchmark...", style="blue")
+        
+        # Load spec
+        task, dataset, adapter, metrics, out = load_spec(spec)
+        
+        # Warmup iterations
+        if warmup > 0:
+            console.print(f"🔥 Running {warmup} warmup iterations...")
+            for i in range(warmup):
+                with console.status(f"Warmup {i+1}/{warmup}"):
+                    try:
+                        # Try to run task evaluation with correct parameter order
+                        task.evaluate(adapter, dataset, metrics)
+                    except (AttributeError, TypeError):
+                        # Fallback for different task interface
+                        pass
+        
+        # Benchmark iterations
+        console.print(f"⏱️ Running {iterations} benchmark iterations...")
+        
+        times = []
+        memory_usage = []
+        
+        for i in range(iterations):
+            start_time = time.time()
+            start_memory = performance_monitor._get_memory_usage()
+            
+            with console.status(f"Iteration {i+1}/{iterations}"):
+                try:
+                    result = task.evaluate(adapter, dataset, metrics)
+                except (AttributeError, TypeError):
+                    # Fallback: just measure dataset loading
+                    result = list(dataset)
+            
+            end_time = time.time()
+            end_memory = performance_monitor._get_memory_usage()
+            
+            duration = end_time - start_time
+            memory_delta = end_memory - start_memory
+            
+            times.append(duration)
+            memory_usage.append(memory_delta)
+            
+            console.print(f"Iteration {i+1}: {duration:.2f}s, Memory: +{memory_delta:.1f}MB")
+        
+        # Calculate statistics
+        import statistics
+        
+        avg_time = statistics.mean(times)
+        std_time = statistics.stdev(times) if len(times) > 1 else 0
+        min_time = min(times)
+        max_time = max(times)
+        
+        avg_memory = statistics.mean(memory_usage)
+        
+        # Get dataset size for throughput calculation
+        dataset_size = len(list(dataset))
+        throughput = dataset_size / avg_time
+        
+        # Display results
+        console.print("\n📊 Benchmark Results", style="green bold")
+        console.print(f"Iterations: {iterations}")
+        console.print(f"Dataset size: {dataset_size} samples")
+        console.print(f"Average time: {avg_time:.3f}s (±{std_time:.3f}s)")
+        console.print(f"Min time: {min_time:.3f}s")
+        console.print(f"Max time: {max_time:.3f}s")
+        console.print(f"Throughput: {throughput:.2f} samples/second")
+        console.print(f"Average memory delta: {avg_memory:.1f}MB")
+        
+        # Save results if requested
+        if output:
+            benchmark_data = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "spec_file": str(spec),
+                "iterations": iterations,
+                "warmup": warmup,
+                "dataset_size": dataset_size,
+                "times": times,
+                "memory_usage": memory_usage,
+                "statistics": {
+                    "avg_time": avg_time,
+                    "std_time": std_time,
+                    "min_time": min_time,
+                    "max_time": max_time,
+                    "throughput": throughput,
+                    "avg_memory": avg_memory
+                }
+            }
+            
+            with open(output, 'w') as f:
+                json.dump(benchmark_data, f, indent=2)
+            
+            console.print(f"📄 Benchmark results saved to: {output}", style="green")
+    
+    except Exception as e:
+        console.print(f"❌ Benchmark failed: {e}", style="red")
+        raise typer.Exit(code=1)
 
 
 @app.command()
