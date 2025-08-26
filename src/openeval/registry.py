@@ -10,12 +10,14 @@ from typing import Any, Dict, Type
 TASKS: Dict[str, str] = {
     "qa": "openeval.tasks.qa.QATask",
     "summarization": "openeval.tasks.summarization.SummarizationTask",
+    "tool_use": "openeval.tasks.tooluse.ToolUseTask",
 }
 
 DATASETS: Dict[str, str] = {
     "jsonl": "openeval.datasets.jsonl.JSONLinesDataset",
     "csv": "openeval.datasets.csv.CSVDataset",
     "hf": "openeval.datasets.hf.HFDataset",
+    "inline": "openeval.datasets.inline.InlineDataset",
 }
 
 ADAPTERS: Dict[str, str] = {
@@ -30,6 +32,7 @@ METRICS: Dict[str, str] = {
     "bertscore": "openeval.metrics.bertscore.BERTScore",
     "rouge_l": "openeval.metrics.rouge.ROUGEL",
     "llm_judge": "openeval.metrics.judge.LLMJudge",
+    "tool_execution": "openeval.metrics.tool_execution.ToolExecutionMetric",
 }
 
 
