@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <style>
+      body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; color: #111; margin: 2rem; }
+      .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);} 
+      .muted { color: #666; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; }
+      th { background: #fafafa; }
+      code { background: #f7f7f7; padding: 2px 4px; border-radius: 4px; }
+      .controls { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
+      select { padding: 6px 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>{{ title }}</h1>
+      <div class="controls">
+        <label>Run A
+          <select id="selA">
+            <option value="">-- choose --</option>
+            {% for r in runs %}
+              <option value="{{ r._file }}" {% if a==r._file %}selected{% endif %}>{{ r._file }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Run B
+          <select id="selB">
+            <option value="">-- choose --</option>
+            {% for r in runs %}
+              <option value="{{ r._file }}" {% if b==r._file %}selected{% endif %}>{{ r._file }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button onclick="doCompare();return false;">Compare</button>
+        <a href="/leaderboard">Leaderboard</a>
+      </div>
+
+      {% if run_a and run_b %}
+      <h2>Summary</h2>
+      <table>
+        <tr><th></th><th>A</th><th>B</th></tr>
+        <tr><td>Task</td><td><code>{{ run_a.task }}</code></td><td><code>{{ run_b.task }}</code></td></tr>
+        <tr><td>Dataset</td><td>{{ run_a.dataset }}</td><td>{{ run_b.dataset }}</td></tr>
+        <tr><td>Adapter</td><td>{{ run_a.adapter }}</td><td>{{ run_b.adapter }}</td></tr>
+        <tr><td>Size</td><td>{{ run_a.size }}</td><td>{{ run_b.size }}</td></tr>
+        <tr><td>Avg Latency (ms)</td><td>{{ '%.1f'|format(run_a.timing.avg_latency_ms or 0) }}</td><td>{{ '%.1f'|format(run_b.timing.avg_latency_ms or 0) }}</td></tr>
+        <tr><td>Throughput (eps)</td><td>{{ '%.2f'|format(run_a.timing.throughput_eps or 0) }}</td><td>{{ '%.2f'|format(run_b.timing.throughput_eps or 0) }}</td></tr>
+      </table>
+
+      <h2>Metrics</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>A</th><th>B</th></tr>
+        </thead>
+        <tbody>
+          {% set keys = [] %}
+          {% if run_a.metrics %}
+            {% for name, vals in run_a.metrics.items() %}
+              {% for k, v in vals.items() if 'error' not in vals %}
+                {% set _ = keys.append(name ~ '.' ~ k) %}
+              {% endfor %}
+            {% endfor %}
+          {% endif %}
+          {% if run_b.metrics %}
+            {% for name, vals in run_b.metrics.items() %}
+              {% for k, v in vals.items() if 'error' not in vals %}
+                {% set key = name ~ '.' ~ k %}
+                {% if key not in keys %}
+                  {% set _ = keys.append(key) %}
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          {% endif %}
+          {% for key in keys %}
+            {% set parts = key.split('.') %}
+            {% set mname = parts[0] %}
+            {% set mkey = parts[1] %}
+            <tr>
+              <td><code>{{ key }}</code></td>
+              <td>
+                {% if run_a.metrics.get(mname) and run_a.metrics[mname].get(mkey) %}
+                  {{ '%.4f'|format(run_a.metrics[mname][mkey]) }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if run_b.metrics.get(mname) and run_b.metrics[mname].get(mkey) %}
+                  {{ '%.4f'|format(run_b.metrics[mname][mkey]) }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p class="muted">Choose two runs to compare.</p>
+      {% endif %}
+    </div>
+    <script>
+      function doCompare(){
+        const a = document.getElementById('selA').value;
+        const b = document.getElementById('selB').value;
+        window.location = `/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`;
+      }
+    </script>
+  </body>
+</html>

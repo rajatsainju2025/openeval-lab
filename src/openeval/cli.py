@@ -576,6 +576,7 @@ def init(
 def run(
     spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
     seed: Optional[int] = typer.Option(0, help="Deterministic seed"),
+    interactive: bool = typer.Option(False, "--interactive", help="Step through examples interactively"),
     records: bool = typer.Option(False, "--records", help="Include per-example records in output"),
     artifacts: Optional[Path] = typer.Option(None, "--artifacts", help="Dir to write results"),
     timestamped: bool = typer.Option(
@@ -616,16 +617,94 @@ def run(
     if cache_ttl is not None:
         setattr(adapter, "_cache_ttl", float(cache_ttl))
 
-    result = task.evaluate(
-        adapter,
-        dataset,
-        metrics,
-        seed=seed,
-        collect_records=records,
-        concurrency=concurrency,
-        max_retries=max_retries,
-        request_timeout=request_timeout,
-    )
+    if not interactive:
+        result = task.evaluate(
+            adapter,
+            dataset,
+            metrics,
+            seed=seed,
+            collect_records=records,
+            concurrency=concurrency,
+            max_retries=max_retries,
+            request_timeout=request_timeout,
+        )
+    else:
+        # Interactive loop: preview prompts and control flow
+        from importlib.metadata import version as _pkg_version, PackageNotFoundError
+        import platform, sys, time
+
+        examples = list(iter(dataset))
+        predictions = []
+        references = []
+        per_latency = []
+        recs = []
+        t0 = time.perf_counter()
+        for idx, ex in enumerate(examples):
+            prompt = task.build_prompt_with_template(ex)
+            console.print(f"\n[bold]Example {idx+1}/{len(examples)}[/bold] id={ex.id}", style="cyan")
+            console.print(f"Input: {str(ex.input)[:200]}" )
+            console.print("Show full prompt? [y/N], skip [s], quit [q]", style="muted")
+            ans = input("Action: ").strip().lower()
+            if ans == "q":
+                break
+            if ans == "y":
+                console.print("\n--- Prompt ---\n" + prompt + "\n---------------")
+            if ans == "s":
+                continue
+            s = time.perf_counter()
+            out = adapter.generate(prompt)
+            e = time.perf_counter()
+            pred = task.postprocess(out)
+            predictions.append(pred)
+            references.append(ex.reference)
+            per_latency.append(e - s)
+            if records:
+                recs.append({
+                    "id": ex.id,
+                    "input": ex.input,
+                    "reference": ex.reference,
+                    "prompt": prompt,
+                    "prediction": pred,
+                    "latency_ms": (e - s) * 1000.0,
+                })
+        total_duration = time.perf_counter() - t0
+
+        # Compute metrics
+        results = {}
+        for m in metrics:
+            try:
+                results[m.name] = m.compute(predictions, references)
+            except Exception as err:
+                results[m.name] = {"error": str(err)}
+
+        # Manifest basics
+        def _maybe_ver(pkg: str):
+            try:
+                return _pkg_version(pkg)
+            except Exception:
+                return None
+
+        latencies = [x for x in per_latency if x > 0]
+        result = {
+            "task": getattr(task, "name", task.__class__.__name__),
+            "dataset": getattr(dataset, "name", dataset.__class__.__name__),
+            "size": len(predictions),
+            "metrics": results,
+            "adapter": getattr(adapter, "name", adapter.__class__.__name__),
+            "seed": seed,
+            "timing": {
+                "avg_latency_ms": (sum(latencies) / len(latencies) * 1000.0) if latencies else 0.0,
+                "total_seconds": total_duration,
+                "throughput_eps": (len(predictions) / total_duration) if total_duration > 0 else 0.0,
+            },
+            "manifest": {
+                "openeval_version": _maybe_ver("openeval-lab"),
+                "python": {"version": sys.version.split()[0], "executable": sys.executable},
+                "platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
+            },
+        }
+        if records:
+            result["records"] = recs
 
     # enrich with spec metadata and optional run name
     result["spec_path"] = str(spec)
@@ -786,7 +865,7 @@ def write_out(
 
 @app.command()
 def library(
-    action: str = typer.Argument(..., help="Action: list|info|export"),
+    action: str = typer.Argument(..., help="Action: list|info|export|categories|sync|get"),
     task_id: Optional[str] = typer.Argument(None, help="Task ID for info/export actions"),
     category: Optional[str] = typer.Option(None, "--category", help="Filter by category"),
     output: Optional[Path] = typer.Option(None, "--output", help="Output file for export"),
@@ -840,9 +919,23 @@ def library(
             tasks = lib.get_category_tasks(cat)
             print(f"  {cat} ({len(tasks)} tasks)")
 
+    elif action == "sync":
+        # Placeholder: in future, fetch from remote registry; for now, just report success
+        print("Synchronized with registry (local placeholder)")
+    elif action == "get":
+        if not task_id:
+            print("Task ID required for get action")
+            raise typer.Exit(1)
+        task = lib.get_task(task_id)
+        if not task:
+            print(f"Task {task_id} not found")
+            raise typer.Exit(1)
+        out = Path(f"{task_id}_spec.json")
+        lib.export_task(task_id, str(out))
+        print(f"Saved to {out}")
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: list, info, export, categories")
+        print("Available actions: list, info, export, categories, sync, get")
         raise typer.Exit(1)
 
 

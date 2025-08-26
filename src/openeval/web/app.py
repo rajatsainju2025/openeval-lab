@@ -44,6 +44,34 @@ def leaderboard():
     return tpl.render(title="Leaderboard", runs=runs)
 
 
+@app.get("/compare", response_class=HTMLResponse)
+def compare(a: str = "", b: str = ""):
+    tpl = jinja.get_template("compare.html")
+    index_p = Path("runs/index.json")
+    runs = []
+    if index_p.exists():
+        try:
+            payload = json.loads(index_p.read_text())
+            runs = payload.get("runs", [])
+        except Exception:
+            runs = []
+
+    def load_run(name: str):
+        if not name:
+            return None
+        p = Path("runs") / Path(name).name
+        if not p.exists():
+            return None
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return None
+
+    run_a = load_run(a)
+    run_b = load_run(b)
+    return tpl.render(title="Compare Runs", runs=runs, a=a, b=b, run_a=run_a, run_b=run_b)
+
+
 @app.get("/run/{file}", response_class=HTMLResponse)
 def run_detail(file: str, offset: int = 0, limit: int = 50):
     # security: only allow basenames under runs/
