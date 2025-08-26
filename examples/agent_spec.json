@@ -1,0 +1,21 @@
+{
+  "task": "openeval.tasks.tooluse.ToolUseTask",
+  "dataset": {
+    "type": "inline",
+    "name": "agent_toy",
+    "examples": [
+      {"id": "1", "input": "What is 2 + 3?", "reference": "5"},
+      {"id": "2", "input": "Compute sqrt(16) + 10", "reference": "14.0"}
+    ]
+  },
+  "adapter": "openeval.adapters.echo.EchoAdapter",
+  "agent": {
+    "type": "openeval.agents.react.ReActAgent",
+    "tools": [
+      "openeval.tools.calculator.Calculator"
+    ]
+  },
+  "metrics": [
+    "openeval.metrics.tool_execution.ToolExecutionMetric"
+  ]
+}
