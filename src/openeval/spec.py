@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 from importlib import import_module
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict, Optional
 
 from pydantic import BaseModel, Field, ValidationError
 
 from .core import Adapter, Dataset, Metric, Task
+from .datasets.inline import InlineDataset
 from .registry import lookup
 
 try:
@@ -23,7 +24,7 @@ class MetricSpec(BaseModel):
 
 class EvalSpec(BaseModel):
     task: str
-    dataset: str
+    dataset: Any
     adapter: str
 
     task_kwargs: dict[str, Any] = Field(default_factory=dict)
@@ -32,6 +33,8 @@ class EvalSpec(BaseModel):
 
     metrics: List[MetricSpec] = Field(default_factory=list)
     output: str = "results.json"
+    # Optional agent block for agentic tasks
+    agent: Optional[Dict[str, Any]] = None
 
     @classmethod
     def json_schema(cls) -> dict[str, Any]:
@@ -63,22 +66,55 @@ def _read_spec_file(p: Path) -> dict[str, Any]:
 def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
     p = Path(path)
     data = _read_spec_file(p)
+    # Normalize metrics to dicts if provided as strings
+    metrics_raw = data.get("metrics")
+    if isinstance(metrics_raw, list) and metrics_raw and isinstance(metrics_raw[0], str):
+        data["metrics"] = [{"name": m} for m in metrics_raw]
+
+    # If agent block present, map to task_kwargs for ToolUseTask
+    agent_block = data.get("agent")
+    if agent_block and data.get("task") in (
+        "openeval.tasks.tooluse.ToolUseTask",
+        "openeval.tasks.tooluse:ToolUseTask",
+        "tool_use",
+    ):
+        tk = data.get("task_kwargs") or {}
+        if "agent_type" not in tk:
+            tk["agent_type"] = agent_block.get("type")
+        if "tools" not in tk and isinstance(agent_block.get("tools"), list):
+            tk["tools"] = agent_block.get("tools")
+        data["task_kwargs"] = tk
+
     try:
         spec = EvalSpec(**data)
     except ValidationError as e:
         raise SystemExit(f"Invalid spec: {e}")
 
     task_cls = _resolve_or_load("task", spec.task)
-    dataset_cls = _resolve_or_load("dataset", spec.dataset)
+    # Dataset can be: short/dotted string or inline object
+    if isinstance(spec.dataset, str):
+        dataset_cls = _resolve_or_load("dataset", spec.dataset)
+        dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
+    elif isinstance(spec.dataset, dict) and (spec.dataset.get("type") == "inline"):
+        dataset = InlineDataset(name=spec.dataset.get("name", "inline"), examples=spec.dataset.get("examples", []))
+    else:
+        # Unsupported dataset type provided
+        raise SystemExit(
+            "Invalid dataset value in spec: expected short/dotted string or inline object."
+        )
     adapter_cls = _resolve_or_load("adapter", spec.adapter)
 
     task: Task = task_cls(**spec.task_kwargs)
-    dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
     adapter: Adapter = adapter_cls(**spec.adapter_kwargs)
 
     metrics: list[Metric] = []
     for m in spec.metrics:
         m_cls = _resolve_or_load("metric", m.name)
         metrics.append(m_cls(**m.kwargs))
+
+    # If agent block present and ToolUseTask is used, pass via task_kwargs
+    if spec.agent is not None and hasattr(task, "_agent_type"):
+        # task already has agent_type via task_kwargs in spec; nothing to do here
+        pass
 
     return task, dataset, adapter, metrics, spec.output
