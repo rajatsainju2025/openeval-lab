@@ -25,6 +25,11 @@
   <body>
     <div class="card">
       <h1>{{ title }}</h1>
+      {% if error_msg %}
+        <div style="background: #fee; border: 1px solid #fcc; padding: 12px; border-radius: 4px; margin-bottom: 16px;">
+          <strong>Error:</strong> {{ error_msg }}
+        </div>
+      {% endif %}
       {% if data %}
         <div class="row">
           <div class="meta">
@@ -62,6 +67,10 @@
         </div>
         <hr />
         <h3>Records ({{ pagination.total }} total)</h3>
+        <div style="margin-bottom: 12px;">
+          <a href="/export/{{ file }}?format=json" style="margin-right: 8px;">Export JSON</a>
+          {% if records %}<a href="/export/{{ file }}?format=csv">Export CSV</a>{% endif %}
+        </div>
         {% set has_traces = records and records|selectattr('trace')|list|length > 0 %}
         {% if has_traces %}
           <div class="trace-toggle">

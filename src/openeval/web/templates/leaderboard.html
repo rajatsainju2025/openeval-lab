@@ -37,7 +37,10 @@
           </label>
           <label>Adapter <input id="filterAdapter" placeholder="contains..." /></label>
           <label>Task <input id="filterTask" placeholder="contains..." /></label>
+          <label>Dataset <input id="filterDataset" placeholder="contains..." /></label>
           <button onclick="applySortFilter();return false;">Apply</button>
+          <button onclick="exportFiltered();return false;">Export CSV</button>
+          <button onclick="clearFilters();return false;">Clear</button>
         </div>
         <table id="tbl">
           <thead>
@@ -65,7 +68,7 @@
                   {% endif %}
                 </td>
                 <td class="task"><code>{{ r.task }}</code></td>
-                <td>
+                <td class="dataset">
                   <div><code>{{ r.dataset }}</code></div>
                   {% if r.dataset_path %}
                     <div class="muted" style="font-size: 12px;">{{ r.dataset_path }}</div>
@@ -127,10 +130,14 @@
         const sortKey = document.getElementById('sortKey').value;
         const fAdapter = (document.getElementById('filterAdapter').value||'').toLowerCase();
         const fTask = (document.getElementById('filterTask').value||'').toLowerCase();
+        const fDataset = (document.getElementById('filterDataset').value||'').toLowerCase();
         const filtered = rows.filter(r => {
           const a = (r.querySelector('.adapter').innerText||'').toLowerCase();
           const t = (r.querySelector('.task').innerText||'').toLowerCase();
-          return (fAdapter==='' || a.includes(fAdapter)) && (fTask==='' || t.includes(fTask));
+          const d = (r.querySelector('.dataset').innerText||'').toLowerCase();
+          return (fAdapter==='' || a.includes(fAdapter)) && 
+                 (fTask==='' || t.includes(fTask)) && 
+                 (fDataset==='' || d.includes(fDataset));
         });
         filtered.sort((r1, r2) => {
           const v1 = getMetricValue(r1, sortKey);
@@ -143,6 +150,56 @@
         // Reattach sorted filtered, then append remaining ones
         for (const r of filtered) tbody.appendChild(r);
         for (const r of rows) if (!filtered.includes(r)) tbody.appendChild(r);
+      }
+      
+      function clearFilters() {
+        document.getElementById('filterAdapter').value = '';
+        document.getElementById('filterTask').value = '';
+        document.getElementById('filterDataset').value = '';
+        applySortFilter();
+      }
+      
+      function exportFiltered() {
+        const tbody = document.querySelector('#tbl tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const sortKey = document.getElementById('sortKey').value;
+        const fAdapter = (document.getElementById('filterAdapter').value||'').toLowerCase();
+        const fTask = (document.getElementById('filterTask').value||'').toLowerCase();
+        const fDataset = (document.getElementById('filterDataset').value||'').toLowerCase();
+        
+        const filtered = rows.filter(r => {
+          const a = (r.querySelector('.adapter').innerText||'').toLowerCase();
+          const t = (r.querySelector('.task').innerText||'').toLowerCase();
+          const d = (r.querySelector('.dataset').innerText||'').toLowerCase();
+          return (fAdapter==='' || a.includes(fAdapter)) && 
+                 (fTask==='' || t.includes(fTask)) && 
+                 (fDataset==='' || d.includes(fDataset));
+        });
+        
+        let csv = 'Run,Task,Dataset,Adapter,Size,Metrics,Latency_ms,Throughput_eps,Error_Rate,Cache_Hit_Rate,Seed\n';
+        for (const row of filtered) {
+          const cells = row.querySelectorAll('td');
+          const run = cells[0].innerText.replace(/\n.*/g, '').trim();
+          const task = cells[1].innerText.trim();
+          const dataset = cells[2].innerText.replace(/\n.*/g, '').trim();
+          const adapter = cells[3].innerText.trim();
+          const size = cells[4].innerText.trim();
+          const metrics = cells[5].innerText.replace(/\n/g, '; ').trim();
+          const latency = cells[6].innerText.trim();
+          const throughput = cells[7].innerText.trim();
+          const errorRate = cells[8].innerText.trim();
+          const cacheRate = cells[9].innerText.trim();
+          const seed = cells[10].innerText.trim();
+          csv += `"${run}","${task}","${dataset}","${adapter}","${size}","${metrics}","${latency}","${throughput}","${errorRate}","${cacheRate}","${seed}"\n`;
+        }
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'leaderboard_export.csv';
+        a.click();
+        URL.revokeObjectURL(url);
       }
     </script>
   </body>

@@ -80,11 +80,17 @@ def run_detail(file: str, offset: int = 0, limit: int = 50):
     offset = max(0, int(offset or 0))
     p = Path("runs") / file
     data = {}
+    error_msg = None
     if p.exists():
         try:
             data = json.loads(p.read_text())
-        except Exception:
-            data = {}
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON in run file: {e}"
+        except Exception as e:
+            error_msg = f"Error loading run file: {e}"
+    else:
+        error_msg = f"Run file '{file}' not found in runs/ directory"
+    
     tpl = jinja.get_template("run_detail.html")
     # slice records for pagination without mutating original
     records = list(data.get("records", []))
@@ -95,5 +101,54 @@ def run_detail(file: str, offset: int = 0, limit: int = 50):
         file=file,
         data=data,
         records=page,
+        error_msg=error_msg,
         pagination={"offset": offset, "limit": limit, "total": total},
     )
+
+
+@app.get("/export/{file}")
+def export_run(file: str, format: str = "json"):
+    """Export a run file in various formats."""
+    # security: only allow basenames under runs/
+    file = Path(file).name
+    p = Path("runs") / file
+    
+    if not p.exists():
+        from fastapi import HTTPException
+        raise HTTPException(404, f"Run file '{file}' not found")
+    
+    try:
+        data = json.loads(p.read_text())
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(500, f"Error loading run file: {e}")
+    
+    if format.lower() == "csv":
+        # Export records as CSV if available
+        records = data.get("records", [])
+        if not records:
+            from fastapi import HTTPException
+            raise HTTPException(400, "No records available for CSV export")
+        
+        import io
+        import csv
+        output = io.StringIO()
+        if records:
+            writer = csv.DictWriter(output, fieldnames=records[0].keys())
+            writer.writeheader()
+            writer.writerows(records)
+        
+        from fastapi.responses import Response
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={file.replace('.json', '.csv')}"}
+        )
+    else:
+        # Default: JSON export
+        from fastapi.responses import Response
+        return Response(
+            content=json.dumps(data, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={file}"}
+        )
