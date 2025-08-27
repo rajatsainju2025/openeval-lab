@@ -112,9 +112,12 @@ def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], s
         m_cls = _resolve_or_load("metric", m.name)
         metrics.append(m_cls(**m.kwargs))
 
-    # If agent block present and ToolUseTask is used, pass via task_kwargs
-    if spec.agent is not None and hasattr(task, "_agent_type"):
-        # task already has agent_type via task_kwargs in spec; nothing to do here
-        pass
+    # Validate agent tooling for ToolUseTask
+    if task.__class__.__module__ == "openeval.tasks.tooluse" and task.__class__.__name__ == "ToolUseTask":
+        # If spec provided agent block, we already mapped it into task_kwargs
+        if not getattr(task, "_agent_type", None):
+            raise SystemExit("ToolUseTask requires 'agent.type' in spec (mapped to task_kwargs.agent_type)")
+        if not getattr(task, "_tool_types", None):
+            raise SystemExit("ToolUseTask requires 'agent.tools' list in spec (mapped to task_kwargs.tools)")
 
     return task, dataset, adapter, metrics, spec.output

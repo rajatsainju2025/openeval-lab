@@ -593,6 +593,7 @@ def run(
     cache_ttl: Optional[float] = typer.Option(
         None, "--cache-ttl", help="Cache TTL seconds (optional)"
     ),
+    cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -616,6 +617,7 @@ def run(
     setattr(adapter, "_cache_mode", cache_mode)
     if cache_ttl is not None:
         setattr(adapter, "_cache_ttl", float(cache_ttl))
+    setattr(adapter, "_cache_key_mode", cache_key_mode)
 
     if not interactive:
         result = task.evaluate(

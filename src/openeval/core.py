@@ -23,6 +23,19 @@ class Adapter(Protocol):
     def generate(self, prompt: str, **kwargs: Any) -> str:  # sync for simplicity first
         ...
 
+    # Optional capability: return text plus token-level logprobs and usage
+    def generate_with_logprobs(self, prompt: str, **kwargs: Any) -> Dict[str, Any]:  # pragma: no cover - optional
+        """
+        Optional:
+        return {
+            "text": str,
+            "tokens": [str, ...],
+            "logprobs": [float, ...],
+            "usage": {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int},
+        }
+        """
+        raise NotImplementedError
+
 
 class Metric(Protocol):
     """Evaluation metric interface."""
@@ -120,8 +133,14 @@ class Task(ABC):
 
         def _cache_key(prompt: str) -> str:
             adapter_name = getattr(adapter, "name", adapter.__class__.__name__)
-            # Future: include model and adapter kwargs; here we only include adapter name and prompt
-            return hash_prompt([adapter_name, prompt])
+            model = getattr(adapter, "model", None)
+            temp = getattr(adapter, "temperature", None)
+            system = getattr(adapter, "system_prompt", None)
+            key_mode = str(getattr(adapter, "_cache_key_mode", "strict")).lower()
+            parts: List[Any] = [adapter_name, prompt]
+            if key_mode == "strict":
+                parts.extend([model, temp, system])
+            return hash_prompt(parts)
 
         def _maybe_read_cache(prompt: str) -> Optional[str]:
             if cache is None or cache_mode not in {"read", "rw", "write"}:
@@ -228,7 +247,7 @@ class Task(ABC):
                         success_count += 1
                     else:
                         error_count += 1
-                        per_error[idx] = err
+
 
         total_duration = time.perf_counter() - t0
         latencies = [x for x in per_latency if x > 0]
@@ -266,6 +285,21 @@ class Task(ABC):
         except Exception:
             pass
 
+        # CUDA and environment snapshot (best effort)
+        try:
+            import subprocess as _sp
+            has_nvidia_smi = (
+                _sp.run(["nvidia-smi"], stdout=_sp.DEVNULL, stderr=_sp.DEVNULL).returncode == 0
+            )
+        except Exception:
+            has_nvidia_smi = False
+        import os as _os
+        _cuda_info = {
+            "cuda_visible_devices": _os.environ.get("CUDA_VISIBLE_DEVICES"),
+            "nvidia_smi": has_nvidia_smi,
+        }
+        _env_info = {k: _os.environ.get(k) for k in ["LANG", "LC_ALL", "TZ"]}
+
         manifest: Dict[str, Any] = {
             "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
             "openeval_version": _maybe_ver("openeval-lab"),
@@ -293,6 +327,8 @@ class Task(ABC):
                 if v is not None
             },
             "git": git if git else None,
+            "cuda": _cuda_info,
+            "env": _env_info,
             "adapter": {
                 "name": getattr(adapter, "name", adapter.__class__.__name__),
                 "class": f"{adapter.__class__.__module__}.{adapter.__class__.__name__}",
@@ -326,6 +362,13 @@ class Task(ABC):
             },
             "manifest": manifest,
         }
+        # Attempt to add pip freeze for reproducibility (best effort)
+        try:
+            import subprocess as _sp
+            freeze = _sp.check_output([sys.executable, "-m", "pip", "freeze"], stderr=_sp.DEVNULL).decode().splitlines()
+            payload.setdefault("environment", {})["pip_freeze"] = freeze
+        except Exception:
+            pass
         # dataset fingerprint if file-backed
         ds_path = getattr(dataset, "path", None)
         if ds_path is not None:
