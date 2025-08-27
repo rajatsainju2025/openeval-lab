@@ -947,5 +947,105 @@ def library(
         raise typer.Exit(1)
 
 
+@app.command()
+def interactive(
+    spec: Optional[Path] = typer.Option(None, "--spec", help="Optional spec file to load"),
+):
+    """Launch an interactive shell for OpenEval exploration."""
+    try:
+        import readline  # Enable command-line editing
+    except ImportError:
+        pass
+    
+    task = dataset = adapter = metrics = None
+    if spec:
+        try:
+            task, dataset, adapter, metrics, _ = load_spec(spec)
+            console.print(f"[green]Loaded spec from {spec}[/green]")
+            console.print(f"Task: {getattr(task, 'name', task.__class__.__name__)}")
+            console.print(f"Dataset: {getattr(dataset, 'name', dataset.__class__.__name__)}")
+            console.print(f"Adapter: {getattr(adapter, 'name', adapter.__class__.__name__)}")
+            console.print(f"Metrics: {[m.name for m in metrics]}")
+        except Exception as e:
+            console.print(f"[red]Failed to load spec: {e}[/red]")
+            spec = None
+    
+    console.print("\n[bold cyan]OpenEval Interactive Shell[/bold cyan]")
+    console.print("Type 'help' for commands, 'exit' to quit.\n")
+    
+    while True:
+        try:
+            cmd = input("openeval> ").strip()
+            if not cmd:
+                continue
+            if cmd in ("exit", "quit"):
+                break
+            elif cmd == "help":
+                console.print("Available commands:")
+                console.print("  help        - Show this help")
+                console.print("  exit/quit   - Exit the shell")
+                console.print("  info        - Show current spec info")
+                console.print("  examples    - Show first 3 dataset examples")
+                console.print("  prompt <id> - Show prompt for example ID")
+                console.print("  run         - Run evaluation")
+                console.print("  library     - List available components")
+            elif cmd == "info":
+                if spec:
+                    console.print(f"Spec: {spec}")
+                    console.print(f"Task: {getattr(task, 'name', task.__class__.__name__)}")
+                    console.print(f"Dataset: {getattr(dataset, 'name', dataset.__class__.__name__)}")
+                    console.print(f"Adapter: {getattr(adapter, 'name', adapter.__class__.__name__)}")
+                else:
+                    console.print("No spec loaded. Use --spec <path> to load one.")
+            elif cmd == "examples":
+                if spec and dataset:
+                    examples = list(iter(dataset))[:3]
+                    for i, ex in enumerate(examples):
+                        console.print(f"[bold]Example {i+1}[/bold] (id={ex.id})")
+                        console.print(f"Input: {str(ex.input)[:200]}...")
+                        console.print(f"Reference: {str(ex.reference)[:100]}...")
+                        console.print()
+                else:
+                    console.print("No spec loaded.")
+            elif cmd.startswith("prompt "):
+                if spec and dataset and task:
+                    ex_id = cmd[7:].strip()
+                    examples = list(iter(dataset))
+                    for ex in examples:
+                        if ex.id == ex_id:
+                            prompt = task.build_prompt_with_template(ex)
+                            console.print(f"[bold]Prompt for {ex_id}:[/bold]\n{prompt}")
+                            break
+                    else:
+                        console.print(f"Example {ex_id} not found.")
+                else:
+                    console.print("No spec loaded.")
+            elif cmd == "run":
+                if spec and task and dataset and adapter and metrics:
+                    console.print("Running evaluation...")
+                    result = task.evaluate(adapter, dataset, metrics, seed=0)
+                    console.print(f"Results: {result.get('metrics', {})}")
+                else:
+                    console.print("No spec loaded.")
+            elif cmd == "library":
+                console.print("Available library components:")
+                try:
+                    from .library import get_task_library
+                    lib = get_task_library()
+                    components = lib.list_tasks()[:10]  # Show first 10
+                    for comp in components:
+                        console.print(f"  {comp['id']}: {comp['description']}")
+                except Exception:
+                    console.print("Library not available.")
+            else:
+                console.print(f"Unknown command: {cmd}. Type 'help' for available commands.")
+        except KeyboardInterrupt:
+            console.print("\nUse 'exit' to quit.")
+        except EOFError:
+            break
+    
+    console.print("Goodbye!")
+
+
 if __name__ == "__main__":
     app()
