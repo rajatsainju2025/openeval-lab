@@ -15,6 +15,11 @@
       .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .meta { font-size: 14px; }
       .pagination a { margin-right: 8px; }
+      .trace-toggle { margin: 8px 0; }
+      .trace { background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: 8px; margin: 4px 0; display: none; }
+      .trace.show { display: block; }
+      .trace-step { margin: 4px 0; padding: 4px; border-left: 3px solid #007acc; }
+      .trace-label { font-weight: bold; color: #007acc; }
     </style>
   </head>
   <body>
@@ -57,6 +62,12 @@
         </div>
         <hr />
         <h3>Records ({{ pagination.total }} total)</h3>
+        {% set has_traces = records and records|selectattr('trace')|list|length > 0 %}
+        {% if has_traces %}
+          <div class="trace-toggle">
+            <label><input type="checkbox" id="show-traces" onchange="toggleTraces()"> Show agent traces</label>
+          </div>
+        {% endif %}
         {% if records and records|length > 0 %}
           <table>
             <thead>
@@ -69,6 +80,7 @@
                 <th>Latency (ms)</th>
                 <th>Cached</th>
                 <th>Error</th>
+                {% if has_traces %}<th>Trace</th>{% endif %}
               </tr>
             </thead>
             <tbody>
@@ -82,6 +94,25 @@
                   <td>{{ '%.2f'|format(r.latency_ms or 0) }}</td>
                   <td>{% if r.cached %}yes{% else %}no{% endif %}</td>
                   <td class="muted">{{ r.error }}</td>
+                  {% if has_traces %}
+                    <td>
+                      {% if r.trace %}
+                        <button onclick="toggleTrace('trace-{{ loop.index0 + pagination.offset }}')" style="font-size: 12px;">View</button>
+                        <div id="trace-{{ loop.index0 + pagination.offset }}" class="trace">
+                          {% for step in r.trace %}
+                            <div class="trace-step">
+                              {% if step.thought %}<div><span class="trace-label">Thought:</span> {{ step.thought[:200] }}{% if step.thought|length > 200 %}...{% endif %}</div>{% endif %}
+                              {% if step.action %}<div><span class="trace-label">Action:</span> {{ step.action }}</div>{% endif %}
+                              {% if step.input %}<div><span class="trace-label">Input:</span> {{ step.input }}</div>{% endif %}
+                              {% if step.observation %}<div><span class="trace-label">Observation:</span> {{ step.observation[:200] }}{% if step.observation|length > 200 %}...{% endif %}</div>{% endif %}
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                  {% endif %}
                 </tr>
               {% endfor %}
             </tbody>
@@ -103,5 +134,25 @@
         <p class="muted">Run file not found under <code>runs/</code>.</p>
       {% endif %}
     </div>
+    <script>
+      function toggleTraces() {
+        const checkbox = document.getElementById('show-traces');
+        const traces = document.querySelectorAll('.trace');
+        traces.forEach(trace => {
+          if (checkbox.checked) {
+            trace.classList.add('show');
+          } else {
+            trace.classList.remove('show');
+          }
+        });
+      }
+      
+      function toggleTrace(id) {
+        const trace = document.getElementById(id);
+        if (trace) {
+          trace.style.display = trace.style.display === 'block' ? 'none' : 'block';
+        }
+      }
+    </script>
   </body>
 </html>
