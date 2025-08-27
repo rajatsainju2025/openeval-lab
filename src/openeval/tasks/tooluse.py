@@ -130,15 +130,26 @@ class ToolUseTask(Task):
         if collect_records:
             records: List[Dict[str, Any]] = []
             for ex, pred, lat in zip(examples, predictions, per_latency):
-                records.append(
-                    {
-                        "id": ex.id,
-                        "input": ex.input,
-                        "reference": ex.reference,
-                        "prediction": getattr(pred, "final_answer", str(pred)),
-                        "latency_ms": lat * 1000.0,
-                    }
-                )
+                rec = {
+                    "id": ex.id,
+                    "input": ex.input,
+                    "reference": ex.reference,
+                    "prediction": getattr(pred, "final_answer", str(pred)),
+                    "latency_ms": lat * 1000.0,
+                }
+                if getattr(self, "_collect_traces", False):
+                    # Include a simplified trace for portability
+                    steps = getattr(pred, "steps", []) or []
+                    rec["trace"] = [
+                        {
+                            "thought": getattr(s, "thought", None),
+                            "action": getattr(s, "action", None),
+                            "input": getattr(s, "input", None),
+                            "observation": getattr(s, "observation", None),
+                        }
+                        for s in steps
+                    ]
+                records.append(rec)
             payload["records"] = records
 
         return payload

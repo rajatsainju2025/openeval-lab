@@ -594,6 +594,7 @@ def run(
         None, "--cache-ttl", help="Cache TTL seconds (optional)"
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
+    traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
 ):
     """Run an evaluation from a spec file."""
     try:
@@ -620,6 +621,11 @@ def run(
     setattr(adapter, "_cache_key_mode", cache_key_mode)
 
     if not interactive:
+        # Hint tasks that can emit traces
+        try:
+            setattr(task, "_collect_traces", bool(traces))
+        except Exception:
+            pass
         result = task.evaluate(
             adapter,
             dataset,
