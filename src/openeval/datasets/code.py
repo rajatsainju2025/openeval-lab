@@ -16,8 +16,19 @@ class CodeDataset(Dataset):
     name: str = "code"
 
     def __iter__(self) -> Iterator[Example]:
-        """Iterate over code examples."""
+        """Iterate over code examples.
+
+        Accepts paths relative to the project root (repository folder) or the current
+        working directory. If the provided relative path doesn't exist from CWD, we
+        try resolving it from the project root derived from this file location.
+        """
         p = Path(self.path)
+        if not p.is_absolute() and not p.exists():
+            # Resolve relative to project root: openeval-lab/ (src/../..)
+            project_root = Path(__file__).resolve().parents[3]
+            candidate = project_root / p
+            if candidate.exists():
+                p = candidate
 
         with p.open("r", encoding="utf-8") as f:
             for line_no, line in enumerate(f, 1):
@@ -84,6 +95,11 @@ class HumanEvalDataset(CodeDataset):
     def __iter__(self) -> Iterator[Example]:
         """Iterate over HumanEval examples."""
         p = Path(self.path)
+        if not p.is_absolute() and not p.exists():
+            project_root = Path(__file__).resolve().parents[3]
+            candidate = project_root / p
+            if candidate.exists():
+                p = candidate
 
         with p.open("r", encoding="utf-8") as f:
             for line_no, line in enumerate(f, 1):

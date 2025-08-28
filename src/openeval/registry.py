@@ -33,6 +33,7 @@ METRICS: Dict[str, str] = {
     "rouge_l": "openeval.metrics.rouge.ROUGEL",
     "llm_judge": "openeval.metrics.judge.LLMJudge",
     "tool_execution": "openeval.metrics.tool_execution.ToolExecutionMetric",
+    "char_edit": "openeval.metrics.edit_distance.CharEditDistance",
 }
 
 
