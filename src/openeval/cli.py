@@ -20,6 +20,7 @@ from .data_quality import DataQualityAssessor
 from .experiment_tracking import experiment_tracker
 from .optimization import performance_monitor
 from . import registry
+from .utils import get_project_root
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -46,6 +47,21 @@ def registry_info(
         console.print(f"Not found: {kind}:{name}", style="red")
         raise typer.Exit(code=1)
     console.print(json.dumps(meta, indent=2))
+
+
+@app.command()
+def tutorial():
+    """Show getting-started steps and the tutorial file path."""
+    root = get_project_root()
+    tut = root / "docs" / "tutorial.md"
+    console.print("\nOpenEval Lab Tutorial (quickstart):\n", style="blue bold")
+    console.print("1) python -m venv .venv && source .venv/bin/activate")
+    console.print("2) pip install -e '.[dev,metrics]'")
+    console.print("3) openeval registry-list metric  # explore built-ins")
+    console.print("4) openeval validate examples/qa_spec.json")
+    console.print("5) openeval run examples/qa_spec.json --records --artifacts runs")
+    console.print("6) openeval web --open")
+    console.print(f"\nFull tutorial: {tut}")
 console = Console()
 
 
