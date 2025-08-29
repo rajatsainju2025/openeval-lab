@@ -69,6 +69,7 @@ def docs():
     """List key documentation files and their paths."""
     root = get_project_root()
     files = [
+    ("Docs Index", root / "docs" / "index.md"),
         ("Tutorial", root / "docs" / "tutorial.md"),
         ("Concepts", root / "docs" / "concepts.md"),
         ("SOTA", root / "docs" / "sota.md"),
