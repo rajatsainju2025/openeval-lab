@@ -62,6 +62,25 @@ def tutorial():
     console.print("5) openeval run examples/qa_spec.json --records --artifacts runs")
     console.print("6) openeval web --open")
     console.print(f"\nFull tutorial: {tut}")
+
+
+@app.command()
+def docs():
+    """List key documentation files and their paths."""
+    root = get_project_root()
+    files = [
+        ("Tutorial", root / "docs" / "tutorial.md"),
+        ("Concepts", root / "docs" / "concepts.md"),
+        ("SOTA", root / "docs" / "sota.md"),
+        ("ICML Paper", root / "ICML_PAPER.md"),
+        ("Contributing", root / "CONTRIBUTING.md"),
+    ]
+    table = Table(title="Documentation")
+    table.add_column("Doc")
+    table.add_column("Path")
+    for name, path in files:
+        table.add_row(name, str(path))
+    console.print(table)
 console = Console()
 
 
