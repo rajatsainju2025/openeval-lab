@@ -19,8 +19,33 @@ from .utils import hash_file
 from .data_quality import DataQualityAssessor
 from .experiment_tracking import experiment_tracker
 from .optimization import performance_monitor
+from . import registry
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+@app.command()
+def registry_list(kind: str = typer.Argument(..., help="task|dataset|adapter|metric")):
+    """List registered items for a given kind with descriptions."""
+    items = registry.list_items(kind)
+    table = Table(title=f"Registry: {kind}")
+    table.add_column("Name", style="cyan")
+    table.add_column("Path")
+    table.add_column("Description")
+    for name, meta in sorted(items.items()):
+        table.add_row(name, meta.get("path", ""), meta.get("description", ""))
+    console.print(table)
+
+
+@app.command()
+def registry_info(
+    kind: str = typer.Argument(..., help="task|dataset|adapter|metric"),
+    name: str = typer.Argument(..., help="Short name"),
+):
+    """Show information for a specific registry item."""
+    meta = registry.info(kind, name)
+    if not meta:
+        console.print(f"Not found: {kind}:{name}", style="red")
+        raise typer.Exit(code=1)
+    console.print(json.dumps(meta, indent=2))
 console = Console()
 
 

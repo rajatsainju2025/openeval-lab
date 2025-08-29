@@ -96,6 +96,9 @@ Roadmap:
 
 When using the OpenAI adapter, be aware of the following:
 
-- You need to set the `OPENAI_API_KEY` environment variable with your OpenAI API key.
-- Usage of the OpenAI API may incur costs, depending on your usage and OpenAI's pricing.
-- Ensure that your usage complies with OpenAI's use case policy and guidelines.
+
+## Documentation
+
+- ICML-style paper: `ICML_PAPER.md`
+- Contribution guide: `CONTRIBUTING.md`
+- Getting started tutorial: `docs/tutorial.md`
