@@ -6,6 +6,7 @@ from typing import Iterator, Optional, Dict, Any, List, Union
 import json
 
 from ..core import Dataset, Example
+from ..utils import get_project_root
 
 
 @dataclass
@@ -24,8 +25,7 @@ class CodeDataset(Dataset):
         """
         p = Path(self.path)
         if not p.is_absolute() and not p.exists():
-            # Resolve relative to project root: openeval-lab/ (src/../..)
-            project_root = Path(__file__).resolve().parents[3]
+            project_root = get_project_root()
             candidate = project_root / p
             if candidate.exists():
                 p = candidate
@@ -96,7 +96,7 @@ class HumanEvalDataset(CodeDataset):
         """Iterate over HumanEval examples."""
         p = Path(self.path)
         if not p.is_absolute() and not p.exists():
-            project_root = Path(__file__).resolve().parents[3]
+            project_root = get_project_root()
             candidate = project_root / p
             if candidate.exists():
                 p = candidate

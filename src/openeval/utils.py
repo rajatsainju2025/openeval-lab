@@ -7,6 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTimeoutError
 from pathlib import Path
 from typing import Callable, Optional, TypeVar
+from typing import Optional as _Optional
 
 
 def set_seed(seed: Optional[int]) -> None:
@@ -94,3 +95,28 @@ def run_with_timeout(fn: Callable[[], T], timeout: Optional[float]) -> T:
         except _FTimeoutError as e:  # pragma: no cover - timing sensitive
             fut.cancel()
             raise TimeoutError(f"Operation timed out after {timeout} seconds") from e
+
+
+def get_project_root(env_var: str = "OPENEVAL_PROJECT_ROOT") -> Path:
+    """Return the project repository root.
+
+    Priority:
+    1) Environment variable OPENEVAL_PROJECT_ROOT if set and exists.
+    2) Nearest ancestor containing pyproject.toml or .git from this file.
+    3) Current working directory.
+    """
+    # 1) Environment override
+    p_env = os.getenv(env_var)
+    if p_env:
+        p = Path(p_env)
+        if p.exists():
+            return p.resolve()
+
+    # 2) Search upwards from this file
+    here = Path(__file__).resolve()
+    for parent in [here] + list(here.parents):
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
+            return parent
+
+    # 3) Fallback to CWD
+    return Path.cwd()
