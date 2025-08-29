@@ -102,3 +102,7 @@ When using the OpenAI adapter, be aware of the following:
 - ICML-style paper: `ICML_PAPER.md`
 - Contribution guide: `CONTRIBUTING.md`
 - Getting started tutorial: `docs/tutorial.md`
+ - Core concepts: `docs/concepts.md`
+ - SOTA references: `docs/sota.md`
+ - Reimagination plan: `docs/reimagining.md`
+ - Roadmap: `docs/roadmap.md`
