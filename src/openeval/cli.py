@@ -111,62 +111,92 @@ def version():
 
 
 @app.command()
-def doctor():
+def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summary only")):
     """Diagnose environment, dependencies, and configuration."""
     from importlib.metadata import PackageNotFoundError, version as _v
 
-    console.rule("Environment Checks")
-    console.print(f"Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
-    # Required packages
+    # Collect summary first
+    py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     required = ["typer", "pydantic", "rich", "fastapi", "jinja2"]
     optional = ["openai", "anthropic", "datasets", "sacrebleu", "bert-score", "rouge-score"]
-    table = Table(title="Packages")
-    table.add_column("Name", style="cyan")
-    table.add_column("Status")
-    table.add_column("Version")
+    packages = {}
     for pkg in required + optional:
         try:
             ver = _v(pkg)
-            table.add_row(pkg, "OK", ver)
+            packages[pkg] = {"status": "ok", "version": ver, "required": pkg in required}
         except PackageNotFoundError:
-            status = "optional" if pkg in optional else "missing"
-            table.add_row(pkg, status, "-")
-        except Exception:
-            table.add_row(pkg, "error", "-")
-    console.print(table)
+            packages[pkg] = {"status": "missing" if pkg in required else "optional", "version": None, "required": pkg in required}
+        except Exception as e:
+            packages[pkg] = {"status": "error", "error": str(e), "version": None, "required": pkg in required}
 
-    # API keys
-    console.rule("API Keys")
     keys = {
         "OPENAI_API_KEY": bool(os.getenv("OPENAI_API_KEY")),
         "ANTHROPIC_API_KEY": bool(os.getenv("ANTHROPIC_API_KEY")),
         "HUGGINGFACE_API_KEY": bool(os.getenv("HUGGINGFACE_API_KEY")),
     }
-    for k, present in keys.items():
-        color = "green" if present else "yellow"
-        console.print(f"{k}: {'set' if present else 'not set'}", style=color)
 
-    # Filesystem checks
-    console.rule("Filesystem")
     root = get_project_root()
     runs_dir = root / "runs"
+    fs = {"runs_dir": str(runs_dir), "writable": False, "error": None}
     try:
         runs_dir.mkdir(parents=True, exist_ok=True)
         test_file = runs_dir / ".write_test"
         test_file.write_text("ok")
         test_file.unlink(missing_ok=True)
-        console.print(f"runs/: writable ({runs_dir})", style="green")
+        fs["writable"] = True
     except Exception as e:
-        console.print(f"runs/: not writable ({e})", style="red")
+        fs["writable"] = False
+        fs["error"] = str(e)
 
     # Registry sanity
-    console.rule("Registry")
     try:
         tasks = registry.list_items("task")
         metrics = registry.list_items("metric")
-        console.print(f"tasks: {len(tasks)} registered, metrics: {len(metrics)} registered")
+        reg = {"tasks": len(tasks), "metrics": len(metrics)}
     except Exception as e:
-        console.print(f"registry error: {e}", style="red")
+        reg = {"error": str(e)}
+
+    summary = {
+        "python": py_version,
+        "packages": packages,
+        "api_keys": keys,
+        "filesystem": fs,
+        "registry": reg,
+    }
+
+    if json_out:
+        sys.stdout.write(json.dumps(summary) + "\n")
+        return
+
+    # Human-readable output
+    console.rule("Environment Checks")
+    console.print(f"Python: {py_version}")
+    table = Table(title="Packages")
+    table.add_column("Name", style="cyan")
+    table.add_column("Status")
+    table.add_column("Version")
+    for name, meta in packages.items():
+        status = meta.get("status", "?")
+        ver = meta.get("version") or "-"
+        table.add_row(name, status, ver)
+    console.print(table)
+
+    console.rule("API Keys")
+    for k, present in keys.items():
+        color = "green" if present else "yellow"
+        console.print(f"{k}: {'set' if present else 'not set'}", style=color)
+
+    console.rule("Filesystem")
+    if fs["writable"]:
+        console.print(f"runs/: writable ({runs_dir})", style="green")
+    else:
+        console.print(f"runs/: not writable ({fs['error']})", style="red")
+
+    console.rule("Registry")
+    if "error" in reg:
+        console.print(f"registry error: {reg['error']}", style="red")
+    else:
+        console.print(f"tasks: {reg['tasks']} registered, metrics: {reg['metrics']} registered")
 
     console.rule("Done")
     console.print("If any required items are missing, install extras e.g. pip install -e '.[dev,metrics,openai]'", style="blue")

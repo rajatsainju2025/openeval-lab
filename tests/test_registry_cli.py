@@ -27,3 +27,16 @@ def test_doctor_runs():
     assert "Environment Checks" in res.stdout
     assert "API Keys" in res.stdout
     assert "Filesystem" in res.stdout
+
+
+def test_doctor_json_output():
+    res = runner.invoke(app, ["doctor", "--json"])
+    assert res.exit_code == 0
+    # Output should be JSON with required keys
+    import json as _json
+    payload = _json.loads(res.stdout)
+    assert "python" in payload
+    assert "packages" in payload
+    assert "api_keys" in payload
+    assert "filesystem" in payload
+    assert "registry" in payload
