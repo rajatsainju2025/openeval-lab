@@ -38,3 +38,16 @@ def test_validate_example_spec():
     assert spec.exists()
     res = runner.invoke(app, ["validate", str(spec)])
     assert res.exit_code == 0
+
+
+def test_docs_lists_files():
+    res = runner.invoke(app, ["docs"])
+    assert res.exit_code == 0
+    assert "Documentation" in res.stdout
+    assert "Tutorial" in res.stdout
+
+
+def test_version_outputs():
+    res = runner.invoke(app, ["version"])
+    assert res.exit_code == 0
+    assert "Python version" in res.stdout
