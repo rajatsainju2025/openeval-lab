@@ -48,3 +48,4 @@ Check `runs/` and `results.json`. Start the web dashboard:
 - Try the summarization examples.
 - Use the OpenAI or HF adapters for real models.
 - Explore experiment tracking and compare runs.
+- Troubleshoot with `openeval doctor` (use `--json` for CI checks)
