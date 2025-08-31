@@ -111,7 +111,10 @@ def version():
 
 
 @app.command()
-def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summary only")):
+def doctor(
+    json_out: bool = typer.Option(False, "--json", help="Print JSON summary only"),
+    strict: bool = typer.Option(False, "--strict", help="Exit non-zero if required checks fail"),
+):
     """Diagnose environment, dependencies, and configuration."""
     from importlib.metadata import PackageNotFoundError, version as _v
 
@@ -166,6 +169,18 @@ def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summa
     except Exception:
         pass
 
+    # Determine overall health
+    required_ok = all(meta.get("status") == "ok" for name, meta in packages.items() if meta.get("required"))
+    if "error" in reg:
+        registry_ok = False
+    else:
+        try:
+            registry_ok = int(reg.get("tasks", 0)) >= 0 and int(reg.get("metrics", 0)) >= 0
+        except Exception:
+            registry_ok = False
+    fs_ok = bool(fs.get("writable"))
+    ok = bool(required_ok and registry_ok and fs_ok)
+
     summary = {
         "python": py_version,
         "packages": packages,
@@ -173,10 +188,13 @@ def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summa
         "filesystem": fs,
         "registry": reg,
         "git": git,
+        "ok": ok,
     }
 
     if json_out:
         sys.stdout.write(json.dumps(summary) + "\n")
+        if strict and not ok:
+            raise typer.Exit(code=1)
         return
 
     # Human-readable output
@@ -215,6 +233,8 @@ def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summa
 
     console.rule("Done")
     console.print("If any required items are missing, install extras e.g. pip install -e '.[dev,metrics,openai]'", style="blue")
+    if strict and not ok:
+        raise typer.Exit(code=1)
 
 
 @app.command()
