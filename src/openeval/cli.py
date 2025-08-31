@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import os
 from typing import Optional, List, Dict, Any
 import sys
 import subprocess
@@ -107,6 +108,68 @@ def version():
     except Exception:
         console.print("OpenEval Lab version: unknown", style="yellow")
         console.print(f"Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+
+
+@app.command()
+def doctor():
+    """Diagnose environment, dependencies, and configuration."""
+    from importlib.metadata import PackageNotFoundError, version as _v
+
+    console.rule("Environment Checks")
+    console.print(f"Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    # Required packages
+    required = ["typer", "pydantic", "rich", "fastapi", "jinja2"]
+    optional = ["openai", "anthropic", "datasets", "sacrebleu", "bert-score", "rouge-score"]
+    table = Table(title="Packages")
+    table.add_column("Name", style="cyan")
+    table.add_column("Status")
+    table.add_column("Version")
+    for pkg in required + optional:
+        try:
+            ver = _v(pkg)
+            table.add_row(pkg, "OK", ver)
+        except PackageNotFoundError:
+            status = "optional" if pkg in optional else "missing"
+            table.add_row(pkg, status, "-")
+        except Exception:
+            table.add_row(pkg, "error", "-")
+    console.print(table)
+
+    # API keys
+    console.rule("API Keys")
+    keys = {
+        "OPENAI_API_KEY": bool(os.getenv("OPENAI_API_KEY")),
+        "ANTHROPIC_API_KEY": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "HUGGINGFACE_API_KEY": bool(os.getenv("HUGGINGFACE_API_KEY")),
+    }
+    for k, present in keys.items():
+        color = "green" if present else "yellow"
+        console.print(f"{k}: {'set' if present else 'not set'}", style=color)
+
+    # Filesystem checks
+    console.rule("Filesystem")
+    root = get_project_root()
+    runs_dir = root / "runs"
+    try:
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        test_file = runs_dir / ".write_test"
+        test_file.write_text("ok")
+        test_file.unlink(missing_ok=True)
+        console.print(f"runs/: writable ({runs_dir})", style="green")
+    except Exception as e:
+        console.print(f"runs/: not writable ({e})", style="red")
+
+    # Registry sanity
+    console.rule("Registry")
+    try:
+        tasks = registry.list_items("task")
+        metrics = registry.list_items("metric")
+        console.print(f"tasks: {len(tasks)} registered, metrics: {len(metrics)} registered")
+    except Exception as e:
+        console.print(f"registry error: {e}", style="red")
+
+    console.rule("Done")
+    console.print("If any required items are missing, install extras e.g. pip install -e '.[dev,metrics,openai]'", style="blue")
 
 
 @app.command()
