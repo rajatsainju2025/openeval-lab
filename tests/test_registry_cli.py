@@ -40,3 +40,13 @@ def test_doctor_json_output():
     assert "api_keys" in payload
     assert "filesystem" in payload
     assert "registry" in payload
+
+
+def test_runs_collect_writes_index(tmp_path):
+    # Use a temporary runs dir with no JSONs
+    out = tmp_path / "index.json"
+    res = runner.invoke(app, ["runs", "collect", "--dir", str(tmp_path), "--out", str(out)])
+    assert res.exit_code == 0
+    assert out.exists()
+    data = out.read_text()
+    assert "runs" in data
