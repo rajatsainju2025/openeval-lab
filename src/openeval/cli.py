@@ -156,12 +156,23 @@ def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summa
     except Exception as e:
         reg = {"error": str(e)}
 
+    # Git info (best-effort)
+    git = {"commit": None, "dirty": None}
+    try:
+        import subprocess as _sp
+        commit = _sp.check_output(["git", "-C", str(root), "rev-parse", "--short", "HEAD"], text=True).strip()
+        status = _sp.check_output(["git", "-C", str(root), "status", "--porcelain"], text=True)
+        git = {"commit": commit, "dirty": bool(status.strip())}
+    except Exception:
+        pass
+
     summary = {
         "python": py_version,
         "packages": packages,
         "api_keys": keys,
         "filesystem": fs,
         "registry": reg,
+        "git": git,
     }
 
     if json_out:
@@ -197,6 +208,10 @@ def doctor(json_out: bool = typer.Option(False, "--json", help="Print JSON summa
         console.print(f"registry error: {reg['error']}", style="red")
     else:
         console.print(f"tasks: {reg['tasks']} registered, metrics: {reg['metrics']} registered")
+
+    if git.get("commit"):
+        dirty = " (dirty)" if git.get("dirty") else ""
+        console.print(f"git: {git['commit']}{dirty}")
 
     console.rule("Done")
     console.print("If any required items are missing, install extras e.g. pip install -e '.[dev,metrics,openai]'", style="blue")
