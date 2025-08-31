@@ -51,3 +51,10 @@ def test_version_outputs():
     res = runner.invoke(app, ["version"])
     assert res.exit_code == 0
     assert "Python version" in res.stdout
+
+
+def test_write_out_preview():
+    spec = Path(__file__).resolve().parents[1] / "examples" / "qa_spec.json"
+    res = runner.invoke(app, ["write_out", str(spec), "--limit", "2", "--preview", "1"])
+    assert res.exit_code == 0
+    assert "preview_count" in res.stdout
