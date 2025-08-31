@@ -14,6 +14,7 @@ Quickstart:
 - Install: `pip install -e '.[dev]'`
 - Run example: `openeval run examples/qa_spec.json --records --artifacts artifacts`
 - View dashboard: `openeval web --reload` (then open http://localhost:8000)
+ - Diagnose env: `openeval doctor` or JSON: `openeval doctor --json`
 
 Optional extras:
 - OpenAI adapter: `pip install -e '.[openai]'`
