@@ -100,10 +100,13 @@ When using the OpenAI adapter, be aware of the following:
 
 ## Documentation
 
+- Getting started: `docs/tutorial.md`
+- Core concepts: `docs/concepts.md`
+- Core contracts: `docs/contracts.md`
+- EvalOps (artifacts & runs): `docs/evalops.md`
+- SOTA references: `docs/sota.md`
+- Critique: `docs/critique.md`
+- Next-phase plan: `docs/next-phase-plan.md`
+- Roadmap: `docs/roadmap.md`
 - ICML-style paper: `ICML_PAPER.md`
 - Contribution guide: `CONTRIBUTING.md`
-- Getting started tutorial: `docs/tutorial.md`
- - Core concepts: `docs/concepts.md`
- - SOTA references: `docs/sota.md`
- - Reimagination plan: `docs/reimagining.md`
- - Roadmap: `docs/roadmap.md`
