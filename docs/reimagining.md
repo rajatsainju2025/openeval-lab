@@ -1,4 +1,4 @@
-# Reimagining OpenEval Lab (Aug 2025)
+# Reimagining OpenEval Lab (Sep 2025)
 
 This document critiques the previous plans and proposes the next phase of changes, inspired by current best practices (HELM, lm-evaluation-harness, emerging EvalOps).
 
@@ -12,9 +12,11 @@ This document critiques the previous plans and proposes the next phase of change
 
 ## SOTA takeaways (high level)
 
-- HELM: Multi-metric, scenario coverage, transparency, and open prompts/outputs to enable comparability.
-- lm-evaluation-harness: Config-based tasks, prompt templating (Jinja), strong caching and backend flexibility (APIs, HF, vLLM), community scale.
-- Light-weight evals: Prefer simple, reproducible tasks with clear invariants; lean on extras for heavy deps.
+- HELM (Bommasani et al., 2022–2023): Multi-metric, broad scenario coverage, transparency with released prompts/outputs.
+- lm-evaluation-harness: Config-first tasks, Jinja templating, caching, multi-backend; thriving community.
+- LMSYS Arena/Arena-Hard (2024): Pairwise human preference evaluation; handle position bias; emphasize uncertainty.
+- MTEB: Suite design and artifact standards for embeddings; inspiration for curated suites and exports.
+- Principle: Keep core small, precise, and schema-first; move heavy deps to extras.
 
 ## Next-phase objectives
 
@@ -22,6 +24,18 @@ This document critiques the previous plans and proposes the next phase of change
 - Make specs and examples plug-and-play (validation command, robust paths).
 - Add calibration/robustness hooks later; start with interfaces and docs now.
 - Keep tests green; favor incremental, low-risk commits.
+
+## Design principles (2025)
+- Contracts-first: document the Task/Dataset/Adapter/Metric invariants and error modes.
+- Schema-first: versioned results schema with CLI validation and compare tools.
+- Minimal UI: basic web views; prioritize CLI exports and run diffs.
+- Extensible extras: calibration/robustness/fairness as optional installs.
+
+## Reading pointers (selection)
+- HELM: https://arxiv.org/abs/2211.09110 (TMLR 2023)
+- lm-evaluation-harness: https://github.com/EleutherAI/lm-evaluation-harness
+- LMSYS Arena: Arena-Hard and pairwise judging (2024) overview
+- MTEB: https://arxiv.org/abs/2210.07316
 
 ## Concrete near-term changes
 
