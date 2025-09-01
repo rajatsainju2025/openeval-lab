@@ -1,51 +1,55 @@
 # OpenEval Lab Tutorial: Getting Started
 
-This short tutorial helps you run your first evaluation and explore the registry and CLI tools.
+This short tutorial gets you from install to your first run and the minimal web dashboard.
 
-## 1. Install
+## 1) Install
 
-Create a virtual environment and install the package in editable mode:
+Create a virtual environment and install in editable mode with developer tools:
 
 1) python -m venv .venv
 2) source .venv/bin/activate
-3) pip install -e .[dev,metrics]
+3) pip install -e .[dev]
 
-Optional extras: `openai`, `hf`.
+Optional extras: metrics (`.[metrics]`), OpenAI (`.[openai]`), HuggingFace datasets (`.[hf]`).
 
-## 2. Explore the registry
+## 2) Explore the registry
 
-List items:
+List available components:
 
 - openeval registry-list task
 - openeval registry-list dataset
 - openeval registry-list adapter
 - openeval registry-list metric
 
-Inspect a specific item:
+Inspect a specific item (e.g., ROUGE-L metric):
 
 - openeval registry-info metric rouge_l
 
-## 3. Validate a spec
+## 3) Validate a spec
 
-Use one of the examples:
+Use one of the bundled examples:
 
 - openeval validate examples/qa_spec.json
 
-## 4. Run an evaluation
+## 4) Run your first evaluation (echo adapter)
 
-Run with the echo adapter (no API keys required):
+The echo adapter is offline and free. Try a tiny QA toy dataset:
 
-- openeval run examples/qa_toy.jsonl --adapter echo --metrics exact_match token_f1
+- openeval run examples/qa_spec.json --adapter echo --records --artifacts runs
 
-## 5. View results
+Flags used:
+- `--records` writes per-example outputs.
+- `--artifacts runs` saves a timestamped run file in `runs/`.
 
-Check `runs/` and `results.json`. Start the web dashboard:
+## 5) View results
 
-- openeval web --open
+- ls runs/  # see timestamped JSON
+- openeval web --reload  # open the dashboard (http://localhost:8000)
+- Navigate to /leaderboard and click a run to view records.
 
-## 6. Next steps
+## 6) Next steps
 
-- Try the summarization examples.
-- Use the OpenAI or HF adapters for real models.
-- Explore experiment tracking and compare runs.
-- Troubleshoot with `openeval doctor` (use `--json` for CI checks)
+- Try summarization: `openeval run examples/sum_spec.json --records --artifacts runs`
+- Install metrics: `pip install -e .[metrics]` to enable ROUGE/BERTScore/SacreBLEU.
+- Use OpenAI: `pip install -e .[openai]` and set `OPENAI_API_KEY`.
+- Troubleshoot: `openeval doctor` or `openeval doctor --json` for CI.
