@@ -22,6 +22,7 @@ from .experiment_tracking import experiment_tracker
 from .optimization import performance_monitor
 from . import registry
 from .utils import get_project_root
+from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -736,6 +737,17 @@ def schema(out: Optional[Path] = typer.Option(None, "--out", help="Write JSON sc
         print(payload)
 
 
+@app.command("results-schema")
+def results_schema(out: Optional[Path] = typer.Option(None, "--out", help="Write results JSON schema to file")):
+    """Print the JSON schema for OpenEval results payloads."""
+    payload = json.dumps(RESULTS_JSON_SCHEMA, indent=2)
+    if out:
+        out.write_text(payload)
+        print({"saved": str(out)})
+    else:
+        print(payload)
+
+
 @app.command()
 def init(
     out: Path = typer.Argument(..., help="Path to write a starter spec (json or yaml)"),
@@ -1012,6 +1024,21 @@ def validate(spec: Path = typer.Argument(..., help="Path to JSON/YAML spec to va
         print({"valid": True, "spec": str(spec)})
     except SystemExit as e:
         print({"valid": False, "spec": str(spec), "error": str(e)})
+        raise typer.Exit(code=1)
+
+
+@app.command("validate-results")
+def validate_results(path: Path = typer.Argument(..., help="Path to results JSON file"), strict: bool = typer.Option(False, "--strict", help="Exit non-zero if validation fails")):
+    """Validate a results JSON file against the OpenEval results schema."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except Exception as e:
+        sys.stdout.write(json.dumps({"valid": False, "error": f"failed to read JSON: {e}"}) + "\n")
+        raise typer.Exit(code=2)
+
+    ok, errs = validate_results_payload(data)
+    sys.stdout.write(json.dumps({"valid": ok, "errors": errs, "path": str(path)}) + "\n")
+    if strict and not ok:
         raise typer.Exit(code=1)
 
 
