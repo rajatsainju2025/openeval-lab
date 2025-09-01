@@ -36,6 +36,15 @@ class Adapter(Protocol):
         """
         raise NotImplementedError
 
+    # Optional async methods for improved throughput
+    async def agenerate(self, prompt: str, **kwargs: Any) -> str:  # pragma: no cover - optional
+        """Async version of generate. Fallback to sync if not implemented."""
+        return self.generate(prompt, **kwargs)
+
+    async def agenerate_with_logprobs(self, prompt: str, **kwargs: Any) -> Dict[str, Any]:  # pragma: no cover - optional
+        """Async version of generate_with_logprobs."""
+        return self.generate_with_logprobs(prompt, **kwargs)
+
 
 class Metric(Protocol):
     """Evaluation metric interface."""

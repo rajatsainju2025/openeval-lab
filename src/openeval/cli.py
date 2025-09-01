@@ -796,6 +796,8 @@ def run(
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
     traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
+    # Performance optimization
+    use_async: bool = typer.Option(False, "--async", help="Use async adapter methods if available for better throughput"),
 ):
     """Run an evaluation from a spec file."""
     try:
