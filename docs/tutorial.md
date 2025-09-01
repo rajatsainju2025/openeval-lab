@@ -41,6 +41,11 @@ Optional flags you can try:
 - `--robustness-noise 0.05` to perturb inputs and record a robustness slice.
 - `--calibration` to attempt calibration metadata if the adapter exposes logprobs.
 
+Calibration notes:
+- The CLI computes a simple Expected Calibration Error (ECE) using exp(mean token logprob) as a confidence proxy for short completions.
+- This requires adapters that implement `generate_with_logprobs` (OpenAI-style logprobs or equivalent).
+- It caps at ~512 samples for speed; results are reported under a `calibration` block in the run JSON.
+
 Flags used:
 - `--records` writes per-example outputs.
 - `--artifacts runs` saves a timestamped run file in `runs/`.
