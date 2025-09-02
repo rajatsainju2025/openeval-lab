@@ -1,0 +1,107 @@
+# Example OpenEval Configuration
+
+# Project information
+project_name: "my-evaluation-project"
+version: "1.0.0"
+description: "Example evaluation configuration"
+
+# Environment settings
+environment: "development"
+debug_mode: true
+
+# Directory settings
+data_dir: "data"
+output_dir: "outputs"
+cache_dir: ".cache"
+log_dir: "logs"
+
+# Evaluation settings
+evaluation:
+  # Performance settings
+  default_concurrency: 4
+  default_max_retries: 3
+  default_timeout: 60.0
+  
+  # Resource limits
+  max_memory_mb: 8192
+  max_cpu_percent: 80.0
+  max_disk_usage_mb: 10240
+  
+  # Output settings
+  default_output_format: "json"
+  include_records_by_default: false
+  include_traces_by_default: false
+  
+  # Cache settings
+  default_cache_mode: "rw"
+  default_cache_ttl: 3600.0
+  cache_compression: true
+  
+  # Error handling
+  enable_robust_mode: true
+  max_retry_attempts: 5
+  circuit_breaker_threshold: 3
+  
+  # Performance monitoring
+  enable_benchmarking: false
+  enable_memory_profiling: false
+  save_performance_by_default: false
+
+# Adapter settings
+adapters:
+  # API settings
+  api_base_urls:
+    openai: "https://api.openai.com/v1"
+    anthropic: "https://api.anthropic.com"
+  
+  api_keys:
+    # Keys loaded from environment variables or secrets
+    openai: "${OPENAI_API_KEY}"
+    anthropic: "${ANTHROPIC_API_KEY}"
+  
+  api_versions:
+    openai: "2023-05-15"
+    anthropic: "2023-06-01"
+  
+  # Request settings
+  default_temperature: 0.0
+  default_max_tokens: 2048
+  request_timeout: 30.0
+  
+  # Retry settings
+  max_retries: 3
+  retry_delay: 1.0
+  backoff_factor: 2.0
+  
+  # Rate limiting
+  rate_limit_rpm: 60
+  rate_limit_tpm: 150000
+  burst_allowance: 5
+
+# Logging settings
+logging:
+  level: "INFO"
+  format_string: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_to_file: true
+  log_file_path: "logs/openeval.log"
+  max_log_size_mb: 100
+  log_retention_days: 30
+  
+  # Structured logging
+  structured_logging: false
+  include_context: true
+  redact_sensitive: true
+
+# Custom settings for your project
+custom:
+  model_registry:
+    default_model: "gpt-3.5-turbo"
+    fallback_model: "gpt-3.5-turbo-instruct"
+  
+  evaluation_pipeline:
+    stages: ["validate", "evaluate", "analyze"]
+    parallel_execution: true
+  
+  notification:
+    slack_webhook: "${SLACK_WEBHOOK_URL}"
+    email_recipients: ["team@example.com"]

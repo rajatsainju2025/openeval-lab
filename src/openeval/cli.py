@@ -989,7 +989,8 @@ def run(
             prompt = task.build_prompt_with_template(ex)
             console.print(f"\n[bold]Example {idx+1}/{len(examples)}[/bold] id={ex.id}", style="cyan")
             console.print(f"Input: {str(ex.input)[:200]}" )
-            console.print("Show full prompt? [y/N], skip [s], quit [q]", style="muted")
+            # Use a valid rich style; 'muted' isn't a default style
+            console.print("Show full prompt? [y/N], skip [s], quit [q]", style="dim")
             ans = input("Action: ").strip().lower()
             if ans == "q":
                 break
@@ -1165,6 +1166,121 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+# -------------------------
+# Validation & Comparison
+# -------------------------
+
+@app.command("validate")
+def validate_spec(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec to validate")
+):
+    """Validate a spec file for correctness."""
+    from .spec import _read_spec_file, EvalSpec
+    console = Console()
+    try:
+        data = _read_spec_file(spec)
+        # Normalize metrics entries that are strings
+        metrics_raw = data.get("metrics")
+        if isinstance(metrics_raw, list) and metrics_raw and isinstance(metrics_raw[0], str):
+            data["metrics"] = [{"name": m} for m in metrics_raw]
+        # Validate against the pydantic model
+        EvalSpec(**data)
+        console.print("Spec is valid", style="green")
+    except SystemExit as e:
+        # _read_spec_file may raise SystemExit for YAML missing
+        console.print(f"Spec invalid: {e}", style="red")
+        raise typer.Exit(code=2)
+    except Exception as e:
+        console.print(f"Spec invalid: {e}", style="red")
+        raise typer.Exit(code=2)
+
+
+@app.command("validate-dataset")
+def validate_dataset_cmd(
+    path: Path = typer.Argument(..., help="Path to dataset JSONL file"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Where to save report JSON"),
+    strict: bool = typer.Option(False, "--strict", help="Fail on validation issues"),
+):
+    """Validate a dataset JSONL file and optionally save a quality report."""
+    from .dataset_validation import validate_jsonl_file
+    console = Console()
+    try:
+        report = validate_jsonl_file(path)
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, "w") as f:
+                json.dump(report.__dict__, f, indent=2)
+        # Print brief summary
+        console.print(
+            f"Dataset quality: score={report.quality_score:.2f}, total={report.total_examples}, valid={report.valid_examples}",
+            style=("green" if report.quality_score >= 0.7 else "yellow"),
+        )
+        if strict and (report.quality_score < 0.7 or report.valid_examples == 0):
+            raise typer.Exit(code=2)
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"Validation failed: {e}", style="red")
+        raise typer.Exit(code=2)
+
+
+@app.command("compare")
+def compare_runs(
+    run_a: Path = typer.Argument(..., help="Path to first results JSON"),
+    run_b: Path = typer.Argument(..., help="Path to second results JSON"),
+    bootstrap: int = typer.Option(0, "--bootstrap", help="Bootstrap samples for CI (optional)"),
+):
+    """Compare two run result files and print summary statistics."""
+    console = Console()
+    try:
+        with open(run_a) as f:
+            A = json.load(f)
+        with open(run_b) as f:
+            B = json.load(f)
+
+        # Basic accuracy extraction helper
+        def extract_primary(d: Dict[str, Any]) -> float:
+            m = d.get("metrics", {})
+            # Try common keys
+            for key in ["accuracy", "acc", "primary", "score"]:
+                if key in m:
+                    val = m[key]
+                    if isinstance(val, dict):
+                        for inner in ["accuracy", "score", key]:
+                            if inner in val:
+                                return float(val[inner])
+                    elif isinstance(val, (int, float)):
+                        return float(val)
+            # Fallback attempt: first numeric metric
+            for v in m.values():
+                if isinstance(v, (int, float)):
+                    return float(v)
+                if isinstance(v, dict):
+                    for vv in v.values():
+                        if isinstance(vv, (int, float)):
+                            return float(vv)
+            return float("nan")
+
+        a_val = extract_primary(A)
+        b_val = extract_primary(B)
+        diff = b_val - a_val
+
+        result: Dict[str, Any] = {
+            "A": a_val,
+            "B": b_val,
+            "diff": diff,
+        }
+
+        # Bootstrap CI is optional; if requested but unavailable, we proceed without it
+        if bootstrap:
+            result["note"] = "bootstrap CI not available in this build"
+
+        console.print(json.dumps(result, indent=2))
+    except Exception as e:
+        console.print(f"Comparison failed: {e}", style="red")
+        raise typer.Exit(code=2)
 
 
 @app.command("debug-logs")
