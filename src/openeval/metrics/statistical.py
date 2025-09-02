@@ -1,6 +1,6 @@
 """Advanced evaluation metrics with statistical analysis."""
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Callable, Union
 import math
 from dataclasses import dataclass
 
@@ -15,6 +15,147 @@ class StatisticalResult:
     p_value: Optional[float] = None
     effect_size: Optional[float] = None
     sample_size: int = 0
+
+
+class ConfidenceIntervalMixin:
+    """Mixin class to add confidence interval computation to any metric."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.n_bootstrap = getattr(self, 'n_bootstrap', 1000)
+        self.confidence_level = getattr(self, 'confidence_level', 0.95)
+    
+    def compute_with_ci(
+        self, 
+        predictions: Iterable[Any], 
+        references: Iterable[Any],
+        base_compute_func: Optional[Callable] = None
+    ) -> Dict[str, Union[float, str]]:
+        """
+        Compute metric with confidence intervals using bootstrap.
+        
+        Args:
+            predictions: Model predictions
+            references: Ground truth references  
+            base_compute_func: Function to compute base metric (defaults to self.compute)
+        """
+        import random
+        
+        pred_list = list(predictions)
+        ref_list = list(references)
+        n = len(pred_list)
+        
+        if n == 0:
+            return {"error": "empty_input"}
+        
+        # Use provided function or try to find base compute method
+        if base_compute_func:
+            compute_func = base_compute_func
+        elif hasattr(self, '_compute_base'):
+            compute_func = getattr(self, '_compute_base')
+        elif hasattr(self, 'compute'):
+            compute_func = getattr(self, 'compute')
+        else:
+            return {"error": "no_compute_method"}
+        
+        # Compute main metric
+        main_result = compute_func(pred_list, ref_list)
+        
+        # Extract primary metric value - look for common metric names
+        primary_keys = ['accuracy', 'f1', 'precision', 'recall', 'score', 'value']
+        
+        if isinstance(main_result, dict):
+            main_value = None
+            for key in primary_keys:
+                if key in main_result:
+                    main_value = main_result[key]
+                    break
+            if main_value is None:
+                main_value = list(main_result.values())[0]  # Take first value
+        else:
+            main_value = main_result
+        
+        # Bootstrap sampling for confidence intervals
+        bootstrap_values = []
+        for _ in range(self.n_bootstrap):
+            # Sample with replacement
+            indices = [random.randint(0, n-1) for _ in range(n)]
+            boot_pred = [pred_list[i] for i in indices]
+            boot_ref = [ref_list[i] for i in indices]
+            
+            try:
+                boot_result = compute_func(boot_pred, boot_ref)
+                if isinstance(boot_result, dict):
+                    # Extract same primary metric
+                    for key in primary_keys:
+                        if key in boot_result:
+                            bootstrap_values.append(boot_result[key])
+                            break
+                    else:
+                        bootstrap_values.append(list(boot_result.values())[0])
+                else:
+                    bootstrap_values.append(boot_result)
+            except Exception:
+                continue  # Skip failed bootstrap samples
+        
+        if not bootstrap_values:
+            # Fallback if bootstrap fails
+            if isinstance(main_result, dict):
+                return main_result
+            else:
+                return {"value": main_value}
+        
+        # Compute confidence interval
+        bootstrap_values.sort()
+        alpha = 1 - self.confidence_level
+        lower_idx = max(0, int(alpha / 2 * len(bootstrap_values)))
+        upper_idx = min(len(bootstrap_values) - 1, int((1 - alpha / 2) * len(bootstrap_values)))
+        
+        ci_lower = bootstrap_values[lower_idx]
+        ci_upper = bootstrap_values[upper_idx]
+        
+        # Build result dictionary
+        if isinstance(main_result, dict):
+            result = main_result.copy()
+        else:
+            result = {"value": main_value}
+        
+        # Add confidence interval info
+        result.update({
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "ci_level": self.confidence_level,
+            "bootstrap_samples": len(bootstrap_values),
+            "sample_size": n
+        })
+        
+        return result
+
+
+class EnhancedAccuracy(ConfidenceIntervalMixin, Metric):
+    """Accuracy metric with automatic confidence intervals."""
+    
+    name: str = "enhanced_accuracy"
+    
+    def __init__(self, n_bootstrap: int = 1000, confidence_level: float = 0.95):
+        self.n_bootstrap = n_bootstrap
+        self.confidence_level = confidence_level
+    
+    def compute(self, predictions: Iterable[Any], references: Iterable[Any]) -> Mapping[str, Any]:
+        """Compute accuracy with automatic confidence intervals."""
+        pred_list = list(predictions)
+        ref_list = list(references)
+        
+        if len(pred_list) != len(ref_list):
+            return {"error": "length_mismatch"}
+        
+        def _compute_accuracy(pred: List[Any], ref: List[Any]) -> Dict[str, float]:
+            if not pred:
+                return {"accuracy": 0.0}
+            correct = sum(1 for p, r in zip(pred, ref) if str(p).strip() == str(r).strip())
+            return {"accuracy": correct / len(pred)}
+        
+        return self.compute_with_ci(pred_list, ref_list, _compute_accuracy)
 
 
 class BootstrapMetric(Metric):
