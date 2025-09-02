@@ -23,6 +23,10 @@ from .optimization import performance_monitor
 from . import registry
 from .utils import get_project_root
 from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
+from .enhanced_logging import (
+    configure_logging, get_logger, get_tracer, get_profiler,
+    enable_debug_mode, save_debug_data, log_context, traced, profiled
+)
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -796,12 +800,54 @@ def run(
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
     traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode with enhanced logging"),
+    enable_tracing: bool = typer.Option(False, "--enable-tracing", help="Enable debug tracing"),
+    enable_profiling: bool = typer.Option(False, "--enable-profiling", help="Enable performance profiling"),
+    save_debug: Optional[Path] = typer.Option(None, "--save-debug", help="Save debug data to directory"),
 ):
     """Run an evaluation from a spec file."""
-    try:
-        task, dataset, adapter, metrics, out = load_spec(spec)
-    except SystemExit as e:
-        raise typer.Exit(code=2) from e
+    
+    # Setup enhanced logging and debugging if requested
+    if debug:
+        enable_debug_mode()
+        console.print("[green]Debug mode enabled with enhanced logging[/green]")
+    
+    # Initialize logging context
+    logger = get_logger("openeval.run", 
+                       component="cli", 
+                       operation="evaluation",
+                       task_name=str(spec.stem))
+    
+    # Setup tracing and profiling
+    tracer = None
+    profiler = None
+    
+    if enable_tracing or debug:
+        tracer = get_tracer("evaluation", enabled=True)
+        tracer.trace("evaluation_start", {"spec": str(spec)})
+        logger.info("Debug tracing enabled for evaluation")
+    
+    if enable_profiling or debug:
+        profiler = get_profiler("evaluation")
+        logger.info("Performance profiling enabled for evaluation")
+    
+    with log_context(operation="load_spec", spec_path=str(spec)):
+        try:
+            task, dataset, adapter, metrics, out = load_spec(spec)
+            logger.info(f"Loaded spec successfully: task={type(task).__name__}, adapter={type(adapter).__name__}")
+            
+            if tracer:
+                tracer.trace("spec_loaded", {
+                    "task": type(task).__name__,
+                    "adapter": type(adapter).__name__,
+                    "metrics": [type(m).__name__ for m in metrics]
+                })
+                
+        except SystemExit as e:
+            logger.error(f"Failed to load spec: {e}")
+            if tracer:
+                tracer.trace("spec_load_failed", {"error": str(e)})
+            raise typer.Exit(code=2) from e
 
     # attach runtime adapter knobs when available
     _set_opts = getattr(adapter, "set_runtime_options", None)
@@ -827,16 +873,84 @@ def run(
             setattr(task, "_collect_traces", bool(traces))
         except Exception:
             pass
-        result = task.evaluate(
-            adapter,
-            dataset,
-            metrics,
-            seed=seed,
-            collect_records=records,
-            concurrency=concurrency,
-            max_retries=max_retries,
-            request_timeout=request_timeout,
-        )
+        
+        # Run evaluation with enhanced logging context
+        with log_context(
+            operation="evaluation_run",
+            task_name=type(task).__name__,
+            adapter_name=type(adapter).__name__,
+            dataset_size=len(list(iter(dataset))),
+            metric_count=len(metrics)
+        ):
+            logger.info(f"Starting evaluation run with task={type(task).__name__}, adapter={type(adapter).__name__}, metrics={[m.name for m in metrics]}")
+            
+            if tracer:
+                tracer.trace("evaluation_start", {
+                    "task": type(task).__name__,
+                    "adapter": type(adapter).__name__,
+                    "dataset_size": len(list(iter(dataset))),
+                    "metrics": [m.name for m in metrics],
+                    "config": {
+                        "seed": seed,
+                        "concurrency": concurrency,
+                        "max_retries": max_retries
+                    }
+                })
+            
+            import time
+            eval_start = time.time()
+            
+            # Run evaluation with optional profiling
+            if profiler:
+                @profiler.profile("task_evaluation", include_args=False)
+                def run_evaluation():
+                    return task.evaluate(
+                        adapter,
+                        dataset,
+                        metrics,
+                        seed=seed,
+                        collect_records=records,
+                        concurrency=concurrency,
+                        max_retries=max_retries,
+                        request_timeout=request_timeout,
+                    )
+                
+                result = run_evaluation()
+            else:
+                result = task.evaluate(
+                    adapter,
+                    dataset,
+                    metrics,
+                    seed=seed,
+                    collect_records=records,
+                    concurrency=concurrency,
+                    max_retries=max_retries,
+                    request_timeout=request_timeout,
+                )
+            
+            eval_duration = time.time() - eval_start
+            
+            logger.info(f"Evaluation completed in {eval_duration:.2f}s")
+            
+            # Log evaluation results summary
+            logger.info(f"Evaluation summary: {result.get('timing', {}).get('request_successes', 0)} successes, "
+                       f"{result.get('timing', {}).get('request_errors', 0)} errors")
+            
+            # Log metric results
+            for metric_name, metric_value in result.items():
+                if metric_name not in ['timing', 'manifest', 'environment', 'dataset_path', 'dataset_hash_sha256', 'records']:
+                    if isinstance(metric_value, dict) and 'error' in metric_value:
+                        logger.error(f"Metric {metric_name} failed: {metric_value['error']}")
+                    else:
+                        logger.info(f"Metric {metric_name}: {metric_value}")
+            
+            if tracer:
+                tracer.trace("evaluation_complete", {
+                    "duration_seconds": eval_duration,
+                    "success_count": result.get('timing', {}).get('request_successes', 0),
+                    "error_count": result.get('timing', {}).get('request_errors', 0),
+                    "metrics_computed": list(result.keys())
+                })
     else:
         # Interactive loop: preview prompts and control flow
         from importlib.metadata import version as _pkg_version, PackageNotFoundError
@@ -847,8 +961,31 @@ def run(
         references = []
         per_latency = []
         recs = []
+        
+        logger.info(f"Starting evaluation with {len(examples)} examples")
+        if tracer:
+            tracer.trace("evaluation_loop_start", {"example_count": len(examples)})
+        
         t0 = time.perf_counter()
         for idx, ex in enumerate(examples):
+            with log_context(operation="process_example", 
+                           example_id=ex.id, 
+                           example_index=idx):
+                
+                if profiler:
+                    @profiler.profile(f"example_{idx}", include_args=False)
+                    def process_example():
+                        prompt = task.build_prompt_with_template(ex)
+                        return prompt
+                    
+                    prompt = process_example()
+                else:
+                    prompt = task.build_prompt_with_template(ex)
+                
+                logger.debug(f"Processing example {idx+1}/{len(examples)}: {ex.id}")
+                
+                if tracer:
+                    tracer.trace("example_start", {"example_id": ex.id, "index": idx})
             prompt = task.build_prompt_with_template(ex)
             console.print(f"\n[bold]Example {idx+1}/{len(examples)}[/bold] id={ex.id}", style="cyan")
             console.print(f"Input: {str(ex.input)[:200]}" )
@@ -861,8 +998,39 @@ def run(
             if ans == "s":
                 continue
             s = time.perf_counter()
-            out = adapter.generate(prompt)
+            
+            # Log adapter call with enhanced context
+            with log_context(operation="adapter_generate", 
+                           adapter_name=type(adapter).__name__,
+                           example_id=ex.id):
+                logger.debug(f"Calling adapter {type(adapter).__name__} for example {ex.id}")
+                
+                if tracer:
+                    tracer.trace("adapter_call_start", {
+                        "adapter": type(adapter).__name__,
+                        "example_id": ex.id,
+                        "prompt_length": len(prompt)
+                    })
+                
+                if profiler:
+                    @profiler.profile(f"adapter_generate_{idx}", include_args=False)
+                    def generate_with_profiling():
+                        return adapter.generate(prompt)
+                    
+                    out = generate_with_profiling()
+                else:
+                    out = adapter.generate(prompt)
+                
+                if tracer:
+                    tracer.trace("adapter_call_complete", {
+                        "example_id": ex.id,
+                        "output_length": len(str(out))
+                    })
+            
             e = time.perf_counter()
+            
+            logger.debug(f"Adapter call completed in {(e-s)*1000:.1f}ms for example {ex.id}")
+            
             pred = task.postprocess(out)
             predictions.append(pred)
             references.append(ex.reference)
@@ -924,6 +1092,33 @@ def run(
     if run_name:
         result["run_name"] = run_name
 
+    # Save debug information if enabled
+    if save_debug:
+        debug_output_file = save_debug / f"debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        debug_info = {
+            "timestamp": datetime.now().isoformat(),
+            "evaluation_results": result,
+            "profiling": profiler.profiles if profiler else None,
+            "traces": tracer.get_traces() if tracer else None
+        }
+        
+        logger.info(f"Saving debug information to {debug_output_file}")
+        with log_context(operation="save_debug"):
+            try:
+                save_debug.mkdir(parents=True, exist_ok=True)
+                with open(debug_output_file, 'w') as f:
+                    json.dump(debug_info, f, indent=2, default=str)
+                logger.info(f"Debug information saved successfully")
+                
+                # Save profiler data separately if available
+                if profiler:
+                    profiler_file = save_debug / f"profiles_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                    profiler.save_profiles(profiler_file)
+                    logger.info(f"Profiler data saved to {profiler_file}")
+                
+            except Exception as e:
+                logger.error(f"Failed to save debug information: {e}")
+
     out_path = Path(out)
     if artifacts:
         artifacts.mkdir(parents=True, exist_ok=True)
@@ -970,6 +1165,145 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+@app.command("debug-logs")
+def debug_logs(
+    level: str = typer.Option("DEBUG", "--level", help="Log level: DEBUG, INFO, WARNING, ERROR"),
+    format_type: str = typer.Option("structured", "--format", help="Log format: structured, plain"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Log file path"),
+    enable_tracing: bool = typer.Option(False, "--trace", help="Enable debug tracing"),
+    enable_profiling: bool = typer.Option(False, "--profile", help="Enable performance profiling"),
+):
+    """Configure enhanced logging and debugging."""
+    console = Console()
+    
+    # Configure logging
+    configure_logging(
+        level=level,
+        format_type=format_type,
+        log_file=output,
+        console_output=not output,  # Only console if no file specified
+        redact_sensitive=True
+    )
+    
+    console.print(f"[green]Configured logging: level={level}, format={format_type}[/green]")
+    
+    if output:
+        console.print(f"[green]Logging to file: {output}[/green]")
+    
+    if enable_tracing:
+        tracer = get_tracer("cli", enabled=True)
+        console.print("[green]Debug tracing enabled[/green]")
+    
+    if enable_profiling:
+        profiler = get_profiler("cli")
+        console.print("[green]Performance profiling enabled[/green]")
+    
+    # Test logging
+    logger = get_logger("test", component="cli", operation="debug_test")
+    logger.info("Enhanced logging configured successfully")
+    logger.debug("Debug message example")
+    logger.warning("Warning message example")
+
+
+@app.command("save-debug")
+def save_debug(
+    output_dir: Path = typer.Option("debug_output", "--output", help="Output directory for debug data"),
+    include_traces: bool = typer.Option(True, "--traces", help="Include debug traces"),
+    include_profiles: bool = typer.Option(True, "--profiles", help="Include performance profiles"),
+):
+    """Save all debug data to files."""
+    console = Console()
+    
+    try:
+        save_debug_data(output_dir)
+        console.print(f"[green]Debug data saved to: {output_dir}[/green]")
+        
+        # List saved files
+        if output_dir.exists():
+            files = list(output_dir.glob("*.json"))
+            if files:
+                console.print("\nSaved files:")
+                for file in files:
+                    console.print(f"  - {file.name}")
+            else:
+                console.print("[yellow]No debug data to save[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[red]Failed to save debug data: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("trace-analysis")
+def trace_analysis(
+    trace_file: Path = typer.Argument(..., help="Path to trace JSON file"),
+    filter_name: Optional[str] = typer.Option(None, "--filter", help="Filter traces by name pattern"),
+    show_timeline: bool = typer.Option(False, "--timeline", help="Show timeline view"),
+    show_stats: bool = typer.Option(True, "--stats", help="Show statistics"),
+):
+    """Analyze debug trace files."""
+    console = Console()
+    
+    if not trace_file.exists():
+        console.print(f"[red]Trace file not found: {trace_file}[/red]")
+        raise typer.Exit(1)
+    
+    try:
+        import json
+        with open(trace_file, 'r') as f:
+            traces = json.load(f)
+        
+        if filter_name:
+            traces = [t for t in traces if filter_name in t.get('name', '')]
+        
+        console.print(f"[green]Loaded {len(traces)} traces[/green]")
+        
+        if show_stats:
+            # Analyze trace statistics
+            from collections import Counter
+            
+            names = [t.get('name', 'unknown') for t in traces]
+            name_counts = Counter(names)
+            
+            console.print("\n[yellow]Trace Statistics:[/yellow]")
+            console.print(f"Total traces: {len(traces)}")
+            console.print(f"Unique trace names: {len(name_counts)}")
+            
+            console.print("\nTop trace types:")
+            for name, count in name_counts.most_common(10):
+                console.print(f"  {name}: {count}")
+        
+        if show_timeline and traces:
+            # Show timeline view
+            console.print("\n[yellow]Timeline View:[/yellow]")
+            
+            # Sort by timestamp
+            sorted_traces = sorted(traces, key=lambda t: t.get('timestamp', 0))
+            
+            start_time = sorted_traces[0].get('timestamp', 0)
+            
+            for trace in sorted_traces[:20]:  # Show first 20
+                timestamp = trace.get('timestamp', 0)
+                relative_time = timestamp - start_time
+                name = trace.get('name', 'unknown')
+                thread_id = trace.get('thread_id', 'unknown')
+                
+                console.print(f"  +{relative_time:.3f}s [{thread_id}] {name}")
+    
+    except Exception as e:
+        console.print(f"[red]Failed to analyze traces: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Add logging management commands
+logging_app = typer.Typer(help="Enhanced logging and debugging commands")
+app.add_typer(logging_app, name="debug")
+
+# Move debug commands to the logging group
+logging_app.command("configure")(debug_logs)
+logging_app.command("save")(save_debug)
+logging_app.command("analyze")(trace_analysis)
 
 
 @app.command("lock")
