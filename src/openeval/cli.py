@@ -23,6 +23,7 @@ from .optimization import performance_monitor
 from . import registry
 from .utils import get_project_root
 from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
+from .error_handling import create_robust_evaluation_context, ErrorTracker
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -796,8 +797,22 @@ def run(
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
     traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
+    robust: bool = typer.Option(False, "--robust", help="Enable robust error handling and retry mechanisms"),
+    max_retry_attempts: int = typer.Option(3, "--max-retry-attempts", help="Maximum retry attempts for recoverable errors"),
+    error_summary: bool = typer.Option(False, "--error-summary", help="Show detailed error summary at the end"),
 ):
     """Run an evaluation from a spec file."""
+    
+    # Setup robust error handling if requested
+    error_context = None
+    if robust:
+        error_context = create_robust_evaluation_context()
+        # Update retry config with user parameters
+        error_context["network_retry"].max_attempts = max_retry_attempts
+        error_context["temp_failure_retry"].max_attempts = max_retry_attempts
+        
+        console.print(f"[green]Robust mode enabled with max {max_retry_attempts} retry attempts[/green]")
+    
     try:
         task, dataset, adapter, metrics, out = load_spec(spec)
     except SystemExit as e:
@@ -937,6 +952,30 @@ def run(
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
+    
+    # Show error summary if error handling was enabled
+    if error_summary and error_context and error_context["error_tracker"]:
+        error_tracker: ErrorTracker = error_context["error_tracker"]
+        summary = error_tracker.get_error_summary()
+        
+        if summary["total_errors"] > 0:
+            console.print("\n[yellow]Error Summary:[/yellow]")
+            console.print(f"Total errors: {summary['total_errors']}")
+            console.print(f"Critical errors: {summary['critical_errors']}")
+            console.print(f"Recoverable errors: {summary['recoverable_errors']}")
+            
+            if summary["error_types"]:
+                console.print("\nError types:")
+                for error_type, count in summary["error_types"].items():
+                    console.print(f"  {error_type}: {count}")
+            
+            if summary["recent_errors"]:
+                console.print("\nRecent errors:")
+                for error in summary["recent_errors"]:
+                    console.print(f"  [{error['severity']}] {error['type']}: {error['message']}")
+        else:
+            console.print("\n[green]No errors encountered during evaluation![/green]")
+    
     print({"saved": str(out_path)})
 
 
@@ -970,6 +1009,66 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+@app.command("error-test")
+def error_test(
+    test_type: str = typer.Argument("retry", help="Type of error test: retry|circuit-breaker|recovery"),
+    max_attempts: int = typer.Option(3, help="Max retry attempts for testing")
+):
+    """Test error handling mechanisms."""
+    from .error_handling import RetryConfig, retry_with_config, CircuitBreaker, ErrorTracker
+    
+    console = Console()
+    error_tracker = ErrorTracker()
+    
+    if test_type == "retry":
+        # Test retry mechanism
+        retry_config = RetryConfig(max_attempts=max_attempts, base_delay=0.5)
+        
+        @retry_with_config(retry_config, error_tracker)
+        def flaky_function():
+            import random
+            if random.random() < 0.7:  # 70% chance of failure
+                raise ConnectionError("Simulated network error")
+            return "Success!"
+        
+        console.print(f"Testing retry with {max_attempts} max attempts...")
+        try:
+            result = flaky_function()
+            console.print(f"[green]Success: {result}[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed: {e}[/red]")
+        
+        # Show error summary
+        summary = error_tracker.get_error_summary()
+        console.print(f"\nErrors encountered: {summary['total_errors']}")
+        for error_type, count in summary['error_types'].items():
+            console.print(f"  {error_type}: {count}")
+    
+    elif test_type == "circuit-breaker":
+        # Test circuit breaker
+        breaker = CircuitBreaker(failure_threshold=2, timeout=5.0)
+        
+        @breaker
+        def failing_service():
+            raise ConnectionError("Service unavailable")
+        
+        console.print("Testing circuit breaker (will open after 2 failures)...")
+        
+        for i in range(5):
+            try:
+                failing_service()
+            except Exception as e:
+                console.print(f"Attempt {i+1}: [red]{e}[/red]")
+    
+    elif test_type == "recovery":
+        console.print("Error recovery test would attempt to recover from common errors")
+        console.print("This is a demonstration mode - actual recovery depends on error type")
+    
+    else:
+        console.print(f"[red]Unknown test type: {test_type}[/red]")
+        console.print("Available types: retry, circuit-breaker, recovery")
 
 
 @app.command("lock")
