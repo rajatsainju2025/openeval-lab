@@ -1087,6 +1087,55 @@ def write_out(
             print(r)
 
 
+@app.command("examples")
+def show_examples():
+    """Show practical examples of CLI usage."""
+    from .cli_help import show_command_examples
+    show_command_examples()
+
+
+@app.command("spec-guide")
+def show_spec_guide():
+    """Show guide for creating specification files."""
+    from .cli_help import show_spec_guide
+    show_spec_guide()
+
+
+@app.command("workflow")
+def show_workflow():
+    """Show typical evaluation workflow."""
+    from .cli_help import show_workflow_guide
+    show_workflow_guide()
+
+
+@app.command("troubleshoot")
+def show_troubleshooting():
+    """Show troubleshooting guide."""
+    from .cli_help import show_troubleshooting
+    show_troubleshooting()
+
+
+@app.command("registry-help")
+def show_registry_help():
+    """Show help for using the component registry."""
+    from .cli_help import show_registry_help
+    show_registry_help()
+
+
+@app.command("performance")
+def show_performance():
+    """Show performance optimization tips."""
+    from .cli_help import show_performance_tips
+    show_performance_tips()
+
+
+@app.command("advanced")
+def show_advanced():
+    """Show advanced features and use cases."""
+    from .cli_help import show_advanced_features
+    show_advanced_features()
+
+
 @app.command()
 def library(
     action: str = typer.Argument(..., help="Action: list|info|export|categories|sync|get"),

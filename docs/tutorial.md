@@ -47,7 +47,19 @@ Flags used:
 - openeval web --reload  # open the dashboard (http://localhost:8000)
 - Navigate to /leaderboard and click a run to view records.
 
-## 6) Next steps
+## 6) Get help and explore
+
+OpenEval includes comprehensive help commands:
+
+- `openeval examples` - Practical CLI examples
+- `openeval spec-guide` - How to write specs
+- `openeval workflow` - Typical evaluation workflow
+- `openeval troubleshoot` - Common issues and solutions
+- `openeval registry-help` - Using the component registry
+- `openeval performance` - Optimization tips
+- `openeval advanced` - Advanced features
+
+## 7) Next steps
 
 - Try summarization: `openeval run examples/sum_spec.json --records --artifacts runs`
 - Install metrics: `pip install -e .[metrics]` to enable ROUGE/BERTScore/SacreBLEU.
