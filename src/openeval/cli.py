@@ -23,6 +23,7 @@ from .optimization import performance_monitor
 from . import registry
 from .utils import get_project_root
 from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
+from .performance import PerformanceMonitor, PerformanceBenchmark
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -796,8 +797,19 @@ def run(
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
     traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
+    benchmark: bool = typer.Option(False, "--benchmark", help="Enable performance benchmarking"),
+    profile_memory: bool = typer.Option(False, "--profile-memory", help="Enable detailed memory profiling"),
+    save_performance: Optional[Path] = typer.Option(None, "--save-performance", help="Save performance report to file"),
 ):
     """Run an evaluation from a spec file."""
+    
+    # Setup performance monitoring if requested
+    performance_monitor = None
+    performance_metrics = None
+    if benchmark or profile_memory or save_performance:
+        performance_monitor = PerformanceMonitor()
+        console.print("[green]Performance monitoring enabled[/green]")
+    
     try:
         task, dataset, adapter, metrics, out = load_spec(spec)
     except SystemExit as e:
@@ -847,6 +859,14 @@ def run(
         references = []
         per_latency = []
         recs = []
+        
+        # Start performance monitoring for overall evaluation
+        if performance_monitor:
+            performance_monitor.start_monitoring(
+                "full_evaluation",
+                {"item_count": len(examples), "adapter": type(adapter).__name__}
+            )
+        
         t0 = time.perf_counter()
         for idx, ex in enumerate(examples):
             prompt = task.build_prompt_with_template(ex)
@@ -863,6 +883,11 @@ def run(
             s = time.perf_counter()
             out = adapter.generate(prompt)
             e = time.perf_counter()
+            
+            # Record latency for performance monitoring
+            if performance_monitor:
+                performance_monitor.record_latency(e - s)
+            
             pred = task.postprocess(out)
             predictions.append(pred)
             references.append(ex.reference)
@@ -885,6 +910,23 @@ def run(
                 results[m.name] = m.compute(predictions, references)
             except Exception as err:
                 results[m.name] = {"error": str(err)}
+
+        # Stop performance monitoring and get metrics
+        performance_metrics = None
+        if performance_monitor:
+            performance_metrics = performance_monitor.stop_monitoring()
+            
+            if benchmark:
+                console.print("\n[yellow]Performance Summary:[/yellow]")
+                console.print(f"Wall time: {performance_metrics.wall_time:.2f}s")
+                console.print(f"CPU time: {performance_metrics.cpu_time:.2f}s")
+                console.print(f"Peak memory: {performance_metrics.peak_memory_mb:.1f} MB")
+                if performance_metrics.throughput:
+                    console.print(f"Throughput: {performance_metrics.throughput:.2f} items/sec")
+                
+                if performance_metrics.latency_stats:
+                    stats = performance_metrics.latency_stats
+                    console.print(f"Latency - Mean: {stats['mean']*1000:.1f}ms, P95: {stats['p95']*1000:.1f}ms, P99: {stats['p99']*1000:.1f}ms")
 
         # Manifest basics
         def _maybe_ver(pkg: str):
@@ -914,6 +956,18 @@ def run(
         }
         if records:
             result["records"] = recs
+        
+        # Add performance metrics if available
+        if performance_metrics:
+            result["performance"] = {
+                "wall_time": performance_metrics.wall_time,
+                "cpu_time": performance_metrics.cpu_time,
+                "peak_memory_mb": performance_metrics.peak_memory_mb,
+                "memory_delta_mb": performance_metrics.memory_delta_mb,
+                "cpu_percent": performance_metrics.cpu_percent,
+                "throughput": performance_metrics.throughput,
+                "latency_stats": performance_metrics.latency_stats
+            }
 
     # enrich with spec metadata and optional run name
     result["spec_path"] = str(spec)
@@ -937,6 +991,17 @@ def run(
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
+    
+    # Save detailed performance report if requested
+    if save_performance and performance_monitor and performance_metrics:
+        benchmark_report = PerformanceBenchmark("evaluation_run")
+        benchmark_report.benchmarks["main_evaluation"] = {
+            "detailed_metrics": [performance_metrics],
+            "benchmark_summary": performance_monitor.get_summary()
+        }
+        benchmark_report.save_report(save_performance)
+        console.print(f"[green]Performance report saved to {save_performance}[/green]")
+    
     print({"saved": str(out_path)})
 
 
@@ -970,6 +1035,90 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+@app.command("benchmark")
+def benchmark_adapters(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
+    batch_sizes: str = typer.Option("1,5,10,20", help="Comma-separated batch sizes to test"),
+    iterations: int = typer.Option(10, help="Number of iterations per batch size"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Save benchmark report to file"),
+):
+    """Benchmark adapter performance with different batch sizes."""
+    from .performance import AdapterPerformanceProfiler
+    
+    console = Console()
+    
+    try:
+        task, dataset, adapter, metrics, out = load_spec(spec)
+    except SystemExit as e:
+        raise typer.Exit(code=2) from e
+    
+    # Parse batch sizes
+    try:
+        batch_size_list = [int(x.strip()) for x in batch_sizes.split(",")]
+    except ValueError:
+        console.print(f"[red]Invalid batch sizes: {batch_sizes}[/red]")
+        raise typer.Exit(1)
+    
+    # Get sample of examples for benchmarking
+    examples = list(iter(dataset))[:min(100, len(list(iter(dataset))))]  # Use first 100 examples
+    
+    console.print(f"[green]Benchmarking adapter {type(adapter).__name__}[/green]")
+    console.print(f"Batch sizes: {batch_size_list}")
+    console.print(f"Examples: {len(examples)}")
+    console.print(f"Iterations per batch: {iterations}")
+    
+    # Profile the adapter
+    profiler = AdapterPerformanceProfiler()
+    profiler.profile_adapter(adapter, examples, batch_size_list)
+    
+    # Get recommendations
+    recommendations = profiler.get_optimization_recommendations()
+    
+    # Display results
+    console.print("\n[yellow]Performance Results:[/yellow]")
+    for profile_name, metrics_list in profiler.profiles.items():
+        if metrics_list:
+            avg_time = sum(m.wall_time for m in metrics_list) / len(metrics_list)
+            avg_memory = sum(m.peak_memory_mb for m in metrics_list) / len(metrics_list)
+            avg_throughput = sum(m.throughput for m in metrics_list if m.throughput) / len([m for m in metrics_list if m.throughput])
+            
+            console.print(f"  {profile_name}:")
+            console.print(f"    Avg Time: {avg_time:.3f}s")
+            console.print(f"    Avg Memory: {avg_memory:.1f} MB")
+            if avg_throughput:
+                console.print(f"    Avg Throughput: {avg_throughput:.2f} items/sec")
+    
+    # Display recommendations
+    if recommendations["recommendations"]:
+        console.print("\n[yellow]Optimization Recommendations:[/yellow]")
+        for rec in recommendations["recommendations"]:
+            if rec["type"] == "batch_size_optimization":
+                console.print(f"  • {rec['recommendation']}")
+            elif rec["type"] == "memory_optimization":
+                console.print("  • Consider memory optimization for high-memory operations:")
+                for op in rec["high_memory_operations"]:
+                    console.print(f"    - {op['operation']}: {op['avg_memory_mb']:.1f} MB")
+    
+    # Save report if requested
+    if output:
+        report = {
+            "adapter": type(adapter).__name__,
+            "benchmark_config": {
+                "batch_sizes": batch_size_list,
+                "iterations": iterations,
+                "examples_count": len(examples)
+            },
+            "results": profiler.profiles,
+            "recommendations": recommendations
+        }
+        
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with open(output, 'w') as f:
+            json.dump(report, f, indent=2, default=str)
+        
+        console.print(f"\n[green]Benchmark report saved to {output}[/green]")
 
 
 @app.command("lock")
