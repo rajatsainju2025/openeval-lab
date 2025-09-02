@@ -1087,6 +1087,106 @@ def write_out(
             print(r)
 
 
+@app.command("analyze")
+def analyze_runs(
+    runs_dir: Path = typer.Option(Path("runs"), "--dir", help="Directory containing run JSON files"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Output directory for analysis"),
+    metric: Optional[str] = typer.Option(None, "--metric", help="Focus on specific metric"),
+    format_type: str = typer.Option("summary", "--format", help="Output format: summary|csv|leaderboard|dashboard"),
+    task_filter: Optional[str] = typer.Option(None, "--task", help="Filter by task name"),
+    adapter_filter: Optional[str] = typer.Option(None, "--adapter", help="Filter by adapter name"),
+    top_k: int = typer.Option(10, "--top", help="Top K results for leaderboards"),
+):
+    """Analyze and aggregate evaluation runs."""
+    from .result_aggregation import ResultAggregator, create_analysis_dashboard
+    
+    if not runs_dir.exists():
+        console.print(f"[red]Runs directory not found: {runs_dir}[/red]")
+        raise typer.Exit(code=1)
+    
+    aggregator = ResultAggregator()
+    loaded_count = aggregator.load_runs_from_directory(runs_dir)
+    
+    if loaded_count == 0:
+        console.print(f"[yellow]No run files found in {runs_dir}[/yellow]")
+        raise typer.Exit(code=1)
+    
+    console.print(f"[green]Loaded {loaded_count} runs from {runs_dir}[/green]")
+    
+    if format_type == "summary":
+        report = aggregator.generate_summary_report()
+        console.print("\n[bold cyan]Run Summary[/bold cyan]")
+        console.print(f"Total runs: {report['summary']['total_runs']}")
+        console.print(f"Unique adapters: {report['summary']['unique_adapters']}")
+        console.print(f"Unique tasks: {report['summary']['unique_tasks']}")
+        console.print(f"Total examples: {report['summary']['total_examples']}")
+        console.print(f"Available metrics: {', '.join(report['summary']['available_metrics'])}")
+        
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, 'w') as f:
+                json.dump(report, f, indent=2)
+            console.print(f"\n[green]Summary saved to {output}[/green]")
+    
+    elif format_type == "csv":
+        if not output:
+            output = runs_dir / "analysis.csv"
+        
+        count = aggregator.export_to_csv(output, metric_name=metric, include_all_metrics=True)
+        console.print(f"[green]Exported {count} runs to {output}[/green]")
+    
+    elif format_type == "leaderboard":
+        if not metric:
+            console.print("[red]--metric required for leaderboard format[/red]")
+            raise typer.Exit(code=1)
+        
+        leaderboard = aggregator.generate_leaderboard(
+            metric, 
+            task_filter=task_filter,
+            top_k=top_k
+        )
+        
+        if not leaderboard:
+            console.print(f"[yellow]No results found for metric '{metric}'[/yellow]")
+            return
+        
+        console.print(f"\n[bold cyan]Leaderboard: {metric}[/bold cyan]")
+        
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Rank", justify="right", width=6)
+        table.add_column("Adapter", width=20)
+        table.add_column("Score", justify="right", width=10)
+        table.add_column("Task", width=15)
+        table.add_column("Size", justify="right", width=8)
+        
+        for entry in leaderboard:
+            table.add_row(
+                str(entry['rank']),
+                entry['adapter'][:20],
+                f"{entry['metric_value']:.4f}",
+                entry['task'][:15],
+                str(entry['size'])
+            )
+        
+        console.print(table)
+        
+        if output:
+            with open(output, 'w') as f:
+                json.dump(leaderboard, f, indent=2)
+            console.print(f"\n[green]Leaderboard saved to {output}[/green]")
+    
+    elif format_type == "dashboard":
+        if not output:
+            output = runs_dir / "analysis"
+        
+        create_analysis_dashboard(aggregator, output)
+        console.print(f"[green]Analysis dashboard created in {output}[/green]")
+    
+    else:
+        console.print(f"[red]Unknown format: {format_type}[/red]")
+        raise typer.Exit(code=1)
+
+
 @app.command()
 def library(
     action: str = typer.Argument(..., help="Action: list|info|export|categories|sync|get"),
