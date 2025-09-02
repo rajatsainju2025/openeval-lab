@@ -23,6 +23,7 @@ from .optimization import performance_monitor
 from . import registry
 from .utils import get_project_root
 from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
+from .config_manager import load_config, create_default_config, ConfigManager
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -796,8 +797,46 @@ def run(
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
     traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
+    config: Optional[Path] = typer.Option(None, "--config", help="Configuration file path"),
+    environment: str = typer.Option("development", "--env", help="Environment name"),
 ):
     """Run an evaluation from a spec file."""
+    
+    # Load configuration
+    config_obj = None
+    env_manager = None
+    if config or environment != "development":
+        try:
+            config_obj, env_manager = load_config(config, environment, load_secrets=True)
+            console.print(f"[green]Loaded configuration for environment: {environment}[/green]")
+            
+            # Apply configuration defaults to CLI parameters if not explicitly set
+            # This allows config file to provide defaults while CLI args override
+            if config_obj:
+                eval_settings = config_obj.evaluation
+                
+                # Update parameters that weren't explicitly set
+                if concurrency == 1 and eval_settings.default_concurrency != 1:
+                    concurrency = eval_settings.default_concurrency
+                
+                if max_retries == 0 and eval_settings.default_max_retries != 0:
+                    max_retries = eval_settings.default_max_retries
+                
+                if request_timeout is None and eval_settings.default_timeout != 30.0:
+                    request_timeout = eval_settings.default_timeout
+                
+                if cache_mode == "off" and eval_settings.default_cache_mode != "off":
+                    cache_mode = eval_settings.default_cache_mode
+                
+                if not records and eval_settings.include_records_by_default:
+                    records = True
+                
+                if not traces and eval_settings.include_traces_by_default:
+                    traces = True
+                
+        except Exception as e:
+            console.print(f"[yellow]Warning: Failed to load config: {e}[/yellow]")
+    
     try:
         task, dataset, adapter, metrics, out = load_spec(spec)
     except SystemExit as e:
@@ -970,6 +1009,178 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+@app.command("config-init")
+def config_init(
+    output: Path = typer.Option("openeval.yaml", "--output", "-o", help="Output path for config file"),
+    format: str = typer.Option("yaml", "--format", help="Config format: yaml, json, toml"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing config file"),
+):
+    """Initialize a new OpenEval configuration file."""
+    from .config_manager import ConfigFormat
+    
+    console = Console()
+    
+    if output.exists() and not overwrite:
+        console.print(f"[red]Config file already exists: {output}[/red]")
+        console.print("Use --overwrite to replace it")
+        raise typer.Exit(1)
+    
+    # Map format string to enum
+    format_map = {
+        "yaml": ConfigFormat.YAML,
+        "yml": ConfigFormat.YAML,
+        "json": ConfigFormat.JSON,
+        "toml": ConfigFormat.TOML
+    }
+    
+    if format.lower() not in format_map:
+        console.print(f"[red]Unsupported format: {format}[/red]")
+        console.print("Supported formats: yaml, json, toml")
+        raise typer.Exit(1)
+    
+    try:
+        create_default_config(output)
+        console.print(f"[green]Created default config: {output}[/green]")
+        
+        # Show next steps
+        console.print("\nNext steps:")
+        console.print("1. Edit the config file to customize settings")
+        console.print("2. Set environment variables with OPENEVAL_ prefix")
+        console.print("3. Use --config flag to load the config in commands")
+        
+    except Exception as e:
+        console.print(f"[red]Failed to create config: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("config-show")
+def config_show(
+    config: Optional[Path] = typer.Option(None, "--config", help="Config file path"),
+    environment: str = typer.Option("development", "--env", help="Environment name"),
+    format: str = typer.Option("yaml", "--format", help="Output format: yaml, json"),
+):
+    """Show current configuration."""
+    from .config_manager import ConfigFormat
+    console = Console()
+    
+    try:
+        # Load configuration
+        config_obj, env_manager = load_config(config, environment)
+        
+        # Get config manager to show sources
+        config_manager = ConfigManager()
+        config_manager.load_config(config, create_if_missing=False)
+        sources = config_manager.get_config_sources()
+        
+        console.print(f"[green]Configuration for environment: {environment}[/green]")
+        console.print(f"Sources: {', '.join(sources) if sources else 'defaults'}")
+        console.print()
+        
+        # Show configuration
+        if format.lower() == "json":
+            import json
+            config_dict = config_obj.to_dict()
+            console.print(json.dumps(config_dict, indent=2))
+        else:
+            import yaml
+            config_dict = config_obj.to_dict()
+            console.print(yaml.dump(config_dict, indent=2, default_flow_style=False))
+        
+    except Exception as e:
+        console.print(f"[red]Failed to load config: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("config-validate")
+def config_validate(
+    config: Optional[Path] = typer.Option(None, "--config", help="Config file path"),
+    environment: str = typer.Option("development", "--env", help="Environment name"),
+):
+    """Validate configuration file."""
+    console = Console()
+    
+    try:
+        # Load and validate configuration
+        config_obj, env_manager = load_config(config, environment)
+        
+        console.print("[green]✓ Configuration is valid![/green]")
+        console.print(f"Project: {config_obj.project_name}")
+        console.print(f"Environment: {config_obj.environment}")
+        console.print(f"Debug mode: {config_obj.debug_mode}")
+        
+        # Show warnings for potential issues
+        warnings = []
+        
+        if config_obj.evaluation.max_memory_mb and config_obj.evaluation.max_memory_mb < 512:
+            warnings.append("Low memory limit may cause issues with large models")
+        
+        if config_obj.adapters.rate_limit_rpm and config_obj.adapters.rate_limit_rpm > 10000:
+            warnings.append("High rate limit may exceed API quotas")
+        
+        if config_obj.evaluation.default_concurrency > 10:
+            warnings.append("High concurrency may overwhelm external services")
+        
+        if warnings:
+            console.print("\n[yellow]Warnings:[/yellow]")
+            for warning in warnings:
+                console.print(f"  ⚠ {warning}")
+        
+    except Exception as e:
+        console.print(f"[red]✗ Configuration validation failed: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("config-set")
+def config_set(
+    key: str = typer.Argument(..., help="Configuration key (e.g., evaluation.default_concurrency)"),
+    value: str = typer.Argument(..., help="Value to set"),
+    config: Optional[Path] = typer.Option(None, "--config", help="Config file path"),
+    environment: str = typer.Option("development", "--env", help="Environment name"),
+):
+    """Set a configuration value."""
+    console = Console()
+    
+    try:
+        # Load configuration
+        config_obj, env_manager = load_config(config, environment)
+        
+        # Parse value
+        import json
+        try:
+            parsed_value = json.loads(value)
+        except json.JSONDecodeError:
+            parsed_value = value
+        
+        # Set value
+        config_manager = ConfigManager()
+        config_manager._config = config_obj
+        config_manager.override_setting(key, parsed_value)
+        
+        console.print(f"[green]Set {key} = {parsed_value}[/green]")
+        
+        # Save if config file specified
+        if config:
+            config_manager.save_config(config_obj, config)
+            console.print(f"[green]Saved to {config}[/green]")
+        else:
+            console.print("[yellow]Value set in memory only. Specify --config to save.[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[red]Failed to set config value: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Add config group
+config_app = typer.Typer(help="Configuration management commands")
+app.add_typer(config_app, name="config")
+
+# Move config commands to the group
+config_app.command("init")(config_init)
+config_app.command("show")(config_show)
+config_app.command("validate")(config_validate)  
+config_app.command("set")(config_set)
 
 
 @app.command("lock")
