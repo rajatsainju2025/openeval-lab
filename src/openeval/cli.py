@@ -1276,7 +1276,32 @@ def compare_runs(
 
         # Bootstrap CI is optional; if requested but unavailable, we proceed without it
         if bootstrap:
-            result["note"] = "bootstrap CI not available in this build"
+            # Try to use statistical comparison if records are available
+            records_a = A.get("records", [])
+            records_b = B.get("records", [])
+            
+            if records_a and records_b and len(records_a) == len(records_b):
+                try:
+                    from .metrics.statistical import PairedBootstrapTest
+                    test_metric = PairedBootstrapTest(n_bootstrap=bootstrap)
+                    
+                    # Extract predictions and references
+                    preds_a = [r.get("prediction", "") for r in records_a]
+                    preds_b = [r.get("prediction", "") for r in records_b]
+                    refs = [r.get("reference", "") for r in records_a]
+                    
+                    comparison = test_metric.paired_bootstrap_test(preds_a, preds_b, refs)
+                    result["bootstrap_comparison"] = {
+                        "mean_diff": comparison.metric_value,
+                        "ci_lower": comparison.confidence_interval[0],
+                        "ci_upper": comparison.confidence_interval[1],
+                        "p_value": comparison.p_value,
+                        "significant": comparison.p_value < 0.05 if comparison.p_value else None
+                    }
+                except Exception as e:
+                    result["bootstrap_error"] = str(e)
+            else:
+                result["note"] = "bootstrap CI requires matching records in both runs"
 
         console.print(json.dumps(result, indent=2))
     except Exception as e:
