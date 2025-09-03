@@ -85,7 +85,7 @@ def _read_spec_file(p: Path) -> dict[str, Any]:
     return json.loads(p.read_text())
 
 
-def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
+def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
     p = Path(path)
     data = _read_spec_file(p)
     # Normalize metrics to dicts if provided as strings
@@ -133,7 +133,16 @@ def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], s
     metrics: list[Metric] = []
     for m in spec.metrics:
         m_cls = import_class(m.name)
-        metrics.append(m_cls(**m.kwargs))
+        metric_instance = m_cls(**m.kwargs)
+        
+        # If statistical analysis is enabled, wrap basic metrics with statistical versions
+        if statistical_analysis:
+            from .metrics.statistical import BootstrapAccuracy
+            if hasattr(metric_instance, 'name') and metric_instance.name == "exact_match":
+                # Replace with bootstrap version
+                metric_instance = BootstrapAccuracy(**m.kwargs)
+        
+        metrics.append(metric_instance)
 
     # Validate agent tooling for ToolUseTask
     if task.__class__.__module__ == "openeval.tasks.tooluse" and task.__class__.__name__ == "ToolUseTask":

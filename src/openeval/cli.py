@@ -804,6 +804,7 @@ def run(
     enable_tracing: bool = typer.Option(False, "--enable-tracing", help="Enable debug tracing"),
     enable_profiling: bool = typer.Option(False, "--enable-profiling", help="Enable performance profiling"),
     save_debug: Optional[Path] = typer.Option(None, "--save-debug", help="Save debug data to directory"),
+    statistical_analysis: bool = typer.Option(False, "--statistical", help="Enable statistical analysis with bootstrap confidence intervals"),
 ):
     """Run an evaluation from a spec file."""
     
@@ -833,7 +834,7 @@ def run(
     
     with log_context(operation="load_spec", spec_path=str(spec)):
         try:
-            task, dataset, adapter, metrics, out = load_spec(spec)
+            task, dataset, adapter, metrics, out = load_spec(spec, statistical_analysis=statistical_analysis)
             logger.info(f"Loaded spec successfully: task={type(task).__name__}, adapter={type(adapter).__name__}")
             
             if tracer:
