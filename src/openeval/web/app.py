@@ -106,8 +106,30 @@ def run_detail(file: str, offset: int = 0, limit: int = 50):
     )
 
 
-@app.get("/export/{file}")
-def export_run(file: str, format: str = "json"):
+@app.get("/bias/{file}", response_class=HTMLResponse)
+def bias_analysis(file: str):
+    """Display bias analysis results."""
+    file = Path(file).name
+    p = Path("bias_analysis") / file
+    data = {}
+    error_msg = None
+    if p.exists():
+        try:
+            data = json.loads(p.read_text())
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON in bias analysis file: {e}"
+        except Exception as e:
+            error_msg = f"Error loading bias analysis file: {e}"
+    else:
+        error_msg = f"Bias analysis file '{file}' not found in bias_analysis/ directory"
+    
+    tpl = jinja.get_template("bias_analysis.html")
+    return tpl.render(
+        title=f"Bias Analysis {file}",
+        file=file,
+        data=data,
+        error_msg=error_msg,
+    )
     """Export a run file in various formats."""
     # security: only allow basenames under runs/
     file = Path(file).name
