@@ -16,11 +16,42 @@ class OpenAIChatAdapter:
     model: str = "gpt-4o-mini"
     name: str = "openai-chat"
     api_key: str | None = None
+    # Cost tracking
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    total_cost: float = 0.0
 
     def _client(self):  # pragma: no cover - network
         if OpenAI is None:
             raise RuntimeError("Please install openeval-lab[openai] to use OpenAI adapter.")
         return OpenAI(api_key=self.api_key) if self.api_key else OpenAI()
+
+    def _get_model_costs(self, model: str) -> dict:
+        """Get cost per token for a model (in USD)."""
+        # Costs as of September 2025 (approximate)
+        costs = {
+            "gpt-4o": {"prompt": 5e-6, "completion": 15e-6},  # $5/$15 per million tokens
+            "gpt-4o-mini": {"prompt": 0.15e-6, "completion": 0.6e-6},  # $0.15/$0.60 per million tokens
+            "gpt-4-turbo": {"prompt": 10e-6, "completion": 30e-6},
+            "gpt-4": {"prompt": 30e-6, "completion": 60e-6},
+            "gpt-3.5-turbo": {"prompt": 0.5e-6, "completion": 1.5e-6},
+        }
+        return costs.get(model, {"prompt": 1e-6, "completion": 2e-6})  # Default fallback
+
+    def _calculate_cost(self, prompt_tokens: int, completion_tokens: int) -> float:
+        """Calculate cost for token usage."""
+        costs = self._get_model_costs(self.model)
+        return (prompt_tokens * costs["prompt"]) + (completion_tokens * costs["completion"])
+
+    def get_cost_summary(self) -> dict:
+        """Get current cost tracking summary."""
+        return {
+            "total_prompt_tokens": self.total_prompt_tokens,
+            "total_completion_tokens": self.total_completion_tokens,
+            "total_tokens": self.total_prompt_tokens + self.total_completion_tokens,
+            "total_cost_usd": self.total_cost,
+            "model": self.model
+        }
 
     def generate(self, prompt: str, **kwargs: Any) -> str:  # pragma: no cover - network
         client = self._client()
@@ -30,6 +61,15 @@ class OpenAIChatAdapter:
             temperature=kwargs.get("temperature", 0.0),
             max_tokens=kwargs.get("max_tokens", 256),
         )
+        
+        # Track token usage and costs
+        if hasattr(resp, 'usage') and resp.usage:
+            prompt_tokens = resp.usage.prompt_tokens
+            completion_tokens = resp.usage.completion_tokens or 0
+            self.total_prompt_tokens += prompt_tokens
+            self.total_completion_tokens += completion_tokens
+            self.total_cost += self._calculate_cost(prompt_tokens, completion_tokens)
+        
         return resp.choices[0].message.content or ""
 
     def loglikelihood(self, context: str, continuation: str) -> float:  # pragma: no cover - network

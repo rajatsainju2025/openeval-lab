@@ -338,6 +338,15 @@ class Task(ABC):
                 "class": f"{self.__class__.__module__}.{self.__class__.__name__}",
             },
         }
+        
+        # Add cost information if available
+        if hasattr(adapter, 'get_cost_summary') and callable(getattr(adapter, 'get_cost_summary', None)):
+            try:
+                cost_info = adapter.get_cost_summary()
+                manifest["cost"] = cost_info
+            except Exception:
+                pass
+        
         # Drop None git if not available
         if manifest.get("git") is None:
             manifest.pop("git", None)
