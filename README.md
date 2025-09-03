@@ -71,6 +71,37 @@ LLM-as-a-Judge metric
 - Add to metrics: `{ "name": "llm_judge", "kwargs": { "judge_adapter": "openai-chat", "judge_kwargs": {"model": "gpt-4o-mini"}, "max_examples": 200 } }`.
 - Uses balanced position calibration (A/B and B/A). Outputs `win_rate`, `wins`, `losses`, `ties`.
 
+Statistical Analysis
+- Enable bootstrap confidence intervals: `openeval run examples/qa_spec.json --statistical`
+- Compare runs with significance testing: `openeval compare-runs runA.json runB.json --bootstrap 1000`
+- Analyze evaluation biases: `openeval analyze-bias examples/qa_spec.json`
+
+Cost Tracking
+- Automatic cost calculation for OpenAI API usage
+- Cost summary included in evaluation manifests
+- Support for multiple models with different pricing
+
+Advanced Metrics
+- Calibration Error (ECE): measures model confidence calibration
+- Confidence Intervals: statistical bounds on performance metrics
+- Diversity Metrics: text generation diversity analysis
+- Perplexity: language model evaluation metric
+
+High-Throughput Inference
+- vLLM adapter for optimized GPU inference: `openeval.adapters.vllm_adapter.VLLMAdapter`
+- Tensor parallelism and memory optimization
+- Faster evaluation on large datasets
+
+Few-Shot Evaluation
+- Support for few-shot prompting in tasks
+- Automatic prompt construction with examples
+- Configurable example selection and formatting
+
+Bias Detection
+- Positional bias analysis for multiple-choice tasks
+- Prompt sensitivity testing
+- Automated recommendations for bias mitigation
+
 Reproducibility
 - Each result includes a manifest (python/platform/packages) and dataset/spec hashes; manifest now includes the current git commit when available.
 - Create a lockfile: `openeval lock --from runs/<ts>.json --out openeval-lock.json`.
