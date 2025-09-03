@@ -1,0 +1,17 @@
+{
+  "task": "openeval.tasks.qa.QATask",
+  "dataset": "openeval.datasets.jsonl.JSONLinesDataset",
+  "adapter": "openeval.adapters.vllm_adapter.VLLMAdapter",
+  "task_kwargs": {"instruction": "Answer the question concisely."},
+  "adapter_kwargs": {
+    "model_name": "microsoft/DialoGPT-medium",
+    "tensor_parallel_size": 1,
+    "max_new_tokens": 50,
+    "temperature": 0.7
+  },
+  "dataset_kwargs": {"path": "examples/qa_toy.jsonl"},
+  "metrics": [
+    {"name": "openeval.metrics.accuracy.ExactMatch"}
+  ],
+  "output": "results.json"
+}
