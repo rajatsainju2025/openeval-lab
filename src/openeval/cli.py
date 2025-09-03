@@ -1711,7 +1711,53 @@ def interactive(
         except EOFError:
             break
     
-    console.print("Goodbye!")
+@app.command()
+def analyze_bias(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
+    permutations: int = typer.Option(5, help="Number of position permutations for bias detection"),
+    output: Optional[Path] = typer.Option(None, help="Save analysis results to JSON file"),
+):
+    """Analyze evaluation biases (positional, prompt sensitivity)."""
+    try:
+        console.print("🔍 Analyzing evaluation biases...", style="blue")
+        
+        # Load spec
+        task, dataset, adapter, metrics, _ = load_spec(spec)
+        
+        # Initialize bias detector
+        from .bias_detection import BiasDetector
+        detector = BiasDetector(adapter, task, dataset)
+        
+        # Run analysis
+        with console.status("[bold green]Running bias analysis..."):
+            results = detector.run_full_analysis()
+        
+        # Display results
+        console.print("\n📊 Bias Analysis Results:", style="bold blue")
+        console.print(f"Positional Bias Detected: {'Yes' if results.positional_bias_detected else 'No'}")
+        console.print(".4f")
+        console.print(".4f")
+        
+        console.print("\n💡 Recommendations:", style="bold green")
+        for rec in results.recommendations:
+            console.print(f"  • {rec}")
+        
+        # Save to file if requested
+        if output:
+            import json
+            output_data = {
+                "positional_bias_detected": results.positional_bias_detected,
+                "positional_bias_score": results.positional_bias_score,
+                "prompt_sensitivity_score": results.prompt_sensitivity_score,
+                "recommendations": results.recommendations,
+                "timestamp": "2025-09-03T00:00:00Z"  # Current date
+            }
+            output.write_text(json.dumps(output_data, indent=2))
+            console.print(f"\n💾 Results saved to: {output}")
+            
+    except Exception as e:
+        console.print(f"❌ Error during bias analysis: {e}", style="red")
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
