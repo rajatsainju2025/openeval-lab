@@ -591,3 +591,241 @@ def _get_memory_usage() -> float:
         return mem_info.ru_maxrss / 1024  # Assume KB for simplicity
     except Exception:
         return 0.0  # Fallback if not available
+
+
+@dataclass
+class BottleneckAnalysis:
+    """Analysis of performance bottlenecks."""
+
+    component: str
+    bottleneck_type: str  # cpu, memory, io, network
+    severity: str
+    description: str
+    recommendations: List[str]
+    estimated_impact: float  # percentage improvement
+
+
+class AdvancedProfiler:
+    """Advanced performance profiling with bottleneck analysis."""
+
+    def __init__(self):
+        self.logger = get_logger()
+        self.measurements = []
+        self.bottlenecks = []
+
+    @contextmanager
+    def profile_component(self, component_name: str, component_type: str = "general"):
+        """Profile a specific component with detailed analysis."""
+        start_time = time.time()
+        start_memory = _get_memory_usage()
+
+        try:
+            yield
+        finally:
+            end_time = time.time()
+            end_memory = _get_memory_usage()
+
+            measurement = {
+                "component": component_name,
+                "type": component_type,
+                "duration": end_time - start_time,
+                "memory_delta": end_memory - start_memory,
+                "start_time": start_time,
+                "end_time": end_time
+            }
+            self.measurements.append(measurement)
+
+    def analyze_bottlenecks(self) -> List[BottleneckAnalysis]:
+        """Analyze measurements to identify bottlenecks."""
+        if not self.measurements:
+            return []
+
+        bottlenecks = []
+
+        # Find slowest components
+        sorted_measurements = sorted(self.measurements, key=lambda x: x["duration"], reverse=True)
+        total_time = sum(m["duration"] for m in self.measurements)
+
+        for measurement in sorted_measurements[:3]:  # Top 3 bottlenecks
+            percentage = (measurement["duration"] / total_time) * 100
+
+            if percentage > 50:
+                severity = "critical"
+            elif percentage > 25:
+                severity = "high"
+            elif percentage > 10:
+                severity = "medium"
+            else:
+                severity = "low"
+
+            # Determine bottleneck type
+            bottleneck_type = "cpu"
+            recommendations = []
+
+            if measurement["memory_delta"] > 100:  # > 100MB increase
+                bottleneck_type = "memory"
+                recommendations = [
+                    "Consider streaming data processing",
+                    "Implement memory pooling",
+                    "Use smaller batch sizes"
+                ]
+            elif "io" in measurement["component"].lower():
+                bottleneck_type = "io"
+                recommendations = [
+                    "Implement caching",
+                    "Use async I/O operations",
+                    "Consider data compression"
+                ]
+            elif "network" in measurement["component"].lower():
+                bottleneck_type = "network"
+                recommendations = [
+                    "Implement connection pooling",
+                    "Use batch requests",
+                    "Consider local caching"
+                ]
+            else:
+                recommendations = [
+                    "Profile with line profiler",
+                    "Consider algorithm optimization",
+                    "Evaluate parallelization opportunities"
+                ]
+
+            bottleneck = BottleneckAnalysis(
+                component=measurement["component"],
+                bottleneck_type=bottleneck_type,
+                severity=severity,
+                description=f"Component takes {percentage:.1f}% of total time ({measurement['duration']:.2f}s)",
+                recommendations=recommendations,
+                estimated_impact=min(percentage * 0.8, 90.0)  # Conservative estimate
+            )
+            bottlenecks.append(bottleneck)
+
+        self.bottlenecks = bottlenecks
+        return bottlenecks
+
+    def generate_optimization_report(self) -> str:
+        """Generate comprehensive optimization report."""
+        if not self.measurements:
+            return "No measurements available for analysis."
+
+        report = ["# Advanced Performance Profiling Report\n"]
+
+        # Summary statistics
+        total_time = sum(m["duration"] for m in self.measurements)
+        total_memory = sum(m["memory_delta"] for m in self.measurements)
+        component_count = len(set(m["component"] for m in self.measurements))
+
+        report.append("## Summary")
+        report.append(f"- Total profiled time: {total_time:.2f}s")
+        report.append(f"- Memory delta: {total_memory:.1f}MB")
+        report.append(f"- Components profiled: {component_count}")
+        report.append("")
+
+        # Component breakdown
+        report.append("## Component Performance")
+        for measurement in sorted(self.measurements, key=lambda x: x["duration"], reverse=True):
+            percentage = (measurement["duration"] / total_time) * 100
+            report.append(f"- {measurement['component']}: {measurement['duration']:.2f}s ({percentage:.1f}%)")
+        report.append("")
+
+        # Bottleneck analysis
+        bottlenecks = self.analyze_bottlenecks()
+        if bottlenecks:
+            report.append("## Bottleneck Analysis")
+            for bottleneck in bottlenecks:
+                report.append(f"### {bottleneck.component} ({bottleneck.severity.upper()})")
+                report.append(f"- Type: {bottleneck.bottleneck_type}")
+                report.append(f"- Description: {bottleneck.description}")
+                report.append(f"- Estimated impact: {bottleneck.estimated_impact:.1f}% improvement")
+                report.append("- Recommendations:")
+                for rec in bottleneck.recommendations:
+                    report.append(f"  - {rec}")
+                report.append("")
+
+        return "\n".join(report)
+
+
+class AdaptiveOptimizer:
+    """Adaptive optimization based on real-time performance monitoring."""
+
+    def __init__(self):
+        self.logger = get_logger()
+        self.performance_history = []
+        self.adaptation_rules = {
+            "high_memory": {
+                "condition": lambda metrics: metrics.get("memory_mb", 0) > 1000,
+                "action": "reduce_batch_size",
+                "description": "Reduce batch size to lower memory usage"
+            },
+            "low_throughput": {
+                "condition": lambda metrics: metrics.get("throughput", 1) < 5,
+                "action": "increase_concurrency",
+                "description": "Increase concurrency for better throughput"
+            },
+            "high_cpu": {
+                "condition": lambda metrics: metrics.get("cpu_percent", 0) > 90,
+                "action": "reduce_concurrency",
+                "description": "Reduce concurrency to lower CPU usage"
+            }
+        }
+
+    def analyze_and_adapt(self, current_metrics: Dict[str, Any]) -> List[str]:
+        """Analyze current metrics and suggest adaptations."""
+        adaptations = []
+
+        for rule_name, rule in self.adaptation_rules.items():
+            if rule["condition"](current_metrics):
+                adaptations.append(rule["description"])
+                self.logger.info(f"Adaptation triggered: {rule['description']}")
+
+        self.performance_history.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "metrics": current_metrics,
+            "adaptations": adaptations
+        })
+
+        return adaptations
+
+    def get_performance_trends(self) -> Dict[str, Any]:
+        """Analyze performance trends over time."""
+        if len(self.performance_history) < 2:
+            return {"trend": "insufficient_data"}
+
+        # Simple trend analysis
+        recent = self.performance_history[-5:]  # Last 5 measurements
+        memory_trend = self._calculate_trend([m["metrics"].get("memory_mb", 0) for m in recent])
+        throughput_trend = self._calculate_trend([m["metrics"].get("throughput", 0) for m in recent])
+
+        return {
+            "memory_trend": memory_trend,
+            "throughput_trend": throughput_trend,
+            "recommendations": self._generate_trend_recommendations(memory_trend, throughput_trend)
+        }
+
+    def _calculate_trend(self, values: List[float]) -> str:
+        """Calculate trend direction from values."""
+        if len(values) < 2:
+            return "stable"
+
+        # Simple linear trend
+        slope = statistics.linear_regression(range(len(values)), values).slope
+
+        if slope > 0.1:
+            return "increasing"
+        elif slope < -0.1:
+            return "decreasing"
+        else:
+            return "stable"
+
+    def _generate_trend_recommendations(self, memory_trend: str, throughput_trend: str) -> List[str]:
+        """Generate recommendations based on trends."""
+        recommendations = []
+
+        if memory_trend == "increasing":
+            recommendations.append("Memory usage is trending up - consider memory optimization")
+        if throughput_trend == "decreasing":
+            recommendations.append("Throughput is trending down - investigate performance bottlenecks")
+        if memory_trend == "stable" and throughput_trend == "stable":
+            recommendations.append("Performance is stable - no immediate optimizations needed")
+
+        return recommendations
