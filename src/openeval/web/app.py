@@ -130,6 +130,8 @@ def bias_analysis(file: str):
         data=data,
         error_msg=error_msg,
     )
+@app.get("/export/{file}")
+def export_run(file: str, format: str = "json"):
     """Export a run file in various formats."""
     # security: only allow basenames under runs/
     file = Path(file).name
