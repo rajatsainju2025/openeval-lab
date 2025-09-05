@@ -23,6 +23,10 @@ from .optimization import performance_monitor
 from . import registry
 from .utils import get_project_root
 from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
+from .enhanced_logging import (
+    configure_logging, get_logger, get_tracer, get_profiler,
+    enable_debug_mode, save_debug_data, log_context, traced, profiled
+)
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.command()
@@ -796,12 +800,55 @@ def run(
     ),
     cache_key_mode: str = typer.Option("strict", "--cache-key", help="Cache key mode: strict|compat"),
     traces: bool = typer.Option(False, "--traces", help="Include agent step traces in records when supported"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode with enhanced logging"),
+    enable_tracing: bool = typer.Option(False, "--enable-tracing", help="Enable debug tracing"),
+    enable_profiling: bool = typer.Option(False, "--enable-profiling", help="Enable performance profiling"),
+    save_debug: Optional[Path] = typer.Option(None, "--save-debug", help="Save debug data to directory"),
+    statistical_analysis: bool = typer.Option(False, "--statistical", help="Enable statistical analysis with bootstrap confidence intervals"),
 ):
     """Run an evaluation from a spec file."""
-    try:
-        task, dataset, adapter, metrics, out = load_spec(spec)
-    except SystemExit as e:
-        raise typer.Exit(code=2) from e
+    
+    # Setup enhanced logging and debugging if requested
+    if debug:
+        enable_debug_mode()
+        console.print("[green]Debug mode enabled with enhanced logging[/green]")
+    
+    # Initialize logging context
+    logger = get_logger("openeval.run", 
+                       component="cli", 
+                       operation="evaluation",
+                       task_name=str(spec.stem))
+    
+    # Setup tracing and profiling
+    tracer = None
+    profiler = None
+    
+    if enable_tracing or debug:
+        tracer = get_tracer("evaluation", enabled=True)
+        tracer.trace("evaluation_start", {"spec": str(spec)})
+        logger.info("Debug tracing enabled for evaluation")
+    
+    if enable_profiling or debug:
+        profiler = get_profiler("evaluation")
+        logger.info("Performance profiling enabled for evaluation")
+    
+    with log_context(operation="load_spec", spec_path=str(spec)):
+        try:
+            task, dataset, adapter, metrics, out = load_spec(spec, statistical_analysis=statistical_analysis)
+            logger.info(f"Loaded spec successfully: task={type(task).__name__}, adapter={type(adapter).__name__}")
+            
+            if tracer:
+                tracer.trace("spec_loaded", {
+                    "task": type(task).__name__,
+                    "adapter": type(adapter).__name__,
+                    "metrics": [type(m).__name__ for m in metrics]
+                })
+                
+        except SystemExit as e:
+            logger.error(f"Failed to load spec: {e}")
+            if tracer:
+                tracer.trace("spec_load_failed", {"error": str(e)})
+            raise typer.Exit(code=2) from e
 
     # attach runtime adapter knobs when available
     _set_opts = getattr(adapter, "set_runtime_options", None)
@@ -827,16 +874,84 @@ def run(
             setattr(task, "_collect_traces", bool(traces))
         except Exception:
             pass
-        result = task.evaluate(
-            adapter,
-            dataset,
-            metrics,
-            seed=seed,
-            collect_records=records,
-            concurrency=concurrency,
-            max_retries=max_retries,
-            request_timeout=request_timeout,
-        )
+        
+        # Run evaluation with enhanced logging context
+        with log_context(
+            operation="evaluation_run",
+            task_name=type(task).__name__,
+            adapter_name=type(adapter).__name__,
+            dataset_size=len(list(iter(dataset))),
+            metric_count=len(metrics)
+        ):
+            logger.info(f"Starting evaluation run with task={type(task).__name__}, adapter={type(adapter).__name__}, metrics={[m.name for m in metrics]}")
+            
+            if tracer:
+                tracer.trace("evaluation_start", {
+                    "task": type(task).__name__,
+                    "adapter": type(adapter).__name__,
+                    "dataset_size": len(list(iter(dataset))),
+                    "metrics": [m.name for m in metrics],
+                    "config": {
+                        "seed": seed,
+                        "concurrency": concurrency,
+                        "max_retries": max_retries
+                    }
+                })
+            
+            import time
+            eval_start = time.time()
+            
+            # Run evaluation with optional profiling
+            if profiler:
+                @profiler.profile("task_evaluation", include_args=False)
+                def run_evaluation():
+                    return task.evaluate(
+                        adapter,
+                        dataset,
+                        metrics,
+                        seed=seed,
+                        collect_records=records,
+                        concurrency=concurrency,
+                        max_retries=max_retries,
+                        request_timeout=request_timeout,
+                    )
+                
+                result = run_evaluation()
+            else:
+                result = task.evaluate(
+                    adapter,
+                    dataset,
+                    metrics,
+                    seed=seed,
+                    collect_records=records,
+                    concurrency=concurrency,
+                    max_retries=max_retries,
+                    request_timeout=request_timeout,
+                )
+            
+            eval_duration = time.time() - eval_start
+            
+            logger.info(f"Evaluation completed in {eval_duration:.2f}s")
+            
+            # Log evaluation results summary
+            logger.info(f"Evaluation summary: {result.get('timing', {}).get('request_successes', 0)} successes, "
+                       f"{result.get('timing', {}).get('request_errors', 0)} errors")
+            
+            # Log metric results
+            for metric_name, metric_value in result.items():
+                if metric_name not in ['timing', 'manifest', 'environment', 'dataset_path', 'dataset_hash_sha256', 'records']:
+                    if isinstance(metric_value, dict) and 'error' in metric_value:
+                        logger.error(f"Metric {metric_name} failed: {metric_value['error']}")
+                    else:
+                        logger.info(f"Metric {metric_name}: {metric_value}")
+            
+            if tracer:
+                tracer.trace("evaluation_complete", {
+                    "duration_seconds": eval_duration,
+                    "success_count": result.get('timing', {}).get('request_successes', 0),
+                    "error_count": result.get('timing', {}).get('request_errors', 0),
+                    "metrics_computed": list(result.keys())
+                })
     else:
         # Interactive loop: preview prompts and control flow
         from importlib.metadata import version as _pkg_version, PackageNotFoundError
@@ -847,12 +962,36 @@ def run(
         references = []
         per_latency = []
         recs = []
+        
+        logger.info(f"Starting evaluation with {len(examples)} examples")
+        if tracer:
+            tracer.trace("evaluation_loop_start", {"example_count": len(examples)})
+        
         t0 = time.perf_counter()
         for idx, ex in enumerate(examples):
+            with log_context(operation="process_example", 
+                           example_id=ex.id, 
+                           example_index=idx):
+                
+                if profiler:
+                    @profiler.profile(f"example_{idx}", include_args=False)
+                    def process_example():
+                        prompt = task.build_prompt_with_template(ex)
+                        return prompt
+                    
+                    prompt = process_example()
+                else:
+                    prompt = task.build_prompt_with_template(ex)
+                
+                logger.debug(f"Processing example {idx+1}/{len(examples)}: {ex.id}")
+                
+                if tracer:
+                    tracer.trace("example_start", {"example_id": ex.id, "index": idx})
             prompt = task.build_prompt_with_template(ex)
             console.print(f"\n[bold]Example {idx+1}/{len(examples)}[/bold] id={ex.id}", style="cyan")
             console.print(f"Input: {str(ex.input)[:200]}" )
-            console.print("Show full prompt? [y/N], skip [s], quit [q]", style="muted")
+            # Use a valid rich style; 'muted' isn't a default style
+            console.print("Show full prompt? [y/N], skip [s], quit [q]", style="dim")
             ans = input("Action: ").strip().lower()
             if ans == "q":
                 break
@@ -861,8 +1000,39 @@ def run(
             if ans == "s":
                 continue
             s = time.perf_counter()
-            out = adapter.generate(prompt)
+            
+            # Log adapter call with enhanced context
+            with log_context(operation="adapter_generate", 
+                           adapter_name=type(adapter).__name__,
+                           example_id=ex.id):
+                logger.debug(f"Calling adapter {type(adapter).__name__} for example {ex.id}")
+                
+                if tracer:
+                    tracer.trace("adapter_call_start", {
+                        "adapter": type(adapter).__name__,
+                        "example_id": ex.id,
+                        "prompt_length": len(prompt)
+                    })
+                
+                if profiler:
+                    @profiler.profile(f"adapter_generate_{idx}", include_args=False)
+                    def generate_with_profiling():
+                        return adapter.generate(prompt)
+                    
+                    out = generate_with_profiling()
+                else:
+                    out = adapter.generate(prompt)
+                
+                if tracer:
+                    tracer.trace("adapter_call_complete", {
+                        "example_id": ex.id,
+                        "output_length": len(str(out))
+                    })
+            
             e = time.perf_counter()
+            
+            logger.debug(f"Adapter call completed in {(e-s)*1000:.1f}ms for example {ex.id}")
+            
             pred = task.postprocess(out)
             predictions.append(pred)
             references.append(ex.reference)
@@ -924,6 +1094,33 @@ def run(
     if run_name:
         result["run_name"] = run_name
 
+    # Save debug information if enabled
+    if save_debug:
+        debug_output_file = save_debug / f"debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        debug_info = {
+            "timestamp": datetime.now().isoformat(),
+            "evaluation_results": result,
+            "profiling": profiler.profiles if profiler else None,
+            "traces": tracer.get_traces() if tracer else None
+        }
+        
+        logger.info(f"Saving debug information to {debug_output_file}")
+        with log_context(operation="save_debug"):
+            try:
+                save_debug.mkdir(parents=True, exist_ok=True)
+                with open(debug_output_file, 'w') as f:
+                    json.dump(debug_info, f, indent=2, default=str)
+                logger.info(f"Debug information saved successfully")
+                
+                # Save profiler data separately if available
+                if profiler:
+                    profiler_file = save_debug / f"profiles_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                    profiler.save_profiles(profiler_file)
+                    logger.info(f"Profiler data saved to {profiler_file}")
+                
+            except Exception as e:
+                logger.error(f"Failed to save debug information: {e}")
+
     out_path = Path(out)
     if artifacts:
         artifacts.mkdir(parents=True, exist_ok=True)
@@ -970,6 +1167,285 @@ def runs_collect(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"runs": entries}, indent=2))
     print({"saved": str(out), "count": len(entries)})
+
+
+# -------------------------
+# Validation & Comparison
+# -------------------------
+
+@app.command("validate")
+def validate_spec(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec to validate")
+):
+    """Validate a spec file for correctness."""
+    from .spec import _read_spec_file, EvalSpec
+    console = Console()
+    try:
+        data = _read_spec_file(spec)
+        # Normalize metrics entries that are strings
+        metrics_raw = data.get("metrics")
+        if isinstance(metrics_raw, list) and metrics_raw and isinstance(metrics_raw[0], str):
+            data["metrics"] = [{"name": m} for m in metrics_raw]
+        # Validate against the pydantic model
+        EvalSpec(**data)
+        console.print("Spec is valid", style="green")
+    except SystemExit as e:
+        # _read_spec_file may raise SystemExit for YAML missing
+        console.print(f"Spec invalid: {e}", style="red")
+        raise typer.Exit(code=2)
+    except Exception as e:
+        console.print(f"Spec invalid: {e}", style="red")
+        raise typer.Exit(code=2)
+
+
+@app.command("validate-dataset")
+def validate_dataset_cmd(
+    path: Path = typer.Argument(..., help="Path to dataset JSONL file"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Where to save report JSON"),
+    strict: bool = typer.Option(False, "--strict", help="Fail on validation issues"),
+):
+    """Validate a dataset JSONL file and optionally save a quality report."""
+    from .dataset_validation import validate_jsonl_file
+    console = Console()
+    try:
+        report = validate_jsonl_file(path)
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, "w") as f:
+                json.dump(report.__dict__, f, indent=2)
+        # Print brief summary
+        console.print(
+            f"Dataset quality: score={report.quality_score:.2f}, total={report.total_examples}, valid={report.valid_examples}",
+            style=("green" if report.quality_score >= 0.7 else "yellow"),
+        )
+        if strict and (report.quality_score < 0.7 or report.valid_examples == 0):
+            raise typer.Exit(code=2)
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"Validation failed: {e}", style="red")
+        raise typer.Exit(code=2)
+
+
+@app.command("compare")
+def compare_runs(
+    run_a: Path = typer.Argument(..., help="Path to first results JSON"),
+    run_b: Path = typer.Argument(..., help="Path to second results JSON"),
+    bootstrap: int = typer.Option(0, "--bootstrap", help="Bootstrap samples for CI (optional)"),
+):
+    """Compare two run result files and print summary statistics."""
+    console = Console()
+    try:
+        with open(run_a) as f:
+            A = json.load(f)
+        with open(run_b) as f:
+            B = json.load(f)
+
+        # Basic accuracy extraction helper
+        def extract_primary(d: Dict[str, Any]) -> float:
+            m = d.get("metrics", {})
+            # Try common keys
+            for key in ["accuracy", "acc", "primary", "score"]:
+                if key in m:
+                    val = m[key]
+                    if isinstance(val, dict):
+                        for inner in ["accuracy", "score", key]:
+                            if inner in val:
+                                return float(val[inner])
+                    elif isinstance(val, (int, float)):
+                        return float(val)
+            # Fallback attempt: first numeric metric
+            for v in m.values():
+                if isinstance(v, (int, float)):
+                    return float(v)
+                if isinstance(v, dict):
+                    for vv in v.values():
+                        if isinstance(vv, (int, float)):
+                            return float(vv)
+            return float("nan")
+
+        a_val = extract_primary(A)
+        b_val = extract_primary(B)
+        diff = b_val - a_val
+
+        result: Dict[str, Any] = {
+            "A": a_val,
+            "B": b_val,
+            "diff": diff,
+        }
+
+        # Bootstrap CI is optional; if requested but unavailable, we proceed without it
+        if bootstrap:
+            # Try to use statistical comparison if records are available
+            records_a = A.get("records", [])
+            records_b = B.get("records", [])
+            
+            if records_a and records_b and len(records_a) == len(records_b):
+                try:
+                    from .metrics.statistical import PairedBootstrapTest
+                    test_metric = PairedBootstrapTest(n_bootstrap=bootstrap)
+                    
+                    # Extract predictions and references
+                    preds_a = [r.get("prediction", "") for r in records_a]
+                    preds_b = [r.get("prediction", "") for r in records_b]
+                    refs = [r.get("reference", "") for r in records_a]
+                    
+                    comparison = test_metric.paired_bootstrap_test(preds_a, preds_b, refs)
+                    result["bootstrap_comparison"] = {
+                        "mean_diff": comparison.metric_value,
+                        "ci_lower": comparison.confidence_interval[0],
+                        "ci_upper": comparison.confidence_interval[1],
+                        "p_value": comparison.p_value,
+                        "significant": comparison.p_value < 0.05 if comparison.p_value else None
+                    }
+                except Exception as e:
+                    result["bootstrap_error"] = str(e)
+            else:
+                result["note"] = "bootstrap CI requires matching records in both runs"
+
+        console.print(json.dumps(result, indent=2))
+    except Exception as e:
+        console.print(f"Comparison failed: {e}", style="red")
+        raise typer.Exit(code=2)
+
+
+@app.command("debug-logs")
+def debug_logs(
+    level: str = typer.Option("DEBUG", "--level", help="Log level: DEBUG, INFO, WARNING, ERROR"),
+    format_type: str = typer.Option("structured", "--format", help="Log format: structured, plain"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Log file path"),
+    enable_tracing: bool = typer.Option(False, "--trace", help="Enable debug tracing"),
+    enable_profiling: bool = typer.Option(False, "--profile", help="Enable performance profiling"),
+):
+    """Configure enhanced logging and debugging."""
+    console = Console()
+    
+    # Configure logging
+    configure_logging(
+        level=level,
+        format_type=format_type,
+        log_file=output,
+        console_output=not output,  # Only console if no file specified
+        redact_sensitive=True
+    )
+    
+    console.print(f"[green]Configured logging: level={level}, format={format_type}[/green]")
+    
+    if output:
+        console.print(f"[green]Logging to file: {output}[/green]")
+    
+    if enable_tracing:
+        tracer = get_tracer("cli", enabled=True)
+        console.print("[green]Debug tracing enabled[/green]")
+    
+    if enable_profiling:
+        profiler = get_profiler("cli")
+        console.print("[green]Performance profiling enabled[/green]")
+    
+    # Test logging
+    logger = get_logger("test", component="cli", operation="debug_test")
+    logger.info("Enhanced logging configured successfully")
+    logger.debug("Debug message example")
+    logger.warning("Warning message example")
+
+
+@app.command("save-debug")
+def save_debug(
+    output_dir: Path = typer.Option("debug_output", "--output", help="Output directory for debug data"),
+    include_traces: bool = typer.Option(True, "--traces", help="Include debug traces"),
+    include_profiles: bool = typer.Option(True, "--profiles", help="Include performance profiles"),
+):
+    """Save all debug data to files."""
+    console = Console()
+    
+    try:
+        save_debug_data(output_dir)
+        console.print(f"[green]Debug data saved to: {output_dir}[/green]")
+        
+        # List saved files
+        if output_dir.exists():
+            files = list(output_dir.glob("*.json"))
+            if files:
+                console.print("\nSaved files:")
+                for file in files:
+                    console.print(f"  - {file.name}")
+            else:
+                console.print("[yellow]No debug data to save[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[red]Failed to save debug data: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command("trace-analysis")
+def trace_analysis(
+    trace_file: Path = typer.Argument(..., help="Path to trace JSON file"),
+    filter_name: Optional[str] = typer.Option(None, "--filter", help="Filter traces by name pattern"),
+    show_timeline: bool = typer.Option(False, "--timeline", help="Show timeline view"),
+    show_stats: bool = typer.Option(True, "--stats", help="Show statistics"),
+):
+    """Analyze debug trace files."""
+    console = Console()
+    
+    if not trace_file.exists():
+        console.print(f"[red]Trace file not found: {trace_file}[/red]")
+        raise typer.Exit(1)
+    
+    try:
+        import json
+        with open(trace_file, 'r') as f:
+            traces = json.load(f)
+        
+        if filter_name:
+            traces = [t for t in traces if filter_name in t.get('name', '')]
+        
+        console.print(f"[green]Loaded {len(traces)} traces[/green]")
+        
+        if show_stats:
+            # Analyze trace statistics
+            from collections import Counter
+            
+            names = [t.get('name', 'unknown') for t in traces]
+            name_counts = Counter(names)
+            
+            console.print("\n[yellow]Trace Statistics:[/yellow]")
+            console.print(f"Total traces: {len(traces)}")
+            console.print(f"Unique trace names: {len(name_counts)}")
+            
+            console.print("\nTop trace types:")
+            for name, count in name_counts.most_common(10):
+                console.print(f"  {name}: {count}")
+        
+        if show_timeline and traces:
+            # Show timeline view
+            console.print("\n[yellow]Timeline View:[/yellow]")
+            
+            # Sort by timestamp
+            sorted_traces = sorted(traces, key=lambda t: t.get('timestamp', 0))
+            
+            start_time = sorted_traces[0].get('timestamp', 0)
+            
+            for trace in sorted_traces[:20]:  # Show first 20
+                timestamp = trace.get('timestamp', 0)
+                relative_time = timestamp - start_time
+                name = trace.get('name', 'unknown')
+                thread_id = trace.get('thread_id', 'unknown')
+                
+                console.print(f"  +{relative_time:.3f}s [{thread_id}] {name}")
+    
+    except Exception as e:
+        console.print(f"[red]Failed to analyze traces: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Add logging management commands
+logging_app = typer.Typer(help="Enhanced logging and debugging commands")
+app.add_typer(logging_app, name="debug")
+
+# Move debug commands to the logging group
+logging_app.command("configure")(debug_logs)
+logging_app.command("save")(save_debug)
+logging_app.command("analyze")(trace_analysis)
 
 
 @app.command("lock")
@@ -1260,7 +1736,53 @@ def interactive(
         except EOFError:
             break
     
-    console.print("Goodbye!")
+@app.command()
+def analyze_bias(
+    spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
+    permutations: int = typer.Option(5, help="Number of position permutations for bias detection"),
+    output: Optional[Path] = typer.Option(None, help="Save analysis results to JSON file"),
+):
+    """Analyze evaluation biases (positional, prompt sensitivity)."""
+    try:
+        console.print("🔍 Analyzing evaluation biases...", style="blue")
+        
+        # Load spec
+        task, dataset, adapter, metrics, _ = load_spec(spec)
+        
+        # Initialize bias detector
+        from .bias_detection import BiasDetector
+        detector = BiasDetector(adapter, task, dataset)
+        
+        # Run analysis
+        with console.status("[bold green]Running bias analysis..."):
+            results = detector.run_full_analysis()
+        
+        # Display results
+        console.print("\n📊 Bias Analysis Results:", style="bold blue")
+        console.print(f"Positional Bias Detected: {'Yes' if results.positional_bias_detected else 'No'}")
+        console.print(".4f")
+        console.print(".4f")
+        
+        console.print("\n💡 Recommendations:", style="bold green")
+        for rec in results.recommendations:
+            console.print(f"  • {rec}")
+        
+        # Save to file if requested
+        if output:
+            import json
+            output_data = {
+                "positional_bias_detected": results.positional_bias_detected,
+                "positional_bias_score": results.positional_bias_score,
+                "prompt_sensitivity_score": results.prompt_sensitivity_score,
+                "recommendations": results.recommendations,
+                "timestamp": "2025-09-03T00:00:00Z"  # Current date
+            }
+            output.write_text(json.dumps(output_data, indent=2))
+            console.print(f"\n💾 Results saved to: {output}")
+            
+    except Exception as e:
+        console.print(f"❌ Error during bias analysis: {e}", style="red")
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

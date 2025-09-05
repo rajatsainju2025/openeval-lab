@@ -55,6 +55,28 @@ def _resolve_or_load(kind: str, value: str):
     return _load_dotted(dotted)
 
 
+# Simple import hook for tests and external callers
+def import_class(path: str):  # pragma: no cover - thin wrapper, patched in tests
+    """Import a class from a dotted or colon path.
+
+    Provided for compatibility with tests that patch `openeval.spec.import_class`.
+    Uses the same resolution rules as internal helpers.
+    """
+    # Try direct dotted import first
+    try:
+        return _load_dotted(path)
+    except Exception:
+        # As a fallback, attempt to resolve via registry without kind hint
+        # Common kinds to try in order
+        for kind in ("task", "dataset", "adapter", "metric"):
+            try:
+                return _resolve_or_load(kind, path)
+            except Exception:
+                continue
+        # Re-raise original style error if nothing matched
+        raise
+
+
 def _read_spec_file(p: Path) -> dict[str, Any]:
     if p.suffix.lower() in {".yaml", ".yml"}:
         if yaml is None:
@@ -63,7 +85,7 @@ def _read_spec_file(p: Path) -> dict[str, Any]:
     return json.loads(p.read_text())
 
 
-def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
+def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
     p = Path(path)
     data = _read_spec_file(p)
     # Normalize metrics to dicts if provided as strings
@@ -90,10 +112,11 @@ def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], s
     except ValidationError as e:
         raise SystemExit(f"Invalid spec: {e}")
 
-    task_cls = _resolve_or_load("task", spec.task)
+    # Route through import_class so tests can patch it and short names work
+    task_cls = import_class(spec.task)
     # Dataset can be: short/dotted string or inline object
     if isinstance(spec.dataset, str):
-        dataset_cls = _resolve_or_load("dataset", spec.dataset)
+        dataset_cls = import_class(spec.dataset)
         dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
     elif isinstance(spec.dataset, dict) and (spec.dataset.get("type") == "inline"):
         dataset = InlineDataset(name=spec.dataset.get("name", "inline"), examples=spec.dataset.get("examples", []))
@@ -102,15 +125,24 @@ def load_spec(path: Path | str) -> Tuple[Task, Dataset, Adapter, List[Metric], s
         raise SystemExit(
             "Invalid dataset value in spec: expected short/dotted string or inline object."
         )
-    adapter_cls = _resolve_or_load("adapter", spec.adapter)
+    adapter_cls = import_class(spec.adapter)
 
     task: Task = task_cls(**spec.task_kwargs)
     adapter: Adapter = adapter_cls(**spec.adapter_kwargs)
 
     metrics: list[Metric] = []
     for m in spec.metrics:
-        m_cls = _resolve_or_load("metric", m.name)
-        metrics.append(m_cls(**m.kwargs))
+        m_cls = import_class(m.name)
+        metric_instance = m_cls(**m.kwargs)
+        
+        # If statistical analysis is enabled, wrap basic metrics with statistical versions
+        if statistical_analysis:
+            from .metrics.statistical import BootstrapAccuracy
+            if hasattr(metric_instance, 'name') and metric_instance.name == "exact_match":
+                # Replace with bootstrap version
+                metric_instance = BootstrapAccuracy(**m.kwargs)
+        
+        metrics.append(metric_instance)
 
     # Validate agent tooling for ToolUseTask
     if task.__class__.__module__ == "openeval.tasks.tooluse" and task.__class__.__name__ == "ToolUseTask":

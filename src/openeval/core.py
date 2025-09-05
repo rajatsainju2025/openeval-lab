@@ -15,6 +15,43 @@ from .cache import PredictionCache, CacheStats
 from .prompt import PromptTemplate, build_prompt
 
 
+def _categorize_error(err: Exception) -> str:
+    """Categorize an exception for better error reporting."""
+    err_str = str(err).lower()
+    err_type = type(err).__name__
+    
+    if "timeout" in err_str or "timed out" in err_str or isinstance(err, TimeoutError):
+        return "TIMEOUT"
+    elif "rate limit" in err_str or "429" in err_str:
+        return "RATE_LIMIT"
+    elif "connection" in err_str or "network" in err_str:
+        return "NETWORK"
+    elif "authentication" in err_str or "401" in err_str or "403" in err_str:
+        return "AUTH"
+    elif "quota" in err_str or "402" in err_str:
+        return "QUOTA"
+    elif "server" in err_str or "500" in err_str or "502" in err_str or "503" in err_str:
+        return "SERVER_ERROR"
+    elif "invalid" in err_str or "400" in err_str:
+        return "INVALID_REQUEST"
+    else:
+        return f"{err_type}"
+
+
+def _summarize_errors(per_error: List[Optional[str]]) -> Dict[str, int]:
+    """Summarize errors by category."""
+    error_counts: Dict[str, int] = {}
+    for error in per_error:
+        if error:
+            # Extract category from [CATEGORY] message format
+            if error.startswith("[") and "]" in error:
+                category = error.split("]")[0][1:]
+            else:
+                category = "UNKNOWN"
+            error_counts[category] = error_counts.get(category, 0) + 1
+    return error_counts
+
+
 class Adapter(Protocol):
     """Model API adapter."""
 
@@ -203,7 +240,11 @@ class Task(ABC):
                     e = time.perf_counter()
                     per_latency[i] = e - s
                     error_count += 1
-                    per_error[i] = str(err)
+                    
+                    # Categorize error for better diagnostics
+                    error_category = _categorize_error(err)
+                    detailed_error = f"[{error_category}] {str(err)}"
+                    per_error[i] = detailed_error
                     predictions[i] = ""
         else:
             with ThreadPoolExecutor(max_workers=int(concurrency)) as pool:  # pragma: no cover
@@ -233,7 +274,9 @@ class Task(ABC):
                                 return idx, self.postprocess(raw), (e - s), None, cached_flag
                             except Exception as err:
                                 e = time.perf_counter()
-                                return idx, "", (e - s), str(err), False
+                                error_category = _categorize_error(err)
+                                detailed_error = f"[{error_category}] {str(err)}"
+                                return idx, "", (e - s), detailed_error, False
 
                         return _job
 
@@ -338,6 +381,16 @@ class Task(ABC):
                 "class": f"{self.__class__.__module__}.{self.__class__.__name__}",
             },
         }
+        
+        # Add cost information if available
+        cost_method = getattr(adapter, 'get_cost_summary', None)
+        if cost_method and callable(cost_method):
+            try:
+                cost_info = cost_method()
+                manifest["cost"] = cost_info
+            except Exception:
+                pass
+        
         # Drop None git if not available
         if manifest.get("git") is None:
             manifest.pop("git", None)
@@ -360,6 +413,9 @@ class Task(ABC):
                 "cache_misses": cache_stats.misses,
                 "cache_hit_rate": cache_stats.hit_rate,
             },
+            
+            # Add error categorization summary
+            "error_summary": _summarize_errors(per_error),
             "manifest": manifest,
         }
         # Attempt to add pip freeze for reproducibility (best effort)
