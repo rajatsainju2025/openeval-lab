@@ -1,0 +1,24 @@
+{
+  "task": "qa",
+  "dataset": "interactive_toy",
+  "adapter": "echo",
+  "metrics": [
+    {"name": "exact_match"}
+  ],
+  "interactive": {
+    "mode": "human_in_loop",
+    "max_iterations": 3,
+    "batch_size": 2
+  },
+  "spec": {
+    "task": {
+      "name": "qa",
+      "instruction": "Answer the question accurately."
+    },
+    "dataset": {
+      "name": "interactive_toy",
+      "type": "jsonl",
+      "path": "examples/interactive_toy.jsonl"
+    }
+  }
+}

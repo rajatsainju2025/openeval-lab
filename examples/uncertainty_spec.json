@@ -1,0 +1,19 @@
+{
+  "task": "qa",
+  "dataset": "qa_toy",
+  "adapter": "echo",
+  "metrics": [
+    {"name": "uncertainty_quantification", "kwargs": {"num_bins": 5}}
+  ],
+  "spec": {
+    "task": {
+      "name": "qa",
+      "instruction": "Answer the question with confidence."
+    },
+    "dataset": {
+      "name": "qa_toy",
+      "type": "jsonl",
+      "path": "examples/qa_toy.jsonl"
+    }
+  }
+}

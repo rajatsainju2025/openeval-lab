@@ -1,0 +1,25 @@
+{
+  "task": "multimodal_qa",
+  "dataset": "multimodal_toy",
+  "adapter": "openai-multimodal",
+  "metrics": [
+    {"name": "exact_match"},
+    {"name": "llm_judge", "kwargs": {"judge_adapter": "openai-chat", "judge_kwargs": {"model": "gpt-4o-mini"}}}
+  ],
+  "spec": {
+    "task": {
+      "name": "multimodal_qa",
+      "instruction": "Answer the question based on the provided image and text."
+    },
+    "dataset": {
+      "name": "multimodal_toy",
+      "type": "jsonl",
+      "path": "examples/multimodal_toy.jsonl"
+    },
+    "adapter": {
+      "name": "openai-multimodal",
+      "model": "gpt-4o-mini",
+      "api_key": "${OPENAI_API_KEY}"
+    }
+  }
+}
