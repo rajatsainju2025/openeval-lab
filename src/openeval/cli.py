@@ -2102,6 +2102,113 @@ def library(
         raise typer.Exit(1)
 
 
+@app.command("validate-dataset")
+def validate_dataset(
+    path: Path = typer.Argument(..., help="Path to dataset file (JSONL) or spec file"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Save validation report to JSON file"),
+    strict: bool = typer.Option(False, "--strict", help="Exit with error if validation fails"),
+    format_type: str = typer.Option("auto", "--format", help="Dataset format: auto|jsonl|spec"),
+):
+    """Validate dataset quality and format."""
+    from .dataset_validation import DatasetValidator, validate_jsonl_file
+    from .spec import load_spec
+    
+    try:
+        if format_type == "auto":
+            # Auto-detect format
+            if path.suffix.lower() in {'.jsonl', '.json'}:
+                format_type = "jsonl"
+            elif path.suffix.lower() in {'.yaml', '.yml'}:
+                format_type = "spec"
+            else:
+                # Try to load as spec first, then JSONL
+                try:
+                    load_spec(path)
+                    format_type = "spec"
+                except Exception:
+                    format_type = "jsonl"
+        
+        if format_type == "spec":
+            # Load dataset from spec
+            try:
+                task, dataset, adapter, metrics, out = load_spec(path)
+                validator = DatasetValidator(strict=strict)
+                report = validator.assess_quality(dataset)
+            except Exception as e:
+                console.print(f"[red]Failed to load spec: {e}[/red]")
+                raise typer.Exit(code=2)
+        
+        elif format_type == "jsonl":
+            # Validate JSONL file directly
+            report = validate_jsonl_file(path)
+        
+        else:
+            console.print(f"[red]Unsupported format: {format_type}[/red]")
+            raise typer.Exit(code=2)
+        
+        # Display results
+        console.print(f"\n[bold]Dataset Validation Report[/bold]")
+        console.print(f"File: {path}")
+        console.print(f"Total examples: {report.total_examples}")
+        console.print(f"Valid examples: {report.valid_examples}")
+        console.print(f"Invalid examples: {report.invalid_examples}")
+        console.print(f"Quality score: {report.quality_score:.2f}")
+        
+        if report.avg_input_length > 0:
+            console.print(f"Avg input length: {report.avg_input_length:.1f} chars")
+        if report.avg_reference_length > 0:
+            console.print(f"Avg reference length: {report.avg_reference_length:.1f} chars")
+        
+        if report.duplicate_pairs > 0:
+            console.print(f"[yellow]Duplicate pairs: {report.duplicate_pairs}[/yellow]")
+        
+        if report.empty_inputs > 0:
+            console.print(f"[yellow]Empty inputs: {report.empty_inputs}[/yellow]")
+        
+        if report.empty_references > 0:
+            console.print(f"[yellow]Empty references: {report.empty_references}[/yellow]")
+        
+        if report.encoding_issues > 0:
+            console.print(f"[red]Encoding issues: {report.encoding_issues}[/red]")
+        
+        if report.format_issues:
+            console.print(f"\n[yellow]Format Issues (first 5):[/yellow]")
+            for issue in report.format_issues[:5]:
+                console.print(f"  • {issue}")
+        
+        if report.recommendations:
+            console.print(f"\n[cyan]Recommendations:[/cyan]")
+            for rec in report.recommendations:
+                console.print(f"  • {rec}")
+        
+        # Save report if requested
+        if output:
+            import json
+            from dataclasses import asdict
+            
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, 'w') as f:
+                json.dump(asdict(report), f, indent=2)
+            console.print(f"\n[green]Report saved to {output}[/green]")
+        
+        # Exit with error if strict mode and validation failed
+        if strict and report.quality_score < 0.7:
+            console.print(f"\n[red]Validation failed in strict mode (score: {report.quality_score:.2f})[/red]")
+            raise typer.Exit(code=1)
+        
+        if report.quality_score >= 0.8:
+            console.print(f"\n[green]✓ Dataset quality is good![/green]")
+        elif report.quality_score >= 0.6:
+            console.print(f"\n[yellow]⚠ Dataset quality is acceptable but could be improved[/yellow]")
+        else:
+            console.print(f"\n[red]✗ Dataset quality is poor and needs attention[/red]")
+            
+    except Exception as e:
+        console.print(f"[red]Validation error: {e}[/red]")
+        if strict:
+            raise typer.Exit(code=2)
+
+
 @app.command()
 def interactive(
     spec: Optional[Path] = typer.Option(None, "--spec", help="Optional spec file to load"),
