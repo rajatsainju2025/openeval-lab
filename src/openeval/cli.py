@@ -809,6 +809,8 @@ def run(
     # Optional extras
     robustness_noise: Optional[float] = typer.Option(None, "--robustness-noise", help="Apply simple character noise (0.0-1.0) to inputs and report robustness metrics"),
     calibration: bool = typer.Option(False, "--calibration", help="Attempt to compute calibration metrics if adapter supports probabilities/logprobs"),
+    # Performance optimization
+    use_async: bool = typer.Option(False, "--async", help="Use async adapter methods if available for better throughput"),
 ):
     """Run an evaluation from a spec file."""
     
