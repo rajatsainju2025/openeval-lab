@@ -1,0 +1,25 @@
+{
+  "task": "qa",
+  "dataset": "federated_toy",
+  "adapter": "echo",
+  "metrics": [
+    {"name": "exact_match"}
+  ],
+  "federated": {
+    "num_clients": 3,
+    "rounds": 2,
+    "epsilon": 0.5,
+    "aggregation": "fedavg"
+  },
+  "spec": {
+    "task": {
+      "name": "qa",
+      "instruction": "Answer the question concisely."
+    },
+    "dataset": {
+      "name": "federated_toy",
+      "type": "jsonl",
+      "path": "examples/federated_toy.jsonl"
+    }
+  }
+}

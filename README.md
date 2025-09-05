@@ -102,6 +102,39 @@ Bias Detection
 - Prompt sensitivity testing
 - Automated recommendations for bias mitigation
 
+## Advanced Features
+
+### Multimodal Evaluation
+- Vision-language models support: `openeval run examples/multimodal_spec.json`
+- OpenAI Vision API integration
+- Image encoding and multimodal input validation
+
+### Agent Evaluation
+- Multi-step reasoning evaluation: `openeval run examples/agent_spec.json`
+- Tool usage efficiency metrics
+- Trajectory analysis and reasoning quality assessment
+
+### Federated Evaluation
+- Privacy-preserving distributed evaluation: `openeval run examples/federated_spec.json`
+- FedAvg and FedProx aggregation
+- Differential privacy mechanisms (Gaussian/Laplace noise)
+
+### Uncertainty Quantification
+- Comprehensive uncertainty metrics: `openeval run examples/uncertainty_spec.json`
+- Expected Calibration Error (ECE)
+- Brier Score and predictive entropy
+- Aleatoric/epistemic uncertainty decomposition
+
+### Interactive Evaluation
+- Human-in-the-loop evaluation: `openeval run examples/interactive_spec.json`
+- Active learning and uncertainty sampling
+- Feedback collection and model adaptation
+
+### Performance Profiling
+- Advanced bottleneck analysis and optimization
+- Real-time resource monitoring
+- Adaptive performance optimization
+
 Reproducibility
 - Each result includes a manifest (python/platform/packages) and dataset/spec hashes; manifest now includes the current git commit when available.
 - Create a lockfile: `openeval lock --from runs/<ts>.json --out openeval-lock.json`.
