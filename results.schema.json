@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openeval.dev/schemas/results.json",
+  "title": "OpenEval Results",
+  "type": "object",
+  "required": [
+    "task",
+    "dataset",
+    "adapter",
+    "metrics",
+    "size"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "task": {
+      "type": "string"
+    },
+    "dataset": {
+      "type": "string"
+    },
+    "adapter": {
+      "type": "string"
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "seed": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "run_name": {
+      "type": "string"
+    },
+    "spec_path": {
+      "type": "string"
+    },
+    "spec_hash_sha256": {
+      "type": "string"
+    },
+    "dataset_path": {
+      "type": "string"
+    },
+    "dataset_hash_sha256": {
+      "type": "string"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "avg_latency_ms": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "total_seconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "throughput_eps": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "error_rate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cache_hit_rate": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "openeval_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "python": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "version": {
+              "type": "string"
+            },
+            "executable": {
+              "type": "string"
+            }
+          }
+        },
+        "platform": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "system": {
+              "type": "string"
+            },
+            "release": {
+              "type": "string"
+            },
+            "machine": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {},
+          "input": {},
+          "reference": {},
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prediction": {},
+          "latency_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "cached": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trace": {
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

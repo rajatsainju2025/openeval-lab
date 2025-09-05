@@ -37,6 +37,10 @@ The echo adapter is offline and free. Try a tiny QA toy dataset:
 
 - openeval run examples/qa_spec.json --adapter echo --records --artifacts runs
 
+Optional flags you can try:
+- `--robustness-noise 0.05` to perturb inputs and record a robustness slice.
+- `--calibration` to attempt calibration metadata if the adapter exposes logprobs.
+
 Flags used:
 - `--records` writes per-example outputs.
 - `--artifacts runs` saves a timestamped run file in `runs/`.

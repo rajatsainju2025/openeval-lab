@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 from .core import Adapter, Dataset, Metric, Task
 from .datasets.inline import InlineDataset
 from .registry import lookup
+from . import registry
 
 try:
     import yaml  # type: ignore
@@ -110,7 +111,21 @@ def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Tas
     try:
         spec = EvalSpec(**data)
     except ValidationError as e:
-        raise SystemExit(f"Invalid spec: {e}")
+        # Provide helpful hints for common fields
+        hints = []
+        missing = {err['loc'][0] for err in e.errors() if err.get('type') == 'missing'} if hasattr(e, 'errors') else set()
+        if 'task' in str(e):
+            hints.append(f"Known tasks: {', '.join(sorted(list(registry.TASKS.keys())))}")
+        if 'dataset' in str(e):
+            hints.append(f"Known datasets: {', '.join(sorted(list(registry.DATASETS.keys())))}")
+        if 'adapter' in str(e):
+            hints.append(f"Known adapters: {', '.join(sorted(list(registry.ADAPTERS.keys())))}")
+        if 'metrics' in str(e):
+            hints.append(f"Known metrics: {', '.join(sorted(list(registry.METRICS.keys())))}")
+        msg = "Invalid spec: " + str(e)
+        if hints:
+            msg += "\n\nHints:\n- " + "\n- ".join(hints)
+        raise SystemExit(msg)
 
     # Route through import_class so tests can patch it and short names work
     task_cls = import_class(spec.task)

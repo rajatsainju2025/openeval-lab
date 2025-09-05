@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .spec import EvalSpec, load_spec
+from .core import Example, Dataset
 from .utils import hash_file
 from .data_quality import DataQualityAssessor
 from .experiment_tracking import experiment_tracker
@@ -805,6 +806,9 @@ def run(
     enable_profiling: bool = typer.Option(False, "--enable-profiling", help="Enable performance profiling"),
     save_debug: Optional[Path] = typer.Option(None, "--save-debug", help="Save debug data to directory"),
     statistical_analysis: bool = typer.Option(False, "--statistical", help="Enable statistical analysis with bootstrap confidence intervals"),
+    # Optional extras
+    robustness_noise: Optional[float] = typer.Option(None, "--robustness-noise", help="Apply simple character noise (0.0-1.0) to inputs and report robustness metrics"),
+    calibration: bool = typer.Option(False, "--calibration", help="Attempt to compute calibration metrics if adapter supports probabilities/logprobs"),
 ):
     """Run an evaluation from a spec file."""
     
@@ -1019,21 +1023,21 @@ def run(
                     def generate_with_profiling():
                         return adapter.generate(prompt)
                     
-                    out = generate_with_profiling()
+                    gen_raw = generate_with_profiling()
                 else:
-                    out = adapter.generate(prompt)
+                    gen_raw = adapter.generate(prompt)
                 
                 if tracer:
                     tracer.trace("adapter_call_complete", {
                         "example_id": ex.id,
-                        "output_length": len(str(out))
+                        "output_length": len(str(gen_raw))
                     })
             
             e = time.perf_counter()
             
             logger.debug(f"Adapter call completed in {(e-s)*1000:.1f}ms for example {ex.id}")
             
-            pred = task.postprocess(out)
+            pred = task.postprocess(gen_raw)
             predictions.append(pred)
             references.append(ex.reference)
             per_latency.append(e - s)
@@ -1085,6 +1089,89 @@ def run(
         if records:
             result["records"] = recs
 
+    # Optional: calibration (ECE from token logprobs, short-form heuristic)
+    if calibration:
+        try:
+            _gwlp = getattr(adapter, "generate_with_logprobs", None)
+            if not callable(_gwlp):
+                result.setdefault("calibration", {})["available"] = False
+            else:
+                import math
+                # Re-iterate dataset (assume re-iterable). Use modest cap to avoid long runs.
+                MAX_ECE_SAMPLES = 512
+                samples = []
+                try:
+                    for i, ex in enumerate(iter(dataset)):
+                        if i >= MAX_ECE_SAMPLES:
+                            break
+                        samples.append(ex)
+                except Exception:
+                    samples = []
+
+                confs: List[float] = []
+                corrects: List[int] = []
+                for ex in samples:
+                    try:
+                        prompt = task.build_prompt_with_template(ex)
+                        info = _gwlp(prompt)
+                        info_d = info if isinstance(info, dict) else {}
+                        text = str(info_d.get("text", ""))
+                        toks = info_d.get("tokens") or []
+                        lps = info_d.get("logprobs") or []
+                        if not toks or not lps:
+                            # Fallback: no per-token info, skip sample
+                            continue
+                        # Confidence proxy: exp(mean logprob) across completion tokens
+                        m = sum(float(lp) for lp in lps) / max(1, len(lps))
+                        conf = float(math.exp(m))
+                        pred = task.postprocess(text)
+                        corr = 1 if str(pred).strip() == str(ex.reference).strip() else 0
+                        confs.append(max(0.0, min(1.0, conf)))
+                        corrects.append(corr)
+                    except Exception:
+                        continue
+
+                def _ece(confidences: List[float], correctness: List[int], bins: int = 10) -> Dict[str, Any]:
+                    if not confidences:
+                        return {"ece": None, "bins": bins, "n": 0}
+                    N = len(confidences)
+                    counts = [0] * bins
+                    accs = [0.0] * bins
+                    avg_confs = [0.0] * bins
+                    for c, y in zip(confidences, correctness):
+                        bi = min(bins - 1, int(c * bins))
+                        counts[bi] += 1
+                        accs[bi] += float(y)
+                        avg_confs[bi] += float(c)
+                    ece = 0.0
+                    for i in range(bins):
+                        if counts[i] == 0:
+                            continue
+                        acc = accs[i] / counts[i]
+                        conf = avg_confs[i] / counts[i]
+                        ece += (counts[i] / N) * abs(acc - conf)
+                    overall_acc = sum(corrects) / N
+                    overall_conf = sum(confs) / N
+                    return {
+                        "ece": ece,
+                        "bins": bins,
+                        "n": N,
+                        "overall_accuracy": overall_acc,
+                        "overall_confidence": overall_conf,
+                        "hist": {
+                            "counts": counts,
+                            "bin_accuracy": [a / c if c else None for a, c in zip(accs, counts)],
+                            "bin_confidence": [s / c if c else None for s, c in zip(avg_confs, counts)],
+                        },
+                        "method": "exp(mean token logprob)",
+                    }
+
+                cal = _ece(confs, corrects, bins=10)
+                cal["available"] = True
+                result.setdefault("calibration", {}).update(cal)
+        except Exception as _e:
+            result.setdefault("calibration", {})["error"] = str(_e)
+
     # enrich with spec metadata and optional run name
     result["spec_path"] = str(spec)
     try:
@@ -1131,6 +1218,63 @@ def run(
             out_path = artifacts / f"{ts}.json"
         else:
             out_path = artifacts / out_path.name
+
+    # Optional: robustness noise evaluation
+    if robustness_noise is not None and robustness_noise > 0:
+        try:
+            import random as _rnd
+
+            def _noisify_text(s: str, rate: float) -> str:
+                if not isinstance(s, str) or rate <= 0:
+                    return s
+                _rnd.seed((seed or 0) + 1337)
+                chars = list(s)
+                for i in range(len(chars)):
+                    if _rnd.random() < rate:
+                        # simple perturbations: swap case or insert punctuation
+                        c = chars[i]
+                        if c.isalpha():
+                            chars[i] = c.swapcase()
+                        elif c == ' ':
+                            chars[i] = ','
+                return "".join(chars)
+
+            # Build a lightweight transformed dataset (wrapper)
+            class _TransformedDataset(Dataset):
+                name = getattr(dataset, "name", "transformed") + ".noise"
+
+                def __iter__(self):
+                    for ex in dataset:
+                        try:
+                            new_input = _noisify_text(ex.input, float(robustness_noise))
+                        except Exception:
+                            new_input = ex.input
+                        yield Example(id=ex.id, input=new_input, reference=ex.reference, meta=ex.meta)
+
+                def __len__(self):
+                    try:
+                        return len(dataset)  # type: ignore[no-any-return]
+                    except Exception:
+                        return sum(1 for _ in iter(self))
+
+            transformed = _TransformedDataset()
+            rob_result = task.evaluate(
+                adapter,
+                transformed,
+                metrics,
+                seed=seed,
+                collect_records=bool(result.get("records")),
+                concurrency=concurrency,
+                max_retries=max_retries,
+                request_timeout=request_timeout,
+            )
+            result.setdefault("robustness", {})["char_noise"] = {
+                "rate": float(robustness_noise),
+                "metrics": rob_result.get("metrics", {}),
+                "size": rob_result.get("size", 0),
+            }
+        except Exception as _e:
+            result.setdefault("robustness", {})["char_noise_error"] = str(_e)
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
@@ -1516,6 +1660,121 @@ def validate_results(path: Path = typer.Argument(..., help="Path to results JSON
     sys.stdout.write(json.dumps({"valid": ok, "errors": errs, "path": str(path)}) + "\n")
     if strict and not ok:
         raise typer.Exit(code=1)
+
+
+@app.command("compare")
+def compare(
+    a: Path = typer.Argument(..., help="Path to run A (results JSON)"),
+    b: Path = typer.Argument(..., help="Path to run B (results JSON)"),
+    n_bootstrap: int = typer.Option(1000, "--bootstrap", help="Bootstrap samples for CI/p-value"),
+    ci: float = typer.Option(0.95, "--ci", help="Confidence level for intervals"),
+    json_out: bool = typer.Option(False, "--json", help="Print machine-readable JSON"),
+):
+    """Compare two runs. If records are present, compute paired bootstrap on exact-match accuracy.
+
+    Requires overlapping example ids in both runs. Falls back to aggregate metric diff if records missing.
+    """
+    import math
+    import difflib
+
+    try:
+        ra = json.loads(Path(a).read_text())
+        rb = json.loads(Path(b).read_text())
+    except Exception as e:
+        console.print(f"Failed to read inputs: {e}", style="red")
+        raise typer.Exit(code=2)
+
+    def _acc_from_records(recs):
+        ok = 0
+        total = 0
+        ids = []
+        corr = []
+        for r in recs or []:
+            if "reference" in r and "prediction" in r:
+                total += 1
+                c = 1 if r.get("prediction") == r.get("reference") else 0
+                ok += c
+                ids.append(r.get("id"))
+                corr.append(c)
+        return (ok / total if total else 0.0), ids, corr
+
+    rec_a = ra.get("records")
+    rec_b = rb.get("records")
+    result = {
+        "run_a": dict(ra) if isinstance(ra, dict) else {},
+        "run_b": dict(rb) if isinstance(rb, dict) else {},
+    }
+
+    if isinstance(rec_a, list) and isinstance(rec_b, list):
+        # Align by id intersection
+        map_a = {r.get("id"): r for r in rec_a if r.get("id") is not None}
+        map_b = {r.get("id"): r for r in rec_b if r.get("id") is not None}
+        common_ids = [i for i in map_a.keys() if i in map_b]
+        pa = [1 if map_a[i].get("prediction") == map_a[i].get("reference") else 0 for i in common_ids]
+        pb = [1 if map_b[i].get("prediction") == map_b[i].get("reference") else 0 for i in common_ids]
+        n = len(common_ids)
+        acc_a = sum(pa) / n if n else 0.0
+        acc_b = sum(pb) / n if n else 0.0
+        observed = acc_a - acc_b
+        # Paired bootstrap on correctness vectors
+        import random as _rnd
+        _rnd.seed(1234)
+        diffs = []
+        for _ in range(max(1, int(n_bootstrap))):
+            idxs = [_rnd.randint(0, n - 1) for _ in range(n)] if n else []
+            if not idxs:
+                diffs.append(0.0)
+                continue
+            acc_a_b = sum(pa[i] for i in idxs) / len(idxs)
+            acc_b_b = sum(pb[i] for i in idxs) / len(idxs)
+            diffs.append(acc_a_b - acc_b_b)
+        diffs.sort()
+        alpha = 1 - ci
+        low = diffs[int(alpha / 2 * len(diffs))]
+        high = diffs[int((1 - alpha / 2) * len(diffs))]
+        p_val = sum(1 for d in diffs if abs(d) >= abs(observed)) / len(diffs) if diffs else 1.0
+        payload = {
+            "aligned": n,
+            "acc_a": acc_a,
+            "acc_b": acc_b,
+            "diff": observed,
+            "ci": [low, high],
+            "p_value": p_val,
+        }
+        if json_out:
+            sys.stdout.write(json.dumps(payload) + "\n")
+        else:
+            console.print("Paired bootstrap on exact-match accuracy (aligned by id)", style="blue")
+            console.print(f"n={n}  acc_a={acc_a:.4f}  acc_b={acc_b:.4f}  diff={observed:+.4f}")
+            console.print(f"{int(ci*100)}% CI for diff: [{low:.4f}, {high:.4f}]  p={p_val:.4f}")
+        return
+    else:
+        # Fallback to aggregate metrics diff if available
+        ma = ra.get("metrics") or {}
+        mb = rb.get("metrics") or {}
+        common = sorted(set(ma.keys()) & set(mb.keys()))
+        if not common:
+            console.print("No common metrics to compare and no records present.", style="yellow")
+            raise typer.Exit(code=1)
+        rows = []
+        for k in common:
+            va = ma.get(k) or {}
+            vb = mb.get(k) or {}
+            # try common key 'accuracy' else skip
+            if isinstance(va, dict) and isinstance(vb, dict) and "accuracy" in va and "accuracy" in vb:
+                rows.append((k, float(va["accuracy"]), float(vb["accuracy"])) )
+        if not rows:
+            console.print("Common metrics found but no comparable numeric fields.", style="yellow")
+            raise typer.Exit(code=1)
+        table = Table(title="Aggregate metric diff (accuracy)")
+        table.add_column("metric", style="cyan")
+        table.add_column("run_a", justify="right")
+        table.add_column("run_b", justify="right")
+        table.add_column("diff", justify="right")
+        for name, va, vb in rows:
+            table.add_row(name, f"{va:.4f}", f"{vb:.4f}", f"{(va - vb):+.4f}")
+        console.print(table)
+        return
 
 
 @app.command("write_out")
