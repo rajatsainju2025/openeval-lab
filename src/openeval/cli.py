@@ -247,7 +247,8 @@ def doctor(
 @app.command()
 def quality(
     spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
-    output: Optional[Path] = typer.Option(None, "--output", help="Output path for quality report"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Save validation report to JSON file"),
+    output_dir: Optional[Path] = typer.Option(None, "--output-dir", help="(alias) Save validation report to JSON file (directory)"),
     sample_limit: Optional[int] = typer.Option(1000, "--sample-limit", help="Max samples to assess"),
 ):
     """Assess dataset quality and generate recommendations."""
@@ -314,8 +315,20 @@ def quality(
                 console.print(f"  • {rec}", style="blue")
         
         # Save detailed report if requested
-        if output:
-            report_path = assessor.save_report(quality_report, output)
+        chosen_output = None
+        if output_dir and not output:
+            # If output_dir provided, create file in that directory with standardized name
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                chosen_output = output_dir / f"validation_report_{int(time.time())}.json"
+            except Exception as e:
+                console.print(f"❌ Could not create output directory: {e}", style="red")
+                raise typer.Exit(code=1)
+        elif output:
+            chosen_output = output
+
+        if chosen_output:
+            report_path = assessor.save_report(quality_report, chosen_output)
             console.print(f"\n📄 Detailed report saved to: {report_path}", style="green")
         
     except Exception as e:
@@ -2239,6 +2252,7 @@ def validate_comprehensive(
     check_best_practices: bool = typer.Option(True, "--check-best-practices", help="Check best practices"),
     sample_limit: int = typer.Option(1000, "--sample-limit", help="Max samples to check for datasets"),
     output: Optional[Path] = typer.Option(None, "--output", help="Save validation report to JSON file"),
+    output_dir: Optional[Path] = typer.Option(None, "--output-dir", help="(alias) Save validation report to directory"),
     strict: bool = typer.Option(False, "--strict", help="Exit with error if validation fails"),
     show_details: bool = typer.Option(True, "--details", help="Show detailed issue descriptions"),
     show_suggestions: bool = typer.Option(True, "--suggestions", help="Show fix suggestions"),
@@ -2692,30 +2706,41 @@ def validate_comprehensive(
         # Display results
         format_validation_report(report)
         
-        # Save report if requested
-        if output:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with open(output, 'w') as f:
+        # Save report if requested. Support --output and --output-dir for backward compatibility
+        chosen_output = None
+        if output_dir and not output:
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                chosen_output = output_dir / f"validation_report_{int(time.time())}.json"
+            except Exception as e:
+                console.print(f"[red]Could not create output directory: {e}[/red]")
+                raise typer.Exit(code=1)
+        elif output:
+            chosen_output = output
+
+        if chosen_output:
+            chosen_output.parent.mkdir(parents=True, exist_ok=True)
+            with open(chosen_output, 'w') as f:
                 json.dump(asdict(report), f, indent=2, default=str)
-            console.print(f"\n📄 Detailed report saved to: {output}", style="green")
+            console.print(f"\n📄 Detailed report saved to: {chosen_output}", style="green")
         
-        # Exit with error if strict mode and validation failed
-        if strict and not report.is_valid:
-            console.print(f"\n[red]Validation failed in strict mode[/red]")
-            raise typer.Exit(code=1)
-        
-        if report.is_valid:
-            console.print(f"\n[green]✓ Validation passed![/green]")
-        else:
+        # If validation failed, exit non-zero so CI and tests detect failures
+        if not report.is_valid:
             console.print(f"\n[red]✗ Validation failed - please address the issues above[/red]")
+            raise typer.Exit(code=1)
+
+        console.print(f"\n[green]✓ Validation passed![/green]")
             
     except Exception as e:
+        # Any unexpected error during validation should cause a non-zero exit
+        # so that CI/tests can detect failures. Print details and exit 1.
         console.print(f"[red]Validation error: {e}[/red]")
         import traceback
         if show_details:
             console.print(f"[red]Traceback: {traceback.format_exc()}[/red]")
-        if strict:
-            raise typer.Exit(code=2)
+        # Always exit with a non-zero code for validation errors. Use 2
+        # when strict behavior requested by caller to distinguish modes.
+        raise typer.Exit(code=2 if strict else 1)
 
 
 @app.command()
