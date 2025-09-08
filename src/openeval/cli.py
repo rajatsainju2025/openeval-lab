@@ -1,38 +1,67 @@
+"""
+OpenEval Lab CLI - Command Line Interface for LLM Evaluation Framework
+
+This module provides the main CLI interface for OpenEval Lab, offering commands
+for evaluation, validation, monitoring, and management of LLM evaluation tasks.
+
+Features:
+- Declarative evaluation specifications (YAML/JSON)
+- Plugin architecture for tasks, datasets, adapters, and metrics
+- Concurrent execution with performance monitoring
+- Rich logging with JSON support
+- Comprehensive error handling and user feedback
+
+Usage:
+    openeval run <spec> --concurrency 4
+    openeval validate <spec>
+    openeval web --reload
+
+Author: OpenEval Lab Team
+Version: 0.1.0
+"""
+
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import os
-from typing import Optional, List, Dict, Any
-import sys
 import subprocess
+import sys
 import time
 import traceback
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import typer
-from rich import print
+from rich import print as rich_print
 from rich.console import Console
-from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
-from .spec import EvalSpec, load_spec
-from .core import Example, Dataset
-from .utils import hash_file
+from . import registry
+from .config_manager import ConfigManager, create_default_config, load_config
+from .core import Dataset, Example
 from .data_quality import DataQualityAssessor
+from .enhanced_logging import (
+    configure_logging,
+    enable_debug_mode,
+    get_logger,
+    get_profiler,
+    get_tracer,
+    log_context,
+    profiled,
+    save_debug_data,
+    traced,
+)
 from .experiment_tracking import experiment_tracker
 from .optimization import performance_monitor
-from . import registry
-from .utils import get_project_root
 from .results_schema import RESULTS_JSON_SCHEMA, validate_results_payload
-from .enhanced_logging import (
-    configure_logging, get_logger, get_tracer, get_profiler,
-    enable_debug_mode, save_debug_data, log_context, traced, profiled
-)
-from .config_manager import load_config, create_default_config, ConfigManager
+from .spec import EvalSpec, load_spec
+from .utils import get_project_root, hash_file
 
-# Global logger
+# Global logger instance
 logger = get_logger(__name__)
+console = Console()
 
 def configure_cli_logging(json_format: bool = False, debug: bool = False):
     """Configure logging for CLI with optional JSON format."""
@@ -2824,6 +2853,7 @@ if __name__ == "__main__":
         logger.info("CLI execution completed successfully", extra={"component": "cli", "operation": "complete"})
     except KeyboardInterrupt:
         logger.warning("CLI execution interrupted by user", extra={"component": "cli", "operation": "interrupt"})
+        console.print("⚠️  Execution interrupted by user", style="yellow")
         sys.exit(130)
     except Exception as e:
         logger.error(
@@ -2837,4 +2867,5 @@ if __name__ == "__main__":
             }
         )
         console.print(f"❌ Fatal error: {e}", style="red")
+        console.print("💡 Check logs for detailed error information", style="blue")
         sys.exit(1)
