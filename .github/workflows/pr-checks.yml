@@ -1,0 +1,94 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened]
+
+env:
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  quick-checks:
+    name: Quick Validation & Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev,test]"
+    
+    - name: Quick format check
+      run: |
+        black --check src/ tests/ --diff --color
+    
+    - name: Quick lint
+      run: |
+        flake8 src/ tests/ --select=E9,F63,F7,F82 --show-source --statistics
+    
+    - name: Fast test suite
+      run: |
+        pytest tests/ -x -q --tb=short --disable-warnings
+    
+    - name: Validate examples
+      run: |
+        python scripts/validate_examples.py
+    
+    - name: Test CLI basic functionality
+      run: |
+        python -m openeval --help
+        python -m openeval doctor --json
+        python -m openeval validate-comprehensive test_spec.json --type spec
+    
+    - name: Security quick scan
+      run: |
+        pip install safety
+        safety check --short-report || true
+
+  pr-info:
+    name: PR Information
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Analyze changes
+      run: |
+        echo "## PR Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "**Files changed:** $(git diff --name-only HEAD~1 | wc -l)" >> $GITHUB_STEP_SUMMARY
+        echo "**Lines added:** $(git diff --stat HEAD~1 | tail -n1 | grep -o '[0-9]* insertions' | cut -d' ' -f1 || echo 0)" >> $GITHUB_STEP_SUMMARY
+        echo "**Lines removed:** $(git diff --stat HEAD~1 | tail -n1 | grep -o '[0-9]* deletions' | cut -d' ' -f1 || echo 0)" >> $GITHUB_STEP_SUMMARY
+        
+        if git diff --name-only HEAD~1 | grep -E '\.(py|yaml|yml|json)$'; then
+          echo "**Code files modified:** ✅" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if git diff --name-only HEAD~1 | grep -E '^tests/'; then
+          echo "**Tests updated:** ✅" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if git diff --name-only HEAD~1 | grep -E '^docs/|README|CHANGELOG'; then
+          echo "**Documentation updated:** ✅" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Check commit message
+      run: |
+        COMMIT_MSG=$(git log --format=%B -n 1 HEAD)
+        echo "**Commit message:** $COMMIT_MSG" >> $GITHUB_STEP_SUMMARY
+        
+        if echo "$COMMIT_MSG" | grep -E '^(feat|fix|docs|style|refactor|test|chore|perf|ci)(\(.+\))?:'; then
+          echo "**Conventional commits:** ✅" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Conventional commits:** ⚠️ Consider using conventional commit format" >> $GITHUB_STEP_SUMMARY
+        fi

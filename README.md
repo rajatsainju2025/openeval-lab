@@ -1,176 +1,343 @@
-# OpenEval Lab
+# OpenEval Lab 🚀
 
-[![CI](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
+[![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
+[![codecov](https://codecov.io/gh/rajatsainju2025/openeval-lab/branch/main/graph/badge.svg)](https://codecov.io/gh/rajatsainju2025/openeval-lab)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-An extensible, reproducible evaluation framework for LLMs and multimodal agents.
+> **State-of-the-art evaluation framework for LLMs, multimodal models, and AI agents with enterprise-grade reproducibility and extensibility.**
 
-- Plugin-based tasks, datasets, adapters, and metrics
-- JSON/YAML experiment specs with version pinning
-- Deterministic seeding and artifact logging
-- Simple CLI and minimal web dashboard
-- MIT License
+## 🎯 What Makes OpenEval Different
 
-Quickstart:
-- Install: `pip install -e '.[dev]'`
-- Run example: `openeval run examples/qa_spec.json --records --artifacts artifacts`
-- View dashboard: `openeval web --reload` (then open http://localhost:8000)
- - Diagnose env: `openeval doctor` or JSON: `openeval doctor --json`
+- **🔧 Plugin Architecture**: Extensible tasks, datasets, adapters, and metrics
+- **📋 Declarative Specs**: JSON/YAML configs with version pinning and validation
+- **🔄 Reproducibility**: Deterministic seeding, artifact logging, and manifest tracking
+- **⚡ Performance**: Concurrent execution, caching, and optimization
+- **📊 Rich Analytics**: Statistical analysis, bias detection, and uncertainty quantification
+- **🌐 Modern UI**: Clean dashboard with real-time monitoring
+- **🔒 Enterprise Ready**: Security scanning, comprehensive testing, and CI/CD
 
-Optional extras:
-- OpenAI adapter: `pip install -e '.[openai]'`
-- Hugging Face datasets: `pip install -e '.[hf]'`
-- Advanced metrics (SacreBLEU, BERTScore, ROUGE-L): `pip install -e '.[metrics]'`
+## 🚀 Quick Start
 
-Caching (Day 2):
-- Flags: `--cache off|read|write|rw`, `--cache-dir .openeval-cache`, `--cache-ttl SECONDS`.
-- Example: `openeval run examples/qa_spec.json --cache rw --cache-dir .openeval-cache --records`.
-- Stats: hit/miss/hit-rate recorded under `timing.*`; dashboard shows cache hit rate and marks cached records.
+```bash
+# Install with development dependencies
+pip install -e '.[dev]'
 
-Summarization + ROUGE-L (Day 3):
-- Try summarization: `openeval run examples/sum_spec.json --records --artifacts runs`
-- Datasets: `examples/sum_toy.jsonl`
-- Metric: ROUGE-L via `openeval.metrics.rouge.ROUGEL` (install `.[metrics]`)
+# Run your first evaluation
+openeval run examples/qa_spec.json --records --artifacts runs
 
-Spec tools:
-- Print schema: `openeval schema`
-- Validate a spec: `openeval validate examples/qa_spec.json`
-- Use short names via registry: `task: qa`, `dataset: jsonl`, `adapter: echo`, `metrics: [{"name": "exact_match"}]`.
-- Render prompts (debugging): `openeval write_out examples/qa_spec.json --limit 5` or write JSONL with `--out prompts.jsonl`.
-- More examples: see `examples/qa_write_out.md`.
+# Launch the dashboard
+openeval web --reload  # → http://localhost:8000
 
-Dashboard & artifacts:
-- Pass `--records` to include per-example outputs in results.
-- Use `--artifacts DIR` to write outputs to a directory.
-- The dashboard reads `results.json` from the CWD; copy your artifact there to preview.
-- Leaderboard rows link to detailed run pages at `/run/<file>` with paginated records.
+# Validate your environment
+openeval doctor --json
+```
 
-Multi-run leaderboard:
-- Every run can be saved with `--artifacts runs` to write timestamped `runs/<ts>.json`.
-- New command `openeval runs collect --dir runs` aggregates all `*.json` into `runs/index.json`.
-- Dashboard page `/leaderboard` compares metrics, latency, error rate, cache hit rate, adapter, dataset fingerprint, spec hash, and optional run_name.
-- Columns include avg latency, throughput, error rate, and cache hit rate; sort client-side.
+**🎬 Want to see it in action?** Check out our [5-minute demo video](docs/demo.md) or try the [interactive tutorial](docs/tutorial.md).
 
-Day 1 features (concurrency & reliability):
-- New CLI flags: `--concurrency N`, `--max-retries N`, `--request-timeout SEC`.
-- Core now executes requests concurrently with retry+timeout, and tracks error rate in timing.
+## 📦 Installation Options
 
-Examples:
-- QA task on JSONL and CSV: see `examples/`
-- Use OpenAI adapter: `pip install -e '.[openai]'` and set `OPENAI_API_KEY`, then `openeval run examples/qa_openai_spec.json --records --artifacts runs` (costs may apply)
-- Advanced metrics: `examples/qa_metrics_spec.json` (requires `pip install -e '.[metrics]'`)
-- LLM-as-a-judge: `examples/qa_judge_spec.json` (set `OPENAI_API_KEY` and install `.[openai]`).
+| Package | Description | Command |
+|---------|-------------|---------|
+| **Basic** | Core evaluation framework | `pip install -e .` |
+| **Development** | Includes testing and linting tools | `pip install -e '.[dev]'` |
+| **OpenAI** | OpenAI API adapter integration | `pip install -e '.[openai]'` |
+| **Metrics** | Advanced metrics (BLEU, BERTScore, ROUGE) | `pip install -e '.[metrics]'` |
+| **HuggingFace** | HF Datasets integration | `pip install -e '.[hf]'` |
+| **Complete** | All optional dependencies | `pip install -e '.[all]'` |
 
-Demo: leaderboard workflow
-- Install metrics: `pip install -e '.[metrics]'`
-- Run variants named and saved: `openeval run examples/qa_metrics_spec.json --run-name bleu+bertscore --records --artifacts runs`
-- Aggregate: `openeval runs collect --dir runs`
-- Start dashboard: `openeval web --reload` then open http://localhost:8000/leaderboard
-- Click a run filename to open its detail page at `/run/<file>`.
+## 🛠️ Essential Commands
 
-LLM-as-a-Judge metric
-- Add to metrics: `{ "name": "llm_judge", "kwargs": { "judge_adapter": "openai-chat", "judge_kwargs": {"model": "gpt-4o-mini"}, "max_examples": 200 } }`.
-- Uses balanced position calibration (A/B and B/A). Outputs `win_rate`, `wins`, `losses`, `ties`.
+```bash
+# 🔍 Validation & Development
+make install          # Install with dev dependencies
+make test             # Run comprehensive test suite
+make lint             # Check code quality
+make format           # Auto-format code
+make validate         # Validate examples and configurations
 
-Statistical Analysis
-- Enable bootstrap confidence intervals: `openeval run examples/qa_spec.json --statistical`
-- Compare runs with significance testing: `openeval compare-runs runA.json runB.json --bootstrap 1000`
-- Analyze evaluation biases: `openeval analyze-bias examples/qa_spec.json`
+# 🏃 Evaluation Workflows
+openeval run <spec>               # Execute evaluation
+openeval validate <spec>          # Validate specification
+openeval schema                   # Print JSON schema
+openeval write_out <spec>         # Debug prompt rendering
 
-Cost Tracking
-- Automatic cost calculation for OpenAI API usage
-- Cost summary included in evaluation manifests
-- Support for multiple models with different pricing
+# 📊 Analysis & Monitoring
+openeval runs collect --dir runs    # Aggregate run results
+openeval compare-runs A.json B.json # Statistical comparison
+openeval analyze-bias <spec>        # Bias detection
+openeval doctor                     # Environment diagnostics
 
-Advanced Metrics
-- Calibration Error (ECE): measures model confidence calibration
-- Confidence Intervals: statistical bounds on performance metrics
-- Diversity Metrics: text generation diversity analysis
-- Perplexity: language model evaluation metric
+# 🌐 Dashboard & Visualization
+openeval web --reload              # Launch dashboard
+```
 
-High-Throughput Inference
-- vLLM adapter for optimized GPU inference: `openeval.adapters.vllm_adapter.VLLMAdapter`
-- Tensor parallelism and memory optimization
-- Faster evaluation on large datasets
+## 🎯 Core Concepts
 
-Few-Shot Evaluation
-- Support for few-shot prompting in tasks
-- Automatic prompt construction with examples
-- Configurable example selection and formatting
+### Evaluation Specifications
 
-Bias Detection
-- Positional bias analysis for multiple-choice tasks
-- Prompt sensitivity testing
-- Automated recommendations for bias mitigation
+OpenEval uses **declarative YAML/JSON specifications** for reproducible evaluations:
 
-## Advanced Features
+```yaml
+# examples/qa_spec.yaml
+task: qa
+dataset:
+  name: jsonl
+  path: examples/qa_toy.jsonl
+adapter:
+  name: openai-chat
+  model: gpt-4o-mini
+metrics:
+  - name: exact_match
+  - name: bleu
+    kwargs: {max_n: 4}
+concurrency: 4
+cache: rw
+statistical: true
+```
 
-### Multimodal Evaluation
-- Vision-language models support: `openeval run examples/multimodal_spec.json`
-- OpenAI Vision API integration
-- Image encoding and multimodal input validation
+### Plugin Architecture
 
-### Agent Evaluation
-- Multi-step reasoning evaluation: `openeval run examples/agent_spec.json`
-- Tool usage efficiency metrics
-- Trajectory analysis and reasoning quality assessment
+Extend OpenEval with custom components:
 
-### Federated Evaluation
-- Privacy-preserving distributed evaluation: `openeval run examples/federated_spec.json`
-- FedAvg and FedProx aggregation
-- Differential privacy mechanisms (Gaussian/Laplace noise)
+```python
+# Custom metric example
+from openeval.base import Metric
 
-### Uncertainty Quantification
-- Comprehensive uncertainty metrics: `openeval run examples/uncertainty_spec.json`
-- Expected Calibration Error (ECE)
-- Brier Score and predictive entropy
-- Aleatoric/epistemic uncertainty decomposition
+class CustomAccuracy(Metric):
+    def compute(self, predictions, references, **kwargs):
+        # Your custom logic here
+        return {"accuracy": score}
+```
 
-### Interactive Evaluation
-- Human-in-the-loop evaluation: `openeval run examples/interactive_spec.json`
-- Active learning and uncertainty sampling
-- Feedback collection and model adaptation
+## 🔬 Advanced Features
 
-### Performance Profiling
-- Advanced bottleneck analysis and optimization
-- Real-time resource monitoring
-- Adaptive performance optimization
+<details>
+<summary><b>🤖 Multimodal & Agent Evaluation</b></summary>
 
-Reproducibility
-- Each result includes a manifest (python/platform/packages) and dataset/spec hashes; manifest now includes the current git commit when available.
-- Create a lockfile: `openeval lock --from runs/<ts>.json --out openeval-lock.json`.
+- **Vision-Language Models**: `openeval run examples/multimodal_spec.json`
+- **Agent Reasoning**: Multi-step tool usage and trajectory analysis
+- **Interactive Evaluation**: Human-in-the-loop workflows
 
-Planning & tracking
-- 10-day contribution plan: see `docs/10-day-contribution-plan.md`.
-- Project board (GitHub Projects): https://github.com/rajatsainju2025/openeval-lab/projects – use label `plan-10d` on issues.
+</details>
 
-Goals:
-- Reproducible, configurable evals for LLMs/agents
-- Clean plug-in APIs; small, testable units
-- Minimal but useful dashboard
+<details>
+<summary><b>📈 Statistical Analysis</b></summary>
 
-Roadmap:
-- [ ] Core abstractions (Task, Dataset, Adapter, Metric)
-- [ ] CLI: `openeval run <spec>`
-- [ ] JSON Schema for spec validation
-- [ ] Built-in tasks (QA, code, web), metrics (accuracy, BLEU, BERTScore), adapters (OpenAI, local)
-- [ ] Dataset loaders (HF Datasets, local)
-- [ ] Reproducibility: lockfiles, hashes
-- [ ] Web dashboard (FastAPI + SvelteKit or Streamlit-lite)
+- **Bootstrap Confidence Intervals**: `--statistical` flag
+- **Significance Testing**: `openeval compare-runs A.json B.json`
+- **Bias Detection**: Automatic positional and prompt bias analysis
+- **Uncertainty Quantification**: ECE, Brier Score, entropy metrics
 
-## OpenAI Example Usage and Safety Notes
+</details>
 
-When using the OpenAI adapter, be aware of the following:
+<details>
+<summary><b>🚀 Performance Optimization</b></summary>
 
+- **Concurrent Execution**: `--concurrency N` for parallel requests
+- **Smart Caching**: `--cache rw` with TTL and hit rate tracking
+- **vLLM Integration**: High-throughput GPU inference
+- **Request Optimization**: Retry logic and timeout handling
 
-## Documentation
+</details>
 
-- Getting started: `docs/tutorial.md`
-- Core concepts: `docs/concepts.md`
-- Core contracts: `docs/contracts.md`
-- EvalOps (artifacts & runs): `docs/evalops.md`
-- SOTA references: `docs/sota.md`
-- Critique: `docs/critique.md`
-- Next-phase plan: `docs/next-phase-plan.md`
-- Roadmap: `docs/roadmap.md`
-- ICML-style paper: `ICML_PAPER.md`
-- Contribution guide: `CONTRIBUTING.md`
+<details>
+<summary><b>🔐 Enterprise Features</b></summary>
+
+- **Cost Tracking**: Automatic API usage monitoring
+- **Federated Evaluation**: Privacy-preserving distributed evaluation
+- **Security Scanning**: Built-in vulnerability detection
+- **Compliance**: Audit trails and manifest tracking
+
+</details>
+
+## 💡 Example Workflows
+
+### Basic Question Answering
+```bash
+# Run QA evaluation with caching and statistical analysis
+openeval run examples/qa_spec.json \
+  --cache rw \
+  --statistical \
+  --records \
+  --artifacts runs
+```
+
+### Advanced Metrics Comparison
+```bash
+# Install advanced metrics
+pip install -e '.[metrics]'
+
+# Run with multiple metrics
+openeval run examples/qa_metrics_spec.json \
+  --run-name "advanced-metrics" \
+  --records \
+  --artifacts runs
+
+# Aggregate results for leaderboard
+openeval runs collect --dir runs
+
+# Launch dashboard
+openeval web --reload  # → http://localhost:8000/leaderboard
+```
+
+### LLM-as-a-Judge Evaluation
+```bash
+# Set up OpenAI API
+export OPENAI_API_KEY="your-key-here"
+pip install -e '.[openai]'
+
+# Run judge-based evaluation
+openeval run examples/qa_judge_spec.json \
+  --records \
+  --artifacts runs
+```
+
+### Statistical Comparison
+```bash
+# Compare two evaluation runs
+openeval compare-runs runs/model-a.json runs/model-b.json \
+  --bootstrap 1000 \
+  --alpha 0.05
+```
+
+### Bias Analysis
+```bash
+# Detect evaluation biases
+openeval analyze-bias examples/qa_spec.json \
+  --output-dir bias-analysis \
+  --include-recommendations
+```
+
+## 🏗️ Architecture & Design
+
+OpenEval follows a **clean plugin architecture** with four core abstractions:
+
+```mermaid
+graph TB
+    A[Task] --> B[Dataset]
+    B --> C[Adapter] 
+    C --> D[Metrics]
+    D --> E[Results]
+    
+    F[Spec] --> A
+    F --> B
+    F --> C
+    F --> D
+    
+    G[CLI] --> F
+    H[Dashboard] --> E
+```
+
+- **📋 Task**: Defines the evaluation methodology (QA, summarization, etc.)
+- **💾 Dataset**: Loads and validates evaluation data
+- **🔌 Adapter**: Interfaces with models (OpenAI, local, vLLM)
+- **📊 Metrics**: Computes performance measures
+- **⚙️ Spec**: Declarative configuration for reproducibility
+
+## 🔧 Development & Contributing
+
+```bash
+# Set up development environment
+git clone https://github.com/rajatsainju2025/openeval-lab.git
+cd openeval-lab
+make install
+
+# Run tests and validation
+make test
+make lint
+make validate
+
+# Create a new feature
+git checkout -b feature/amazing-feature
+# ... make changes ...
+make test && make lint
+git commit -m "feat: add amazing feature"
+git push origin feature/amazing-feature
+```
+
+**📖 Development Guides:**
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Architecture Overview](docs/Architecture.md) 
+- [Plugin Development](docs/concepts.md)
+- [Testing Strategy](docs/testing.md)
+
+## 🔄 Reproducibility & Best Practices
+
+### Lockfiles and Manifests
+```bash
+# Generate lockfile from successful run
+openeval lock --from runs/20250101-120000.json --out openeval-lock.json
+
+# Run with locked dependencies
+openeval run examples/qa_spec.json --lockfile openeval-lock.json
+```
+
+### Version Pinning
+Every evaluation result includes:
+- 🐍 Python version and platform info
+- 📦 Exact package versions (requirements)
+- 🔄 Git commit hash (when available)
+- 🔢 Dataset and spec fingerprints
+- 🎲 Random seed configuration
+
+### Best Practices
+- ✅ Always use `--records` for detailed analysis
+- ✅ Enable `--statistical` for confidence intervals
+- ✅ Use `--cache rw` to speed up development
+- ✅ Set explicit random seeds for reproducibility
+- ✅ Version your evaluation specs in git
+- ✅ Use `--artifacts` to preserve all outputs
+
+## 📚 Documentation Hub
+
+| Section | Description | Link |
+|---------|-------------|------|
+| **🎓 Getting Started** | Tutorial and basic concepts | [docs/tutorial.md](docs/tutorial.md) |
+| **🏗️ Architecture** | System design and patterns | [docs/Architecture.md](docs/Architecture.md) |
+| **📋 Configuration** | Spec formats and options | [docs/configuration.md](docs/configuration.md) |
+| **🔗 Contracts** | Plugin APIs and interfaces | [docs/contracts.md](docs/contracts.md) |
+| **🚀 EvalOps** | Deployment and operations | [docs/evalops.md](docs/evalops.md) |
+| **🎯 SOTA Methods** | Best practices and references | [docs/sota.md](docs/sota.md) |
+| **🗺️ Roadmap** | Future plans and milestones | [docs/roadmap.md](docs/roadmap.md) |
+| **📝 Research** | Academic paper and findings | [ICML_PAPER.md](ICML_PAPER.md) |
+
+## ⚠️ OpenAI Usage & Costs
+
+When using OpenAI adapters, be mindful of:
+- 💰 **API Costs**: Monitor usage with built-in cost tracking
+- ⏱️ **Rate Limits**: Use `--concurrency` and `--request-timeout` appropriately  
+- 🔒 **API Keys**: Store securely and never commit to version control
+- 📊 **Usage Analytics**: Review cost summaries in evaluation manifests
+
+Example cost-aware configuration:
+```yaml
+adapter:
+  name: openai-chat
+  model: gpt-4o-mini  # Cost-effective option
+  max_tokens: 100     # Limit response length
+concurrency: 2        # Respect rate limits
+request_timeout: 30   # Prevent hanging requests
+```
+
+## 🏆 Community & Support
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/rajatsainju2025/openeval-lab/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/rajatsainju2025/openeval-lab/discussions)
+- 📋 **Project Board**: [GitHub Projects](https://github.com/rajatsainju2025/openeval-lab/projects)
+- 📊 **Roadmap**: [10-Day Plan](docs/10-day-contribution-plan.md)
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the AI evaluation community**
+
+[⭐ Star us on GitHub](https://github.com/rajatsainju2025/openeval-lab) • [📖 Read the Docs](docs/) • [🚀 Try the Demo](examples/)
+
+</div>
