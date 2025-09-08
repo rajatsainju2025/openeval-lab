@@ -1,0 +1,19 @@
+# Standard QA Evaluation
+# Evaluates question-answering performance with statistical rigor
+task: qa
+dataset:
+  name: jsonl
+  path: examples/qa_toy.jsonl
+adapter:
+  name: echo  # Replace with your preferred adapter
+  # For OpenAI: name: openai-chat, model: gpt-4
+  # For local: name: transformers, model: meta-llama/Llama-2-7b-hf
+metrics:
+  - name: exact_match
+  - name: f1
+  - name: bootstrap_ci
+    kwargs:
+      confidence: 0.95
+      n_samples: 1000
+seed: 42
+cache_mode: rw

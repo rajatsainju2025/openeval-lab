@@ -1,0 +1,9 @@
+{
+  "task": "openeval.tasks.qa.QATask",
+  "dataset": "openeval.datasets.jsonl.JSONLinesDataset",
+  "adapter": "openeval.adapters.echo.EchoAdapter",
+  "dataset_kwargs": {"path": "examples/qa_toy.jsonl"},
+  "metrics": [{"name": "openeval.metrics.accuracy.ExactMatch"}],
+  "output": "test_results.json",
+  "seed": 42
+}

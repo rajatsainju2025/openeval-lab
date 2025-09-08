@@ -1,0 +1,34 @@
+# Comprehensive Benchmark Suite
+# Runs multiple evaluations for thorough assessment
+evaluations:
+  - name: qa_performance
+    config: configs/evals/qa_standard.yaml
+    dataset_override:
+      limit: 1000  # Use subset for faster runs
+      
+  - name: code_ability
+    config: configs/evals/code_standard.yaml
+    dataset_override:
+      limit: 200
+      
+  - name: summarization_quality  
+    config: configs/evals/summarization_standard.yaml
+    dataset_override:
+      limit: 500
+
+  - name: multimodal_understanding
+    config: configs/evals/multimodal_standard.yaml
+    dataset_override:
+      limit: 100
+
+# Statistical analysis across all evaluations
+analysis:
+  confidence_intervals: true
+  significance_testing: true
+  bias_detection: true
+  
+# Output configuration
+output:
+  artifacts_dir: artifacts/comprehensive_benchmark
+  generate_report: true
+  include_records: true

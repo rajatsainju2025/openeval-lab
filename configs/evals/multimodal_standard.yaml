@@ -1,0 +1,18 @@
+# Multimodal Evaluation  
+# Evaluates vision-language models
+task: multimodal_qa
+dataset:
+  name: jsonl
+  path: examples/multimodal_toy.jsonl
+adapter:
+  name: multimodal  # Uses OpenAI Vision API
+  model: gpt-4-vision-preview
+  max_tokens: 500
+metrics:
+  - name: exact_match
+  - name: semantic_similarity
+    kwargs:
+      model: sentence-transformers/all-mpnet-base-v2
+cost_tracking: true
+seed: 42
+cache_mode: rw

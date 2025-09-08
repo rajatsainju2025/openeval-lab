@@ -1,0 +1,16 @@
+# Summarization Evaluation
+# Evaluates text summarization with ROUGE metrics
+task: summarization
+dataset:
+  name: jsonl
+  path: examples/sum_toy.jsonl
+adapter:
+  name: echo  # Replace with your preferred adapter
+metrics:
+  - name: rouge_l
+  - name: bleu
+  - name: bert_score
+    kwargs:
+      model: microsoft/deberta-xlarge-mnli
+seed: 42
+cache_mode: rw

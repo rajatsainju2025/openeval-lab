@@ -1,0 +1,19 @@
+# Code Generation Evaluation
+# Evaluates programming ability with execution and style metrics
+task: code_execution
+dataset:
+  name: jsonl  
+  path: examples/code_toy.jsonl
+adapter:
+  name: echo  # Replace with your preferred adapter
+  # For OpenAI: name: openai-chat, model: gpt-4
+metrics:
+  - name: code_execution
+    kwargs:
+      timeout: 10.0
+      max_memory_mb: 512
+  - name: pass_at_k
+    kwargs:
+      k: [1, 5, 10]
+seed: 42
+cache_mode: rw

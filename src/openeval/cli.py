@@ -815,6 +815,10 @@ def run(
     config: Optional[Path] = typer.Option(None, "--config", help="Configuration file path"),
     environment: str = typer.Option("development", "--env", help="Environment name"),
 ):
+    """Run an evaluation task with enhanced logging, configuration, and debugging support."""
+    # Load configuration if provided
+    if config:
+        try:
             config_obj, env_manager = load_config(config, environment, load_secrets=True)
             console.print(f"[green]Loaded configuration for environment: {environment}[/green]")
             
@@ -1403,87 +1407,6 @@ def validate_dataset_cmd(
         console.print(f"Validation failed: {e}", style="red")
         raise typer.Exit(code=2)
 
-
-@app.command("compare")
-def compare_runs(
-    run_a: Path = typer.Argument(..., help="Path to first results JSON"),
-    run_b: Path = typer.Argument(..., help="Path to second results JSON"),
-    bootstrap: int = typer.Option(0, "--bootstrap", help="Bootstrap samples for CI (optional)"),
-):
-    """Compare two run result files and print summary statistics."""
-    console = Console()
-    try:
-        with open(run_a) as f:
-            A = json.load(f)
-        with open(run_b) as f:
-            B = json.load(f)
-
-        # Basic accuracy extraction helper
-        def extract_primary(d: Dict[str, Any]) -> float:
-            m = d.get("metrics", {})
-            # Try common keys
-            for key in ["accuracy", "acc", "primary", "score"]:
-                if key in m:
-                    val = m[key]
-                    if isinstance(val, dict):
-                        for inner in ["accuracy", "score", key]:
-                            if inner in val:
-                                return float(val[inner])
-                    elif isinstance(val, (int, float)):
-                        return float(val)
-            # Fallback attempt: first numeric metric
-            for v in m.values():
-                if isinstance(v, (int, float)):
-                    return float(v)
-                if isinstance(v, dict):
-                    for vv in v.values():
-                        if isinstance(vv, (int, float)):
-                            return float(vv)
-            return float("nan")
-
-        a_val = extract_primary(A)
-        b_val = extract_primary(B)
-        diff = b_val - a_val
-
-        result: Dict[str, Any] = {
-            "A": a_val,
-            "B": b_val,
-            "diff": diff,
-        }
-
-        # Bootstrap CI is optional; if requested but unavailable, we proceed without it
-        if bootstrap:
-            # Try to use statistical comparison if records are available
-            records_a = A.get("records", [])
-            records_b = B.get("records", [])
-            
-            if records_a and records_b and len(records_a) == len(records_b):
-                try:
-                    from .metrics.statistical import PairedBootstrapTest
-                    test_metric = PairedBootstrapTest(n_bootstrap=bootstrap)
-                    
-                    # Extract predictions and references
-                    preds_a = [r.get("prediction", "") for r in records_a]
-                    preds_b = [r.get("prediction", "") for r in records_b]
-                    refs = [r.get("reference", "") for r in records_a]
-                    
-                    comparison = test_metric.paired_bootstrap_test(preds_a, preds_b, refs)
-                    result["bootstrap_comparison"] = {
-                        "mean_diff": comparison.metric_value,
-                        "ci_lower": comparison.confidence_interval[0],
-                        "ci_upper": comparison.confidence_interval[1],
-                        "p_value": comparison.p_value,
-                        "significant": comparison.p_value < 0.05 if comparison.p_value else None
-                    }
-                except Exception as e:
-                    result["bootstrap_error"] = str(e)
-            else:
-                result["note"] = "bootstrap CI requires matching records in both runs"
-
-        console.print(json.dumps(result, indent=2))
-    except Exception as e:
-        console.print(f"Comparison failed: {e}", style="red")
-        raise typer.Exit(code=2)
 
 
 @app.command("debug-logs")
@@ -2306,6 +2229,495 @@ def interactive(
         except EOFError:
             break
     
+@app.command("validate-comprehensive")
+def validate_comprehensive(
+    target: Path = typer.Argument(..., help="Path to spec, config, or dataset file to validate"),
+    target_type: str = typer.Option("auto", "--type", help="Target type: auto|spec|config|dataset"),
+    check_imports: bool = typer.Option(True, "--check-imports", help="Validate import paths"),
+    check_datasets: bool = typer.Option(True, "--check-datasets", help="Validate dataset configurations"),
+    check_performance: bool = typer.Option(True, "--check-performance", help="Check performance settings"),
+    check_best_practices: bool = typer.Option(True, "--check-best-practices", help="Check best practices"),
+    sample_limit: int = typer.Option(1000, "--sample-limit", help="Max samples to check for datasets"),
+    output: Optional[Path] = typer.Option(None, "--output", help="Save validation report to JSON file"),
+    strict: bool = typer.Option(False, "--strict", help="Exit with error if validation fails"),
+    show_details: bool = typer.Option(True, "--details", help="Show detailed issue descriptions"),
+    show_suggestions: bool = typer.Option(True, "--suggestions", help="Show fix suggestions"),
+):
+    """Comprehensive validation for specs, configs, and datasets with detailed analysis."""
+    from dataclasses import dataclass, asdict
+    from typing import Dict, List, Any, Optional
+    
+    @dataclass
+    class ValidationIssue:
+        severity: str
+        category: str
+        message: str
+        details: Optional[str] = None
+        fix_suggestion: Optional[str] = None
+        line_number: Optional[int] = None
+    
+    @dataclass 
+    class ValidationReport:
+        file_path: str
+        file_type: str
+        is_valid: bool
+        overall_score: float
+        issues: List[ValidationIssue]
+        checks_performed: List[str]
+        metadata: Dict[str, Any]
+    
+    def detect_file_type(path: Path) -> str:
+        """Auto-detect file type based on content and extension."""
+        if path.suffix.lower() in ['.yaml', '.yml', '.json']:
+            try:
+                if path.suffix.lower() in ['.yaml', '.yml']:
+                    import yaml
+                    with open(path, 'r') as f:
+                        data = yaml.safe_load(f)
+                else:
+                    with open(path, 'r') as f:
+                        data = json.load(f)
+                
+                # Check for spec-like structure
+                if isinstance(data, dict):
+                    if 'task' in data and 'adapter' in data:
+                        return 'spec'
+                    elif 'project_name' in data or 'evaluation' in data:
+                        return 'config'
+                    elif any(key in data for key in ['input', 'reference', 'examples']):
+                        return 'dataset'
+            except Exception:
+                pass
+        
+        # Check by extension
+        if path.suffix.lower() == '.jsonl':
+            return 'dataset'
+        elif path.suffix.lower() in ['.yaml', '.yml'] and 'config' in path.name.lower():
+            return 'config'
+        
+        return 'spec'  # Default assumption
+    
+    def validate_spec_file(spec_path: Path) -> ValidationReport:
+        """Validate spec file comprehensively."""
+        issues = []
+        checks_performed = []
+        metadata = {}
+        
+        # Basic file checks
+        if not spec_path.exists():
+            issues.append(ValidationIssue(
+                severity="error",
+                category="file",
+                message=f"Spec file not found: {spec_path}",
+                fix_suggestion="Check the file path and ensure the file exists"
+            ))
+            return ValidationReport(
+                file_path=str(spec_path),
+                file_type="spec",
+                is_valid=False,
+                overall_score=0.0,
+                issues=issues,
+                checks_performed=["file_existence"],
+                metadata=metadata
+            )
+        
+        # Load and parse file
+        try:
+            if spec_path.suffix.lower() in ['.yaml', '.yml']:
+                import yaml
+                with open(spec_path, 'r') as f:
+                    data = yaml.safe_load(f)
+                metadata['format'] = 'yaml'
+            else:
+                with open(spec_path, 'r') as f:
+                    data = json.load(f)
+                metadata['format'] = 'json'
+            checks_performed.append("file_parsing")
+        except Exception as e:
+            issues.append(ValidationIssue(
+                severity="error",
+                category="schema",
+                message=f"Failed to parse file: {e}",
+                fix_suggestion="Check file syntax and encoding"
+            ))
+            return create_report(spec_path, "spec", issues, checks_performed, metadata)
+        
+        # Schema validation
+        try:
+            from .spec import EvalSpec
+            # Normalize metrics if they're strings
+            if "metrics" in data and isinstance(data["metrics"], list):
+                metrics_raw = data["metrics"]
+                if metrics_raw and isinstance(metrics_raw[0], str):
+                    data["metrics"] = [{"name": m} for m in metrics_raw]
+            
+            spec_obj = EvalSpec(**data)
+            checks_performed.append("schema_validation")
+            metadata['spec_keys'] = list(data.keys())
+        except Exception as e:
+            issues.append(ValidationIssue(
+                severity="error",
+                category="schema",
+                message=f"Schema validation failed: {e}",
+                fix_suggestion="Check the spec format against the OpenEval schema"
+            ))
+        
+        # Import validation
+        if check_imports:
+            import importlib
+            import_fields = ["task", "dataset", "adapter"]
+            for field in import_fields:
+                if field not in data:
+                    continue
+                
+                import_path = data[field]
+                if not isinstance(import_path, str):
+                    continue
+                
+                try:
+                    # Try to import the module and get the class
+                    module_path, class_name = import_path.rsplit(".", 1)
+                    module = importlib.import_module(module_path)
+                    cls = getattr(module, class_name)
+                    
+                    # Basic interface checks
+                    if field == "task" and not hasattr(cls, "evaluate"):
+                        issues.append(ValidationIssue(
+                            severity="warning",
+                            category="interface",
+                            message=f"Task class missing evaluate method",
+                            fix_suggestion="Implement the evaluate method"
+                        ))
+                    elif field == "adapter" and not hasattr(cls, "generate"):
+                        issues.append(ValidationIssue(
+                            severity="error",
+                            category="interface", 
+                            message=f"Adapter class missing generate method",
+                            fix_suggestion="Implement the generate method"
+                        ))
+                        
+                except ImportError as e:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        category="import",
+                        message=f"Cannot import {field}: {import_path}",
+                        details=str(e),
+                        fix_suggestion=f"Check if the module is installed and accessible"
+                    ))
+                except (AttributeError, ValueError) as e:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        category="import",
+                        message=f"Cannot access class from import path: {import_path}",
+                        details=str(e),
+                        fix_suggestion=f"Check the import path format and class name"
+                    ))
+            
+            checks_performed.append("import_validation")
+        
+        # Dataset configuration validation
+        if check_datasets:
+            dataset_kwargs = data.get("dataset_kwargs", {})
+            
+            if "path" in dataset_kwargs:
+                path = dataset_kwargs["path"]
+                if isinstance(path, str) and not path.startswith(("http://", "https://", "s3://", "gs://")):
+                    dataset_path = Path(path)
+                    if not dataset_path.exists() and not dataset_path.is_absolute():
+                        cwd_path = Path.cwd() / path
+                        if not cwd_path.exists():
+                            issues.append(ValidationIssue(
+                                severity="warning",
+                                category="config",
+                                message=f"Dataset file not found: {path}",
+                                fix_suggestion="Check the dataset path or ensure the file exists"
+                            ))
+            
+            checks_performed.append("dataset_config")
+        
+        # Performance checks
+        if check_performance:
+            dataset_kwargs = data.get("dataset_kwargs", {})
+            
+            if "max_examples" in dataset_kwargs:
+                max_examples = dataset_kwargs["max_examples"]
+                if isinstance(max_examples, int) and max_examples > 10000:
+                    issues.append(ValidationIssue(
+                        severity="warning",
+                        category="performance",
+                        message=f"Large dataset size: {max_examples} examples",
+                        fix_suggestion="Consider using a smaller subset for initial testing"
+                    ))
+            
+            checks_performed.append("performance_config")
+        
+        # Best practices
+        if check_best_practices:
+            if "output" not in data:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    category="best_practice",
+                    message="No output file specified",
+                    fix_suggestion="Add an 'output' field to save results"
+                ))
+            
+            metrics = data.get("metrics", [])
+            if len(metrics) < 2:
+                issues.append(ValidationIssue(
+                    severity="info",
+                    category="best_practice",
+                    message="Consider using multiple metrics for robust evaluation",
+                    fix_suggestion="Add complementary metrics like BLEU, ROUGE, or accuracy variants"
+                ))
+            
+            if "seed" not in data:
+                issues.append(ValidationIssue(
+                    severity="info", 
+                    category="best_practice",
+                    message="No seed specified for reproducibility",
+                    fix_suggestion="Add a 'seed' field for deterministic results"
+                ))
+            
+            checks_performed.append("best_practices")
+        
+        return create_report(spec_path, "spec", issues, checks_performed, metadata)
+    
+    def validate_dataset_file(dataset_path: Path) -> ValidationReport:
+        """Validate dataset file format and content."""
+        issues = []
+        checks_performed = []
+        metadata = {}
+        
+        if not dataset_path.exists():
+            issues.append(ValidationIssue(
+                severity="error",
+                category="file", 
+                message=f"Dataset file not found: {dataset_path}",
+            ))
+            return create_report(dataset_path, "dataset", issues, checks_performed, metadata)
+        
+        # JSONL validation
+        if dataset_path.suffix.lower() == '.jsonl':
+            line_count = 0
+            valid_lines = 0
+            required_fields = set()
+            
+            try:
+                with open(dataset_path, 'r', encoding='utf-8') as f:
+                    for line_num, line in enumerate(f, 1):
+                        line_count += 1
+                        if line_count > sample_limit:
+                            break
+                        
+                        line = line.strip()
+                        if not line:
+                            continue
+                        
+                        try:
+                            data = json.loads(line)
+                            valid_lines += 1
+                            
+                            # Track field usage
+                            for key in data.keys():
+                                if key in ['input', 'reference', 'id']:
+                                    required_fields.add(key)
+                            
+                            # Check for required fields in first few examples
+                            if line_num <= 10:
+                                if 'input' not in data:
+                                    issues.append(ValidationIssue(
+                                        severity="error",
+                                        category="schema",
+                                        message=f"Missing 'input' field at line {line_num}",
+                                        line_number=line_num,
+                                        fix_suggestion="Each example must have an 'input' field"
+                                    ))
+                                
+                                if 'reference' not in data:
+                                    issues.append(ValidationIssue(
+                                        severity="warning",
+                                        category="schema",
+                                        message=f"Missing 'reference' field at line {line_num}",
+                                        line_number=line_num,
+                                        fix_suggestion="Add 'reference' field for evaluation metrics"
+                                    ))
+                        
+                        except json.JSONDecodeError as e:
+                            issues.append(ValidationIssue(
+                                severity="error",
+                                category="format",
+                                message=f"Invalid JSON at line {line_num}: {e}",
+                                line_number=line_num,
+                                fix_suggestion="Fix JSON syntax"
+                            ))
+            
+            except Exception as e:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    category="file",
+                    message=f"Failed to read file: {e}",
+                ))
+            
+            metadata.update({
+                'total_lines': line_count,
+                'valid_lines': valid_lines,
+                'required_fields': list(required_fields),
+                'format': 'jsonl'
+            })
+            
+            if valid_lines == 0:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    category="content",
+                    message="No valid examples found in dataset",
+                ))
+            elif valid_lines < line_count * 0.9:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    category="quality",
+                    message=f"High error rate: {line_count - valid_lines}/{line_count} invalid lines",
+                    fix_suggestion="Review and fix malformed examples"
+                ))
+            
+            checks_performed.append("jsonl_format")
+        
+        return create_report(dataset_path, "dataset", issues, checks_performed, metadata)
+    
+    def create_report(file_path: Path, file_type: str, issues: List[ValidationIssue], 
+                     checks_performed: List[str], metadata: Dict[str, Any]) -> ValidationReport:
+        """Create validation report with computed score."""
+        error_count = len([i for i in issues if i.severity == "error"])
+        warning_count = len([i for i in issues if i.severity == "warning"])
+        
+        if error_count > 0:
+            overall_score = 0.0
+            is_valid = False
+        else:
+            overall_score = max(0.0, 100.0 - (warning_count * 10))
+            is_valid = True
+        
+        return ValidationReport(
+            file_path=str(file_path),
+            file_type=file_type,
+            is_valid=is_valid,
+            overall_score=overall_score,
+            issues=issues,
+            checks_performed=checks_performed,
+            metadata=metadata
+        )
+    
+    def format_validation_report(report: ValidationReport) -> None:
+        """Format and display a validation report."""
+        
+        # Header
+        status_style = "green" if report.is_valid else "red"
+        status_text = "✓ VALID" if report.is_valid else "✗ INVALID"
+        
+        console.print(f"\n📋 Validation Report: {report.file_path}", style="bold")
+        console.print(f"Status: {status_text} | Score: {report.overall_score:.1f}/100", style=status_style)
+        console.print(f"Type: {report.file_type} | Checks: {len(report.checks_performed)}")
+        
+        # Issues summary
+        errors = [i for i in report.issues if i.severity == "error"]
+        warnings = [i for i in report.issues if i.severity == "warning"]
+        info = [i for i in report.issues if i.severity == "info"]
+        
+        if errors or warnings or info:
+            console.print(f"\n📊 Issues Summary:")
+            if errors:
+                console.print(f"  ❌ Errors: {len(errors)}", style="red")
+            if warnings:
+                console.print(f"  ⚠️  Warnings: {len(warnings)}", style="yellow")
+            if info:
+                console.print(f"  ℹ️  Info: {len(info)}", style="blue")
+        
+        # Detailed issues
+        if show_details and report.issues:
+            console.print(f"\n📝 Detailed Issues:")
+            
+            for issue in report.issues:
+                severity_icon = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}[issue.severity]
+                severity_style = {"error": "red", "warning": "yellow", "info": "blue"}[issue.severity]
+                
+                console.print(f"\n{severity_icon} [{issue.category.upper()}] {issue.message}", style=severity_style)
+                
+                if issue.details:
+                    console.print(f"   Details: {issue.details}", style="dim")
+                
+                if issue.line_number:
+                    console.print(f"   Line: {issue.line_number}", style="dim")
+                
+                if show_suggestions and issue.fix_suggestion:
+                    console.print(f"   💡 Fix: {issue.fix_suggestion}", style="green dim")
+        
+        # Metadata
+        if report.metadata:
+            console.print(f"\n📈 Metadata:")
+            for key, value in report.metadata.items():
+                if isinstance(value, list):
+                    console.print(f"  {key}: {', '.join(map(str, value[:5]))}{' ...' if len(value) > 5 else ''}")
+                else:
+                    console.print(f"  {key}: {value}")
+    
+    try:
+        # Auto-detect file type if needed
+        if target_type == "auto":
+            target_type = detect_file_type(target)
+        
+        console.print(f"🔍 Running comprehensive validation on {target} (type: {target_type})", style="blue")
+        
+        # Run appropriate validation
+        if target_type == "spec":
+            report = validate_spec_file(target)
+        elif target_type == "dataset":
+            report = validate_dataset_file(target)
+        elif target_type == "config":
+            # Basic config validation (simplified)
+            issues = []
+            checks_performed = ["file_existence"]
+            metadata = {"format": target.suffix}
+            
+            if not target.exists():
+                issues.append(ValidationIssue(
+                    severity="error",
+                    category="file",
+                    message=f"Config file not found: {target}",
+                ))
+            
+            report = create_report(target, "config", issues, checks_performed, metadata)
+        else:
+            console.print(f"[red]Unsupported target type: {target_type}[/red]")
+            raise typer.Exit(code=1)
+        
+        # Display results
+        format_validation_report(report)
+        
+        # Save report if requested
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, 'w') as f:
+                json.dump(asdict(report), f, indent=2, default=str)
+            console.print(f"\n📄 Detailed report saved to: {output}", style="green")
+        
+        # Exit with error if strict mode and validation failed
+        if strict and not report.is_valid:
+            console.print(f"\n[red]Validation failed in strict mode[/red]")
+            raise typer.Exit(code=1)
+        
+        if report.is_valid:
+            console.print(f"\n[green]✓ Validation passed![/green]")
+        else:
+            console.print(f"\n[red]✗ Validation failed - please address the issues above[/red]")
+            
+    except Exception as e:
+        console.print(f"[red]Validation error: {e}[/red]")
+        import traceback
+        if show_details:
+            console.print(f"[red]Traceback: {traceback.format_exc()}[/red]")
+        if strict:
+            raise typer.Exit(code=2)
+
+
 @app.command()
 def analyze_bias(
     spec: Path = typer.Argument(..., help="Path to JSON/YAML spec"),
