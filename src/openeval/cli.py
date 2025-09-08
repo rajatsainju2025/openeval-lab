@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 import sys
 import subprocess
 import time
+import traceback
 from datetime import datetime
 
 import typer
@@ -30,7 +31,31 @@ from .enhanced_logging import (
 )
 from .config_manager import load_config, create_default_config, ConfigManager
 
-app = typer.Typer(no_args_is_help=True, add_completion=False)
+# Global logger
+logger = get_logger(__name__)
+
+def configure_cli_logging(json_format: bool = False, debug: bool = False):
+    """Configure logging for CLI with optional JSON format."""
+    if json_format:
+        configure_logging(level="INFO", format_type="json")
+    else:
+        configure_logging(level="DEBUG" if debug else "INFO", format_type="rich")
+    
+    if debug:
+        enable_debug_mode()
+
+# Callback for global options
+def global_callback(
+    json_logs: bool = typer.Option(False, "--json-logs", help="Output logs in JSON format"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode with verbose logging"),
+):
+    configure_cli_logging(json_format=json_logs, debug=debug)
+
+app = typer.Typer(
+    no_args_is_help=True, 
+    add_completion=False,
+    callback=global_callback
+)
 @app.command()
 def registry_list(kind: str = typer.Argument(..., help="task|dataset|adapter|metric")):
     """List registered items for a given kind with descriptions."""
@@ -2793,4 +2818,23 @@ def analyze_bias(
 
 
 if __name__ == "__main__":
-    app()
+    try:
+        logger.info("Starting OpenEval CLI", extra={"component": "cli", "operation": "start"})
+        app()
+        logger.info("CLI execution completed successfully", extra={"component": "cli", "operation": "complete"})
+    except KeyboardInterrupt:
+        logger.warning("CLI execution interrupted by user", extra={"component": "cli", "operation": "interrupt"})
+        sys.exit(130)
+    except Exception as e:
+        logger.error(
+            "CLI execution failed with error",
+            extra={
+                "component": "cli",
+                "operation": "error",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc()
+            }
+        )
+        console.print(f"❌ Fatal error: {e}", style="red")
+        sys.exit(1)
