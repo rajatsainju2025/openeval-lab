@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-09-07T23:08:52.941456",
+  "project_info": {
+    "name": "OpenEval Lab",
+    "root_path": "/Users/rsainju/Research/1_Research_Personal/untitled folder/openeval-lab",
+    "python_files": 71,
+    "test_files": 26,
+    "doc_files": 24,
+    "config_files": 10,
+    "total_lines": 17037
+  },
+  "code_quality": {
+    "style_issues": 21063,
+    "type_issues": 0,
+    "complexity_issues": 0,
+    "security_issues": 0,
+    "quality_score": 0.0,
+    "formatting": "\u26a0\ufe0f Issues found",
+    "linting": "\u26a0\ufe0f Issues found"
+  },
+  "test_coverage": {
+    "test_files": 26,
+    "test_functions": 173,
+    "coverage_percentage": 29.295774647887328,
+    "test_status": "\u2705 Tests found and collectible",
+    "collected_tests": 173
+  },
+  "documentation": {
+    "readme_exists": true,
+    "changelog_exists": true,
+    "contributing_exists": true,
+    "docs_directory": true,
+    "api_docs": "713/879 documented",
+    "doc_coverage_score": 90.55745164960183
+  },
+  "git_health": {
+    "is_git_repo": true,
+    "recent_commits": 137,
+    "branches": [
+      "feat/performance-benchmarking",
+      "feat/enhanced-error-handling",
+      "feat/async-adapter-support",
+      "feat/enhanced-logging-debugging",
+      "feat/calibration-ece",
+      "feat/config-management",
+      "feat/bootstrap-confidence-intervals",
+      "feat/dataset-validation-quality",
+      "feat/enhanced-cli-help",
+      "feat/result-aggregation-tools"
+    ],
+    "uncommitted_changes": true,
+    "commit_frequency": "\ud83d\udd25 Very Active"
+  },
+  "dependencies": {
+    "requirements_files": [
+      "pyproject.toml"
+    ],
+    "dependency_count": 555,
+    "security_issues": 0,
+    "outdated_packages": 0
+  },
+  "performance": {},
+  "recommendations": [
+    "\ud83d\udd27 Consider running 'make format' and 'make lint' to improve code quality",
+    "\ud83e\uddea Add more tests to improve coverage (target: >80%)",
+    "\ud83d\udd04 Commit uncommitted changes"
+  ]
+}

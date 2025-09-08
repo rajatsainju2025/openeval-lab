@@ -240,3 +240,13 @@ status: ## Show project status and metrics
 		echo "$(YELLOW)Recent Commits:$(NC)"; \
 		git log --oneline -5; \
 	fi
+
+# Health and monitoring
+health:				## Run project health dashboard
+	@python scripts/project_health.py
+
+health-json:			## Run project health dashboard (JSON output)
+	@python scripts/project_health.py --json
+
+health-report:			## Generate detailed health report
+	@python scripts/project_health.py --save project-health-report.json
