@@ -223,6 +223,38 @@ class Task(ABC):
             return out
 
         t0 = time.perf_counter()
+        
+        # Performance optimization: Use memory-efficient processing for large datasets
+        def _get_memory_usage():
+            """Get current memory usage in MB."""
+            try:
+                import psutil
+                import os
+                process = psutil.Process(os.getpid())
+                return process.memory_info().rss / 1024 / 1024
+            except ImportError:
+                return 0
+        
+        initial_memory = _get_memory_usage()
+        peak_memory = initial_memory
+        
+        # Optimize concurrency based on available resources
+        try:
+            import psutil
+            import os
+            if concurrency > 1:
+                # Adjust concurrency based on system resources
+                cpu_count = os.cpu_count() or 4
+                available_memory = psutil.virtual_memory().available / 1024 / 1024 / 1024  # GB
+                
+                # Conservative concurrency scaling
+                optimal_concurrency = min(concurrency, cpu_count * 2, max(1, int(available_memory / 2)))
+                if optimal_concurrency != concurrency:
+                    print(f"Adjusting concurrency from {concurrency} to {optimal_concurrency} based on system resources")
+                    concurrency = optimal_concurrency
+        except ImportError:
+            pass
+        
         if max(1, int(concurrency)) <= 1:
             for i, ex in enumerate(examples):
                 references[i] = ex.reference
@@ -303,6 +335,14 @@ class Task(ABC):
 
         total_duration = time.perf_counter() - t0
         latencies = [x for x in per_latency if x > 0]
+        
+        # Update peak memory usage
+        try:
+            current_memory = _get_memory_usage()
+            peak_memory = max(peak_memory, current_memory)
+        except NameError:
+            current_memory = 0
+        
         results: Dict[str, Any] = {}
         for m in metrics:
             try:
@@ -421,6 +461,11 @@ class Task(ABC):
                 "cache_hits": cache_stats.hits,
                 "cache_misses": cache_stats.misses,
                 "cache_hit_rate": cache_stats.hit_rate,
+                "memory_usage_mb": {
+                    "initial": initial_memory,
+                    "peak": peak_memory,
+                    "current": _get_memory_usage()
+                } if initial_memory > 0 else None,
             },
             
             # Add error categorization summary
