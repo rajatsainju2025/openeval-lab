@@ -15,16 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📚 **Documentation Overhaul** - Comprehensive guides covering architecture, critique, roadmap, and best practices
 - 🔍 **PR Checks Workflow** - Fast validation pipeline for pull requests with commit message analysis
 - 📊 **Enhanced CLI** - Improved error handling, validation, and user experience in command-line interface
+- 📈 **F1 Score Metric** - New F1 score implementation for classification tasks
+- 🔌 **Local API Adapter** - Support for local model servers and API endpoints
+- 📊 **Web Dashboard Enhancements** - Real-time monitoring and API endpoints
+- ✅ **Configuration Validation** - Enhanced config and spec validation functions
+- 🗄️ **Improved Caching** - Compression and metadata support in cache system
+- 📝 **Advanced Examples** - New advanced code examples for complex scenarios
+- 🏁 **Performance Benchmarking** - Comprehensive benchmarking script for performance metrics
 
 ### Changed
 - ♻️ **README Modernization** - Complete redesign with better structure, examples, and visual hierarchy
 - 🏗️ **Project Architecture** - Clearer separation of concerns with enhanced plugin architecture documentation
 - 📋 **Configuration Standards** - Standardized YAML/JSON specification format with comprehensive validation
+- 🔧 **Error Handling Improvements** - Better error handling in core modules and CLI
+- 📊 **Dashboard Updates** - Enhanced web dashboard with monitoring capabilities
 
 ### Fixed
 - 🐛 **CLI Import Issues** - Resolved module import errors and added proper `__main__.py` entry point
 - 🔧 **Validation Script Bugs** - Fixed duplicate function definitions and import path issues
 - 📝 **Documentation Links** - Updated all internal documentation references and examples
+- 🐛 **Lint Errors** - Resolved import and attribute errors in benchmarking script
 
 ### Security
 - 🔒 **Security Scanning** - Added automated security vulnerability detection in CI/CD pipeline
