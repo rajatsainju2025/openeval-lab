@@ -513,3 +513,86 @@ def create_default_config(output_path: Union[str, Path] = "openeval.yaml"):
     default_config = OpenEvalConfig()
     config_manager.save_config(default_config, output_path, ConfigFormat.YAML)
     return output_path
+
+
+def validate_config(config: OpenEvalConfig) -> List[str]:
+    """Validate configuration and return list of issues."""
+    issues = []
+    
+    # Validate evaluation settings
+    if config.evaluation.default_concurrency < 1:
+        issues.append("evaluation.default_concurrency must be >= 1")
+    
+    if config.evaluation.default_timeout <= 0:
+        issues.append("evaluation.default_timeout must be > 0")
+    
+    if config.evaluation.max_retry_attempts < 0:
+        issues.append("evaluation.max_retry_attempts must be >= 0")
+    
+    # Validate adapter settings
+    if config.adapters.request_timeout <= 0:
+        issues.append("adapters.request_timeout must be > 0")
+    
+    if config.adapters.max_retries < 0:
+        issues.append("adapters.max_retries must be >= 0")
+    
+    # Validate logging settings
+    valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    if config.logging.level.upper() not in valid_levels:
+        issues.append(f"logging.level must be one of: {', '.join(valid_levels)}")
+    
+    # Validate paths
+    for path_name, path_value in [
+        ("data_dir", config.data_dir),
+        ("output_dir", config.output_dir),
+        ("cache_dir", config.cache_dir),
+        ("log_dir", config.log_dir)
+    ]:
+        if not path_value or not path_value.strip():
+            issues.append(f"{path_name} cannot be empty")
+    
+    return issues
+
+
+def validate_config_file(config_path: Union[str, Path]) -> tuple[bool, List[str]]:
+    """Validate configuration file and return validation result."""
+    config_path = Path(config_path)
+    
+    if not config_path.exists():
+        return False, [f"Configuration file does not exist: {config_path}"]
+    
+    try:
+        config_manager = create_config_manager()
+        config = config_manager.load_config(config_path)
+        issues = validate_config(config)
+        
+        if issues:
+            return False, issues
+        else:
+            return True, []
+    
+    except Exception as e:
+        return False, [f"Failed to load configuration: {e}"]
+
+
+def validate_spec_against_config(spec_data: Dict[str, Any], config: OpenEvalConfig) -> List[str]:
+    """Validate evaluation spec against configuration constraints."""
+    issues = []
+    
+    # Check concurrency against config limits
+    spec_concurrency = spec_data.get("concurrency", 1)
+    if spec_concurrency > config.evaluation.default_concurrency * 2:
+        issues.append(f"Spec concurrency ({spec_concurrency}) exceeds recommended limit")
+    
+    # Check timeout against config
+    spec_timeout = spec_data.get("timeout")
+    if spec_timeout and spec_timeout > config.evaluation.default_timeout * 2:
+        issues.append(f"Spec timeout ({spec_timeout}s) exceeds recommended limit")
+    
+    # Check adapter settings
+    adapter_config = spec_data.get("adapter", {})
+    adapter_timeout = adapter_config.get("timeout")
+    if adapter_timeout and adapter_timeout > config.adapters.request_timeout * 2:
+        issues.append(f"Adapter timeout ({adapter_timeout}s) exceeds recommended limit")
+    
+    return issues
