@@ -13,6 +13,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .utils import set_seed, hash_file, retry_call, run_with_timeout, hash_prompt
 from .cache import PredictionCache, CacheStats
 from .prompt import PromptTemplate, build_prompt
+from .enhanced_logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _categorize_error(err: Exception) -> str:
@@ -212,15 +215,19 @@ class Task(ABC):
                 pass
 
         def _call_generate(prompt: str) -> str:
-            cached = _maybe_read_cache(prompt)
-            if cached is not None:
-                return cached
-            out = retry_call(
-                lambda: run_with_timeout(lambda: adapter.generate(prompt), request_timeout),
-                retries=max_retries,
-            )
-            _maybe_write_cache(prompt, out)
-            return out
+            try:
+                cached = _maybe_read_cache(prompt)
+                if cached is not None:
+                    return cached
+                out = retry_call(
+                    lambda: run_with_timeout(lambda: adapter.generate(prompt), request_timeout),
+                    retries=max_retries,
+                )
+                _maybe_write_cache(prompt, out)
+                return out
+            except Exception as e:
+                logger.error(f"Failed to generate response for prompt: {e}", exc_info=True)
+                raise
 
         t0 = time.perf_counter()
         
@@ -254,6 +261,15 @@ class Task(ABC):
                     concurrency = optimal_concurrency
         except ImportError:
             pass
+
+        # Validate dataset before processing
+        try:
+            examples = list(iter(dataset))
+            if not examples:
+                raise ValueError("Dataset is empty")
+        except Exception as e:
+            logger.error(f"Failed to load dataset: {e}", exc_info=True)
+            raise ValueError(f"Dataset loading failed: {e}") from e
         
         if max(1, int(concurrency)) <= 1:
             for i, ex in enumerate(examples):
