@@ -377,6 +377,114 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
+## 📚 API Documentation
+
+### Core Classes
+
+#### `EvalSpec`
+```python
+from openeval.spec import EvalSpec
+
+# Load from YAML/JSON
+spec = EvalSpec.from_file("examples/qa_spec.json")
+
+# Access components
+task = spec.task
+dataset = spec.dataset
+adapter = spec.adapter
+metrics = spec.metrics
+```
+
+#### `Task`
+```python
+from openeval.tasks import QATask
+
+# Create custom task
+class CustomTask(Task):
+    def build_prompt(self, example):
+        return f"Question: {example.input}\nAnswer:"
+    
+    def postprocess(self, raw_output):
+        return raw_output.strip()
+```
+
+#### `Dataset`
+```python
+from openeval.datasets import JSONLDataset
+
+# Load dataset
+dataset = JSONLDataset(path="data/my_dataset.jsonl")
+
+# Iterate through examples
+for example in dataset:
+    print(example.input, example.reference)
+```
+
+#### `Adapter`
+```python
+from openeval.adapters import OpenAIAdapter
+
+# Configure adapter
+adapter = OpenAIAdapter(
+    model="gpt-4",
+    temperature=0.7,
+    api_key="your-key"
+)
+
+# Generate response
+response = adapter.generate("Hello, world!")
+```
+
+#### `Metric`
+```python
+from openeval.metrics import ExactMatch
+
+# Compute metric
+metric = ExactMatch()
+score = metric.compute(
+    predictions=["Paris", "London"],
+    references=["Paris", "Berlin"]
+)
+print(score)  # {"exact_match": 0.5}
+```
+
+### CLI Commands Reference
+
+| Command | Description | Options |
+|---------|-------------|---------|
+| `openeval run <spec>` | Execute evaluation | `--concurrency`, `--cache`, `--records` |
+| `openeval validate <spec>` | Validate spec file | `--json` |
+| `openeval web` | Launch dashboard | `--reload`, `--port` |
+| `openeval doctor` | Environment check | `--json` |
+| `openeval registry-list <kind>` | List plugins | - |
+| `openeval compare-runs A B` | Compare results | `--bootstrap`, `--alpha` |
+
+### Configuration Options
+
+```yaml
+# Full spec example
+task: qa
+dataset:
+  name: jsonl
+  path: examples/qa_toy.jsonl
+  kwargs:
+    encoding: utf-8
+adapter:
+  name: openai-chat
+  model: gpt-4o-mini
+  temperature: 0.0
+  max_tokens: 100
+metrics:
+  - name: exact_match
+  - name: bleu
+    kwargs:
+      max_n: 4
+concurrency: 4
+cache: rw
+statistical: true
+seed: 42
+```
+
 **Built with ❤️ for the AI evaluation community**
 
 [⭐ Star us on GitHub](https://github.com/rajatsainju2025/openeval-lab) • [📖 Read the Docs](docs/) • [🚀 Try the Demo](examples/)
