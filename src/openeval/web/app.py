@@ -176,3 +176,61 @@ def export_run(file: str, format: str = "json"):
             media_type="application/json",
             headers={"Content-Disposition": f"attachment; filename={file}"}
         )
+
+
+@app.get("/monitor", response_class=HTMLResponse)
+def monitor():
+    """Real-time system monitoring dashboard."""
+    tpl = jinja.get_template("monitor.html")
+    return tpl.render(title="System Monitor")
+
+
+@app.get("/api/health")
+def health_check():
+    """API health check endpoint."""
+    import psutil
+    import platform
+    from datetime import datetime
+
+    try:
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        cpu_percent = psutil.cpu_percent(interval=1)
+
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "system": {
+                "platform": platform.system(),
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory.percent,
+                "disk_percent": disk.percent
+            },
+            "openeval": {
+                "version": "0.1.0",
+                "status": "running"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+@app.get("/api/runs/recent")
+def recent_runs(limit: int = 10):
+    """Get recent evaluation runs."""
+    index_p = Path("runs/index.json")
+    if not index_p.exists():
+        return {"runs": []}
+
+    try:
+        payload = json.loads(index_p.read_text())
+        runs = payload.get("runs", [])
+        # Sort by timestamp descending and limit
+        runs_sorted = sorted(runs, key=lambda x: x.get("timestamp", ""), reverse=True)
+        return {"runs": runs_sorted[:limit]}
+    except Exception:
+        return {"runs": []}
