@@ -1,9 +1,13 @@
-"""Hugging Face Transformers adapter for OpenEval."""
+"""Hugging Face Transformers adapter for OpenEval with enhanced features."""
 
 import os
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List, Optional, Union
+import torch
 
 from ..core import Adapter
+
+logger = logging.getLogger(__name__)
 
 
 class HuggingFaceAdapter(Adapter):
@@ -39,8 +43,8 @@ class HuggingFaceAdapter(Adapter):
         self.temperature = temperature
         self.do_sample = do_sample
         
-        self._model = None
-        self._tokenizer = None
+        self._model = None  # type: Optional[Any]
+        self._tokenizer = None  # type: Optional[Any]
 
     def _load_model(self):
         """Lazy load model and tokenizer."""
@@ -69,7 +73,7 @@ class HuggingFaceAdapter(Adapter):
             )
             
             # Set pad token if not available
-            if self._tokenizer.pad_token is None:
+            if self._tokenizer and self._tokenizer.pad_token is None:
                 self._tokenizer.pad_token = self._tokenizer.eos_token
             
             # Load model
@@ -131,6 +135,82 @@ class HuggingFaceAdapter(Adapter):
         )
         
         return generated_text.strip()
+
+    def generate_with_logprobs(self, prompt: str, **kwargs) -> Dict[str, Any]:
+        """
+        Generate text with log probabilities.
+
+        Returns:
+            Dictionary with generated text, tokens, and log probabilities
+        """
+        self._load_model()
+        
+        if not self._tokenizer or not self._model:
+            raise RuntimeError("Model or tokenizer not loaded")
+        
+        # Override defaults with kwargs
+        max_new_tokens = kwargs.get("max_new_tokens", self.max_new_tokens)
+        temperature = kwargs.get("temperature", self.temperature)
+        do_sample = kwargs.get("do_sample", self.do_sample)
+        
+        # Tokenize input
+        inputs = self._tokenizer(
+            prompt, 
+            return_tensors="pt", 
+            padding=True, 
+            truncation=True
+        )
+        
+        # Move to device
+        inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
+        
+        # Generate with scores
+        import torch
+        with torch.no_grad():
+            outputs = self._model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                do_sample=do_sample,
+                pad_token_id=self._tokenizer.pad_token_id,
+                eos_token_id=self._tokenizer.eos_token_id,
+                return_dict_in_generate=True,
+                output_scores=True,
+            )
+        
+        # Extract generated tokens and scores
+        input_length = inputs["input_ids"].shape[1]
+        generated_tokens = outputs.sequences[0][input_length:]
+        
+        # Convert tokens to text
+        generated_text = self._tokenizer.decode(
+            generated_tokens, 
+            skip_special_tokens=True
+        )
+        
+        # Extract log probabilities
+        logprobs = []
+        if hasattr(outputs, 'scores') and outputs.scores:
+            for i, score in enumerate(outputs.scores):
+                if i < len(generated_tokens):
+                    token_id = generated_tokens[i]
+                    if token_id < score.shape[-1]:
+                        logprob = score[0][token_id].item()
+                        logprobs.append(logprob)
+        
+        # Get token strings
+        tokens = [self._tokenizer.decode(token_id) for token_id in generated_tokens]
+        
+        return {
+            "text": generated_text,
+            "tokens": tokens,
+            "logprobs": logprobs,
+            "usage": {
+                "prompt_tokens": input_length,
+                "completion_tokens": len(generated_tokens),
+                "total_tokens": input_length + len(generated_tokens)
+            }
+        }
 
     def set_runtime_options(
         self, 
