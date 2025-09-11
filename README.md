@@ -86,7 +86,32 @@ openeval doctor --json
 | **OpenAI** | OpenAI API adapter integration | `pip install -e '.[openai]'` |
 | **Metrics** | Advanced metrics (BLEU, BERTScore, ROUGE) | `pip install -e '.[metrics]'` |
 | **HuggingFace** | HF Datasets integration | `pip install -e '.[hf]'` |
-| **Complete** | All optional dependencies | `pip install -e '.[all]'` |
+## 🆕 Latest Features
+
+### 🔒 Security & Quality Assurance
+- **Security Audit Tool**: Comprehensive dependency and code security analysis
+- **Configuration Validator**: Schema-based validation with best practice recommendations
+- **Data Validation**: Automated dataset quality checks and statistical analysis
+
+### 📊 Enhanced Metrics & Evaluation
+- **BLEU Score**: Text generation quality assessment with n-gram precision
+- **Code Evaluation**: Syntax checking, style analysis, and execution testing
+- **F1 Score**: Classification task evaluation with precision/recall balancing
+
+### 🔧 Advanced Adapters & Loaders
+- **Enhanced HuggingFace Adapter**: Log probabilities support and better error handling
+- **Advanced Dataset Loader**: Support for JSON, CSV, Parquet, and HF datasets
+- **Local API Adapter**: Direct integration with local model servers
+
+### ⚡ Performance & Monitoring
+- **Performance Profiler**: Memory and CPU analysis with bottleneck identification
+- **Web Dashboard Enhancements**: Real-time monitoring and API endpoints
+- **Benchmarking Script**: Comprehensive performance metrics and optimization
+
+### 🛠️ Developer Tools
+- **Type Checking Support**: Py.typed marker and external library stubs
+- **Configuration Validation**: Enhanced config and spec validation functions
+- **Improved Caching**: Compression and metadata support for better performance
 
 ## 🛠️ Essential Commands
 
@@ -114,7 +139,26 @@ openeval doctor                     # Environment diagnostics
 openeval web --reload              # Launch dashboard
 ```
 
-## 🎯 Core Concepts
+## � New Tools & Scripts
+
+```bash
+# 🔒 Security & Validation
+python scripts/security_audit.py              # Security audit and vulnerability check
+python scripts/config_validator.py <config>   # Validate configuration files
+python scripts/data_validator.py <dataset>    # Validate dataset quality
+
+# 📊 Performance & Analysis
+python scripts/performance_profiler.py        # Profile application performance
+python scripts/benchmark_performance.py       # Run performance benchmarks
+python scripts/dataset_loader.py <dataset>    # Load various dataset formats
+
+# 🛠️ Development Utilities
+make security                                 # Run security checks
+make audit                                    # Comprehensive audit
+make profile                                  # Performance profiling
+```
+
+## �🎯 Core Concepts
 
 ### Evaluation Specifications
 
