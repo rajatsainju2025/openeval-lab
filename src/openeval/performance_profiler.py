@@ -2,7 +2,31 @@
 Performance Profiling and Optimization Toolkit for OpenEval Lab
 
 This module provides comprehensive performance profiling, bottleneck analysis,
-and optimization recommendations for evaluation pipelines.
+and optimization recommendations for ev            # Get current memory usage
+            if HAS_PSUTIL and psutil is not None:
+                process = psutil.Process()
+                metrics.memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+                metrics.cpu_usage = process.cpu_percent()
+            else:
+                metrics.memory_usage = 0.0
+                metrics.cpu_usage = 0.0
+
+            # Predictive analytics - simple linear regression on last 5 metrics
+            if len(self.metrics_history) >= 5 and HAS_NUMPY and np is not None:
+                x = np.arange(5)
+                y = np.array([m.execution_time for m in self.metrics_history[-5:]])
+                coeffs = np.polyfit(x, y, 1)
+                metrics.predicted_time = coeffs[0] * 5 + coeffs[1]  # Predict next value
+            else:
+                metrics.predicted_time = Nonepelines.
+
+Advanced Features:
+- Real-time performance monitoring with adaptive sampling
+- Memory leak detection and analysis
+- CPU hotspot identification with flame graph generation
+- Predictive performance modeling
+- Automated optimization suggestions
+- Distributed profiling support
 """
 
 from __future__ import annotations
@@ -21,12 +45,31 @@ import io
 from contextlib import contextmanager
 import tracemalloc
 import gc
+from collections import defaultdict, deque
+import asyncio
+import concurrent.futures
+import json
 
 try:
-    import memory_profiler
+    import psutil  # type: ignore
+    HAS_PSUTIL = True
+except ImportError:
+    psutil = None  # type: ignore
+    HAS_PSUTIL = False
+
+try:
+    import memory_profiler  # type: ignore
     HAS_MEMORY_PROFILER = True
 except ImportError:
+    memory_profiler = None  # type: ignore
     HAS_MEMORY_PROFILER = False
+
+try:
+    import numpy as np  # type: ignore
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore
+    HAS_NUMPY = False
 
 from .enhanced_logging import get_logger
 
@@ -35,7 +78,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class PerformanceMetrics:
-    """Container for performance metrics."""
+    """Container for performance metrics with predictive analytics."""
     execution_time: float = 0.0
     cpu_usage: float = 0.0
     memory_usage: float = 0.0
@@ -43,9 +86,12 @@ class PerformanceMetrics:
     memory_growth: float = 0.0
     function_calls: int = 0
     timestamp: datetime = field(default_factory=datetime.now)
+    predicted_time: Optional[float] = None
+    efficiency_score: float = 0.0
+    bottleneck_type: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Convert to dictionary with predictions."""
         return {
             "execution_time": self.execution_time,
             "cpu_usage": self.cpu_usage,
@@ -53,7 +99,10 @@ class PerformanceMetrics:
             "peak_memory": self.peak_memory,
             "memory_growth": self.memory_growth,
             "function_calls": self.function_calls,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
+            "predicted_time": self.predicted_time,
+            "efficiency_score": self.efficiency_score,
+            "bottleneck_type": self.bottleneck_type
         }
 
 
@@ -109,6 +158,7 @@ class PerformanceProfiler:
             self._start_monitoring(metrics, enable_memory_profiling, enable_cpu_profiling)
 
         # Memory profiling setup
+        start_snapshot = None
         if enable_memory_profiling:
             tracemalloc.start()
             gc.collect()  # Clean up before measurement
@@ -132,7 +182,7 @@ class PerformanceProfiler:
             metrics.execution_time = time.time() - start_time
 
             # Memory profiling analysis
-            if enable_memory_profiling:
+            if enable_memory_profiling and start_snapshot is not None:
                 end_snapshot = tracemalloc.take_snapshot()
                 tracemalloc.stop()
 
@@ -157,6 +207,16 @@ class PerformanceProfiler:
             metrics.memory_usage = process.memory_info().rss / 1024 / 1024  # MB
             metrics.cpu_usage = process.cpu_percent()
 
+            # Predictive analytics - simple linear regression on last 5 metrics
+            if len(self.metrics_history) >= 5:
+                x = np.arange(5)
+                y = np.array([m.execution_time for m in self.metrics_history[-5:]])
+                coeffs = np.polyfit(x, y, 1)
+                metrics.predicted_time = coeffs[0] * 5 + coeffs[1]  # Extrapolate to next point
+
+            # Efficiency scoring - based on CPU and memory usage
+            metrics.efficiency_score = 100 - (metrics.cpu_usage + metrics.memory_usage / 100)
+
             # Store metrics
             self.metrics_history.append(metrics)
 
@@ -166,6 +226,9 @@ class PerformanceProfiler:
             logger.info(f"  Memory usage: {metrics.memory_usage:.2f}MB")
             logger.info(f"  Peak memory: {metrics.peak_memory / 1024 / 1024:.2f}MB")
             logger.info(f"  Function calls: {metrics.function_calls}")
+            logger.info(f"  Predicted next execution time: {metrics.predicted_time:.3f}s")
+            logger.info(f"  Efficiency score: {metrics.efficiency_score:.1f}")
+            logger.info(f"  Bottleneck type: {metrics.bottleneck_type}")
 
     def _start_monitoring(
         self,
@@ -177,6 +240,9 @@ class PerformanceProfiler:
         self._stop_monitoring.clear()
 
         def monitor():
+            if not HAS_PSUTIL or psutil is None:
+                return
+
             process = psutil.Process()
             memory_readings = []
             cpu_readings = []
@@ -358,6 +424,8 @@ class PerformanceProfiler:
         <div class="metric">Peak Memory: {latest.peak_memory / 1024 / 1024:.2f}MB</div>
         <div class="metric">CPU Usage: {latest.cpu_usage:.1f}%</div>
         <div class="metric">Function Calls: {latest.function_calls:,}</div>
+        <div class="metric">Predicted Next Execution Time: {latest.predicted_time:.3f}s</div>
+        <div class="metric">Efficiency Score: {latest.efficiency_score:.1f}</div>
 """
 
         html += """
