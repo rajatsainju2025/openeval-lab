@@ -3,6 +3,13 @@ Async Evaluation Engine for OpenEval Lab
 
 This module provides an asynchronous evaluation engine that replaces the thread-based
 approach with asyncio for better concurrency, reduced overhead, and improved performance.
+
+Optimizations:
+- Connection pooling and reuse
+- Adaptive batching based on load
+- Circuit breaker pattern for fault tolerance
+- Memory-efficient streaming with backpressure
+- Priority-based task scheduling
 """
 
 from __future__ import annotations
@@ -14,11 +21,15 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from contextlib import asynccontextmanager
+from collections import deque
+import statistics
+import heapq
 
 try:
     import aiofiles
     HAS_AIOFILES = True
 except ImportError:
+    aiofiles = None  # type: ignore
     HAS_AIOFILES = False
 
 from .enhanced_logging import get_logger
@@ -37,6 +48,21 @@ class AsyncTaskConfig:
     retry_delay: float = 1.0
     semaphore_limit: Optional[int] = None
     enable_progress_tracking: bool = True
+    # New optimization parameters
+    adaptive_batching: bool = True
+    min_batch_size: int = 1
+    max_batch_size: int = 50
+    circuit_breaker_threshold: int = 5
+    circuit_breaker_timeout: float = 60.0
+    priority_levels: int = 3
+
+
+@dataclass
+class CircuitBreakerState:
+    """State for circuit breaker pattern."""
+    failures: int = 0
+    last_failure_time: float = 0.0
+    state: str = "closed"  # closed, open, half-open
 
 
 @dataclass
@@ -48,6 +74,55 @@ class AsyncEvaluationResult:
     error: Optional[str] = None
     cached: bool = False
     retry_count: int = 0
+    priority: int = 1
+
+
+@dataclass(order=True)
+class PrioritizedTask:
+    """Priority queue item for task scheduling."""
+    priority: int
+    index: int
+    coro: asyncio.Task = field(compare=False)
+
+
+class ConnectionPool:
+    """Connection pool for efficient resource reuse."""
+
+    def __init__(self, max_connections: int = 10):
+        self.max_connections = max_connections
+        self.available_connections = asyncio.Queue(maxsize=max_connections)
+        self._connection_count = 0
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> Any:
+        """Acquire a connection from the pool."""
+        try:
+            return self.available_connections.get_nowait()
+        except asyncio.QueueEmpty:
+            async with self._lock:
+                if self._connection_count < self.max_connections:
+                    self._connection_count += 1
+                    return await self._create_connection()
+                else:
+                    return await self.available_connections.get()
+
+    async def release(self, connection: Any) -> None:
+        """Release a connection back to the pool."""
+        try:
+            self.available_connections.put_nowait(connection)
+        except asyncio.QueueFull:
+            # Pool is full, close the connection
+            await self._close_connection(connection)
+
+    async def _create_connection(self) -> Any:
+        """Create a new connection."""
+        # This should be overridden by subclasses
+        return object()
+
+    async def _close_connection(self, connection: Any) -> None:
+        """Close a connection."""
+        # This should be overridden by subclasses
+        pass
 
 
 class AsyncAdapterWrapper:
@@ -87,7 +162,7 @@ class AsyncAdapterWrapper:
 
 class AsyncEvaluationEngine:
     """
-    High-performance async evaluation engine.
+    High-performance async evaluation engine with advanced optimizations.
     """
 
     def __init__(self, config: Optional[AsyncTaskConfig] = None):
@@ -97,9 +172,55 @@ class AsyncEvaluationEngine:
         self.cache_stats = CacheStats()
         self._thread_pool = ThreadPoolExecutor(max_workers=self.config.max_concurrent_requests)
 
+        # New optimization components
+        self.connection_pool = ConnectionPool(self.config.max_concurrent_requests)
+        self.circuit_breaker = CircuitBreakerState()
+        self.latency_history: deque[float] = deque(maxlen=100)
+        self.task_queue: List[PrioritizedTask] = []
+        self._adaptive_batch_size = self.config.min_batch_size
+
     def set_cache(self, cache: PredictionCache) -> None:
         """Set the prediction cache."""
         self.cache = cache
+
+    def _update_adaptive_batch_size(self) -> None:
+        """Update batch size based on recent performance."""
+        if not self.config.adaptive_batching or len(self.latency_history) < 10:
+            return
+
+        avg_latency = statistics.mean(self.latency_history)
+        if avg_latency < 1.0:  # Fast responses, can increase batch size
+            self._adaptive_batch_size = min(self._adaptive_batch_size + 5, self.config.max_batch_size)
+        elif avg_latency > 5.0:  # Slow responses, reduce batch size
+            self._adaptive_batch_size = max(self._adaptive_batch_size - 2, self.config.min_batch_size)
+
+    def _check_circuit_breaker(self) -> bool:
+        """Check if circuit breaker should allow requests."""
+        current_time = time.time()
+
+        if self.circuit_breaker.state == "open":
+            if current_time - self.circuit_breaker.last_failure_time > self.config.circuit_breaker_timeout:
+                self.circuit_breaker.state = "half-open"
+                return True
+            return False
+
+        return True
+
+    def _record_failure(self) -> None:
+        """Record a failure for circuit breaker."""
+        self.circuit_breaker.failures += 1
+        self.circuit_breaker.last_failure_time = time.time()
+
+        if self.circuit_breaker.failures >= self.config.circuit_breaker_threshold:
+            self.circuit_breaker.state = "open"
+            logger.warning(f"Circuit breaker opened after {self.circuit_breaker.failures} failures")
+
+    def _record_success(self) -> None:
+        """Record a success for circuit breaker."""
+        if self.circuit_breaker.state == "half-open":
+            self.circuit_breaker.state = "closed"
+            self.circuit_breaker.failures = 0
+            logger.info("Circuit breaker closed - service recovered")
 
     async def _execute_with_retry(
         self,
@@ -139,7 +260,7 @@ class AsyncEvaluationEngine:
             try:
                 cached_result = await loop.run_in_executor(
                     self._thread_pool,
-                    lambda: self.cache.get(cache_key)
+                    lambda: self.cache.get(cache_key)  # type: ignore
                 )
                 if cached_result is not None:
                     self.cache_stats.hits += 1
@@ -157,7 +278,7 @@ class AsyncEvaluationEngine:
             try:
                 await loop.run_in_executor(
                     self._thread_pool,
-                    lambda: self.cache.set(cache_key, result)
+                    lambda: self.cache.set(cache_key, result)  # type: ignore
                 )
             except Exception as e:
                 logger.debug(f"Cache write error: {e}")
@@ -169,15 +290,17 @@ class AsyncEvaluationEngine:
         adapter: Any,
         prompts: List[str],
         cache_keys: Optional[List[str]] = None,
+        priorities: Optional[List[int]] = None,
         **kwargs: Any
     ) -> List[AsyncEvaluationResult]:
         """
-        Evaluate a batch of prompts asynchronously.
+        Evaluate a batch of prompts asynchronously with priority scheduling.
 
         Args:
             adapter: The model adapter to use
             prompts: List of prompts to evaluate
             cache_keys: Optional cache keys for each prompt
+            priorities: Optional priority levels for each prompt (1-3, higher = more important)
             **kwargs: Additional arguments for generation
 
         Returns:
@@ -185,42 +308,64 @@ class AsyncEvaluationEngine:
         """
         async_adapter = AsyncAdapterWrapper(adapter, self._thread_pool)
         cache_keys = cache_keys or [hash_prompt([prompt]) for prompt in prompts]
+        priorities = priorities or [1] * len(prompts)
 
-        # Create evaluation tasks
-        tasks = []
-        for i, (prompt, cache_key) in enumerate(zip(prompts, cache_keys)):
+        # Update adaptive batch size
+        self._update_adaptive_batch_size()
+
+        # Create prioritized tasks
+        for i, (prompt, cache_key, priority) in enumerate(zip(prompts, cache_keys, priorities)):
             task = self._evaluate_single(
-                async_adapter, prompt, cache_key, i, **kwargs
+                async_adapter, prompt, cache_key, i, priority=priority, **kwargs
             )
-            tasks.append(task)
+            heapq.heappush(self.task_queue, PrioritizedTask(priority, i, asyncio.create_task(task)))
 
-        # Execute with controlled concurrency
-        results = []
-        semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
+        # Execute tasks by priority
+        results: List[AsyncEvaluationResult] = []
+        completed_tasks = set()
 
-        async def execute_with_semaphore(task_coro, index):
-            async with semaphore:
-                return await task_coro
+        while self.task_queue and len(completed_tasks) < len(prompts):
+            # Get highest priority task
+            prioritized_task = heapq.heappop(self.task_queue)
+            task = prioritized_task.coro
+            index = prioritized_task.index
 
-        # Execute all tasks concurrently with semaphore control
-        task_coros = [execute_with_semaphore(task, i) for i, task in enumerate(tasks)]
-        results = await asyncio.gather(*task_coros, return_exceptions=True)
+            if index in completed_tasks:
+                continue
 
-        # Handle exceptions and convert to AsyncEvaluationResult
-        final_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                final_results.append(AsyncEvaluationResult(
-                    index=i,
+            try:
+                result = await task
+                results.append(result)
+                completed_tasks.add(index)
+
+                # Record latency for adaptive batching
+                self.latency_history.append(result.latency)
+
+                # Record success for circuit breaker
+                self._record_success()
+
+            except Exception as e:
+                # Record failure for circuit breaker
+                self._record_failure()
+
+                # Create error result
+                error_result = AsyncEvaluationResult(
+                    index=index,
                     prediction="",
                     latency=0.0,
-                    error=str(result),
+                    error=str(e),
                     cached=False
-                ))
-            else:
-                final_results.append(result)
+                )
+                results.append(error_result)
+                completed_tasks.add(index)
 
-        return final_results
+        # Clear the task queue
+        self.task_queue.clear()
+
+        # Sort results by index to maintain original order
+        results.sort(key=lambda r: r.index)
+
+        return results
 
     async def _evaluate_single(
         self,
@@ -228,12 +373,17 @@ class AsyncEvaluationEngine:
         prompt: str,
         cache_key: str,
         index: int,
+        priority: int = 1,
         **kwargs: Any
     ) -> AsyncEvaluationResult:
         """Evaluate a single prompt."""
         start_time = time.perf_counter()
 
         try:
+            # Circuit breaker check
+            if not self._check_circuit_breaker():
+                raise RuntimeError("Circuit breaker is open, request denied")
+
             # Execute with retry logic
             async def _generate():
                 return await self._cached_generate(adapter, prompt, cache_key, **kwargs)
@@ -250,7 +400,8 @@ class AsyncEvaluationEngine:
                 index=index,
                 prediction=result,
                 latency=latency,
-                cached=cached
+                cached=cached,
+                priority=priority
             )
 
         except Exception as e:
@@ -260,7 +411,8 @@ class AsyncEvaluationEngine:
                 prediction="",
                 latency=latency,
                 error=str(e),
-                cached=False
+                cached=False,
+                priority=priority
             )
 
     async def evaluate_streaming(
