@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Union
 from pathlib import Path
 import time
 import sys
@@ -155,8 +155,25 @@ class Task(ABC):
         concurrency: int = 1,
         max_retries: int = 0,
         request_timeout: Optional[float] = None,
+        streaming_batch_size: Optional[int] = None,
     ) -> Dict[str, Any]:
+        """
+        Evaluate with optional streaming for memory efficiency.
+        
+        Args:
+            streaming_batch_size: If provided, process examples in batches of this size
+                                to reduce memory usage for large datasets.
+        """
         set_seed(seed)
+        
+        # Use streaming evaluation for large datasets if batch_size specified
+        if streaming_batch_size and streaming_batch_size > 0:
+            return self._evaluate_streaming(
+                adapter, dataset, metrics, seed, collect_records, 
+                concurrency, max_retries, request_timeout, streaming_batch_size
+            )
+        
+        # Original evaluation logic for smaller datasets
         examples: List[Example] = list(iter(dataset))
         n = len(examples)
         predictions: List[Any] = [None] * n
@@ -528,3 +545,289 @@ class Task(ABC):
             except Exception:
                 pass
         return payload
+
+    def _evaluate_streaming(
+        self,
+        adapter: Adapter,
+        dataset: Dataset,
+        metrics: List[Metric],
+        seed: Optional[int],
+        collect_records: bool,
+        concurrency: int,
+        max_retries: int,
+        request_timeout: Optional[float],
+        batch_size: int,
+    ) -> Dict[str, Any]:
+        """
+        Memory-efficient streaming evaluation for large datasets.
+        Processes examples in batches to minimize memory usage.
+        """
+        set_seed(seed)
+        
+        # Initialize tracking variables
+        all_predictions: List[Any] = []
+        all_references: List[Any] = []
+        all_latencies: List[float] = []
+        all_errors: List[Optional[str]] = []
+        all_cached: List[bool] = []
+        
+        success_count = 0
+        error_count = 0
+        total_examples = 0
+        
+        # Cache setup
+        cache_mode = str(getattr(adapter, "_cache_mode", "off")).lower()
+        cache_dir = getattr(adapter, "_cache_dir", None)
+        cache_ttl = getattr(adapter, "_cache_ttl", None)
+        cache: Optional[PredictionCache] = None
+        cache_stats = CacheStats()
+        if cache_mode != "off" and cache_dir is not None:
+            try:
+                cache = PredictionCache(Path(cache_dir))
+            except Exception:
+                cache = None
+
+        # Cache helper functions
+        def _cache_key(prompt: str) -> str:
+            adapter_name = getattr(adapter, "name", adapter.__class__.__name__)
+            model = getattr(adapter, "model", None)
+            temp = getattr(adapter, "temperature", None)
+            system = getattr(adapter, "system_prompt", None)
+            key_mode = str(getattr(adapter, "_cache_key_mode", "strict")).lower()
+            parts: List[Any] = [adapter_name, prompt]
+            if key_mode == "strict":
+                parts.extend([model, temp, system])
+            return hash_prompt(parts)
+
+        def _maybe_read_cache(prompt: str) -> Optional[str]:
+            if cache is None or cache_mode not in {"read", "rw", "write"}:
+                return None
+            if cache_mode == "write":
+                return None
+            try:
+                val = cache.get(_cache_key(prompt), ttl=cache_ttl)
+                if val is not None:
+                    cache_stats.hits += 1
+                else:
+                    cache_stats.misses += 1
+                return val
+            except Exception:
+                return None
+
+        def _maybe_write_cache(prompt: str, output: str) -> None:
+            if cache is None or cache_mode not in {"write", "rw"}:
+                return
+            try:
+                cache.set(_cache_key(prompt), output)
+            except Exception:
+                pass
+
+        def _call_generate(prompt: str) -> str:
+            try:
+                cached = _maybe_read_cache(prompt)
+                if cached is not None:
+                    return cached
+                out = retry_call(
+                    lambda: run_with_timeout(lambda: adapter.generate(prompt), request_timeout),
+                    retries=max_retries,
+                )
+                _maybe_write_cache(prompt, out)
+                return out
+            except Exception as e:
+                logger.error(f"Failed to generate response for prompt: {e}", exc_info=True)
+                raise
+
+        # Process dataset in batches
+        batch_examples = []
+        batch_indices = []
+        
+        t0 = time.perf_counter()
+        
+        for i, ex in enumerate(iter(dataset)):
+            batch_examples.append(ex)
+            batch_indices.append(i)
+            total_examples += 1
+            
+            # Process batch when it reaches the specified size
+            if len(batch_examples) >= batch_size:
+                self._process_batch(
+                    batch_examples, batch_indices, adapter, all_predictions, 
+                    all_references, all_latencies, all_errors, all_cached,
+                    success_count, error_count, _call_generate, _maybe_read_cache, 
+                    _maybe_write_cache, concurrency, max_retries, request_timeout
+                )
+                
+                # Clear batch
+                batch_examples.clear()
+                batch_indices.clear()
+        
+        # Process remaining examples in the last batch
+        if batch_examples:
+            self._process_batch(
+                batch_examples, batch_indices, adapter, all_predictions, 
+                all_references, all_latencies, all_errors, all_cached,
+                success_count, error_count, _call_generate, _maybe_read_cache, 
+                _maybe_write_cache, concurrency, max_retries, request_timeout
+            )
+        
+        total_duration = time.perf_counter() - t0
+        latencies = [x for x in all_latencies if x > 0]
+        
+        # Calculate metrics
+        results: Dict[str, Any] = {}
+        for m in metrics:
+            try:
+                results[m.name] = m.compute(all_predictions, all_references)
+            except Exception as err:
+                results[m.name] = {"error": f"{err}"}
+
+        # Build result payload (similar to original method)
+        import datetime as _dt
+        import platform
+        import sys
+        
+        # Manifest and other metadata (simplified for streaming)
+        manifest: Dict[str, Any] = {
+            "timestamp": _dt.datetime.now().isoformat(timespec="seconds"),
+            "streaming": True,
+            "batch_size": batch_size,
+        }
+        
+        payload: Dict[str, Any] = {
+            "task": self.name,
+            "dataset": getattr(dataset, "name", dataset.__class__.__name__),
+            "size": total_examples,
+            "metrics": results,
+            "adapter": getattr(adapter, "name", adapter.__class__.__name__),
+            "seed": seed,
+            "timing": {
+                "avg_latency_ms": (sum(latencies) / len(latencies) * 1000.0) if latencies else 0.0,
+                "total_seconds": total_duration,
+                "throughput_eps": (total_examples / total_duration) if total_duration > 0 else 0.0,
+                "request_successes": success_count,
+                "request_errors": error_count,
+                "error_rate": (error_count / total_examples) if total_examples > 0 else 0.0,
+                "cache_hits": cache_stats.hits,
+                "cache_misses": cache_stats.misses,
+                "cache_hit_rate": cache_stats.hit_rate,
+            },
+            "error_summary": _summarize_errors(all_errors),
+            "manifest": manifest,
+        }
+        
+        if collect_records:
+            records: List[Dict[str, Any]] = []
+            for i in range(total_examples):
+                rec: Dict[str, Any] = {
+                    "id": f"example_{i}",  # Simplified ID for streaming
+                    "prediction": all_predictions[i] if i < len(all_predictions) else "",
+                    "latency_ms": all_latencies[i] * 1000.0 if i < len(all_latencies) else 0.0,
+                }
+                if i < len(all_errors) and all_errors[i] is not None:
+                    rec["error"] = all_errors[i]
+                if i < len(all_cached) and all_cached[i]:
+                    rec["cached"] = True
+                records.append(rec)
+            payload["records"] = records
+        
+        # Close cache
+        if cache is not None:
+            try:
+                cache.close()
+            except Exception:
+                pass
+                
+        return payload
+
+    def _process_batch(
+        self,
+        batch_examples: List[Example],
+        batch_indices: List[int],
+        adapter: Adapter,
+        all_predictions: List[Any],
+        all_references: List[Any], 
+        all_latencies: List[float],
+        all_errors: List[Optional[str]],
+        all_cached: List[bool],
+        success_count: int,
+        error_count: int,
+        _call_generate: Callable[[str], str],
+        _maybe_read_cache: Callable[[str], Optional[str]],
+        _maybe_write_cache: Callable[[str, str], None],
+        concurrency: int,
+        max_retries: int,
+        request_timeout: Optional[float],
+    ) -> None:
+        """Process a batch of examples efficiently."""
+        batch_size = len(batch_examples)
+        
+        # Extend result lists
+        all_predictions.extend([None] * batch_size)
+        all_references.extend([None] * batch_size)
+        all_latencies.extend([0.0] * batch_size)
+        all_errors.extend([None] * batch_size)
+        all_cached.extend([False] * batch_size)
+        
+        base_index = len(all_predictions) - batch_size
+        
+        if concurrency <= 1:
+            # Sequential processing
+            for j, ex in enumerate(batch_examples):
+                idx = base_index + j
+                all_references[idx] = ex.reference
+                prompt = self.build_prompt_with_template(ex)
+                
+                s = time.perf_counter()
+                try:
+                    cached = _maybe_read_cache(prompt)
+                    if cached is not None:
+                        raw = cached
+                        all_cached[idx] = True
+                    else:
+                        raw = _call_generate(prompt)
+                    e = time.perf_counter()
+                    all_latencies[idx] = e - s
+                    all_predictions[idx] = self.postprocess(raw)
+                except Exception as err:
+                    e = time.perf_counter()
+                    all_latencies[idx] = e - s
+                    error_category = _categorize_error(err)
+                    detailed_error = f"[{error_category}] {str(err)}"
+                    all_errors[idx] = detailed_error
+        else:
+            # Concurrent processing for batch
+            with ThreadPoolExecutor(max_workers=min(concurrency, batch_size)) as pool:
+                futures = []
+                for j, ex in enumerate(batch_examples):
+                    idx = base_index + j
+                    all_references[idx] = ex.reference
+                    prompt = self.build_prompt_with_template(ex)
+                    
+                    def make_job(job_idx: int, pr: str):
+                        def _job():
+                            s = time.perf_counter()
+                            try:
+                                cached = _maybe_read_cache(pr)
+                                if cached is not None:
+                                    raw = cached
+                                    cached_flag = True
+                                else:
+                                    raw = _call_generate(pr)
+                                    cached_flag = False
+                                e = time.perf_counter()
+                                return job_idx, self.postprocess(raw), (e - s), None, cached_flag
+                            except Exception as err:
+                                e = time.perf_counter()
+                                error_category = _categorize_error(err)
+                                detailed_error = f"[{error_category}] {str(err)}"
+                                return job_idx, "", (e - s), detailed_error, False
+                        return _job
+                    
+                    futures.append(pool.submit(make_job(idx, prompt)))
+                
+                for fut in as_completed(futures):
+                    idx, pred, dur, err, cached_flag = fut.result()
+                    all_predictions[idx] = pred
+                    all_latencies[idx] = dur
+                    all_errors[idx] = err
+                    all_cached[idx] = cached_flag
