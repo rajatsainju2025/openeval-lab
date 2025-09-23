@@ -126,15 +126,18 @@ def _get_map(kind: str) -> Dict[str, str]:
     Raises:
         KeyError: If the kind is not recognized
     """
-    if kind == "task":
-        return TASKS
-    if kind == "dataset":
-        return DATASETS
-    if kind == "adapter":
-        return ADAPTERS
-    if kind == "metric":
-        return METRICS
-    raise KeyError(f"Unknown registry kind: {kind}")
+    # Use a single mapping to avoid multiple comparisons on hot paths.
+    _REGISTRY_MAP: Dict[str, Dict[str, str]] = {
+        "task": TASKS,
+        "dataset": DATASETS,
+        "adapter": ADAPTERS,
+        "metric": METRICS,
+    }
+
+    try:
+        return _REGISTRY_MAP[kind]
+    except KeyError as exc:
+        raise KeyError(f"Unknown registry kind: {kind}") from exc
 
 
 def lookup(kind: str, name: str) -> Optional[str]:
