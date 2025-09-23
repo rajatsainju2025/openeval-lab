@@ -36,7 +36,26 @@ class DocumentationFormat(Enum):
 
 @dataclass
 class APIEndpoint:
-    """Represents an API endpoint or function."""
+    """
+    Represents an API endpoint, function, method, or class.
+    
+    This class serves as a container for API documentation information,
+    capturing details about a code element that will be included in
+    generated documentation.
+    
+    Attributes:
+        name: Name of the API element (function, class, method)
+        module: Name of the module where the element is defined
+        signature: Function or class signature including parameters
+        docstring: Extracted docstring content (if present)
+        parameters: List of parameter dictionaries with name, type, default, etc.
+        return_type: Return type annotation as string (if present)
+        examples: List of code examples extracted from docstrings
+        category: Type of API element ('function', 'class', 'method')
+        is_class: Whether the element is a class
+        is_method: Whether the element is a class method
+        decorators: List of decorator names applied to the element
+    """
     name: str
     module: str
     signature: str
@@ -50,7 +69,15 @@ class APIEndpoint:
     decorators: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """
+        Convert to dictionary representation.
+        
+        Converts the API endpoint information into a dictionary format
+        suitable for serialization to JSON or other formats.
+        
+        Returns:
+            A dictionary containing all attributes of the API endpoint
+        """
         return {
             "name": self.name,
             "module": self.module,
@@ -68,7 +95,21 @@ class APIEndpoint:
 
 @dataclass
 class ModuleDocumentation:
-    """Documentation for a Python module."""
+    """
+    Documentation for a Python module.
+    
+    This class holds comprehensive documentation information about a Python module,
+    including its functions, classes, docstrings, and dependencies.
+    
+    Attributes:
+        name: Name of the module (e.g., 'openeval.core')
+        path: File system path to the module
+        docstring: Module-level docstring if present
+        functions: List of documented functions in the module
+        classes: List of documented classes in the module
+        submodules: List of submodule names
+        dependencies: List of module dependencies
+    """
     name: str
     path: Path
     docstring: Optional[str] = None
@@ -78,7 +119,15 @@ class ModuleDocumentation:
     dependencies: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """
+        Convert to dictionary representation.
+        
+        Converts the module documentation into a dictionary format
+        suitable for serialization to JSON or other formats.
+        
+        Returns:
+            A dictionary containing all documentation details for the module
+        """
         return {
             "name": self.name,
             "path": str(self.path),
@@ -92,7 +141,20 @@ class ModuleDocumentation:
 
 @dataclass
 class DocumentationProject:
-    """Complete documentation project."""
+    """
+    Complete documentation project for a Python package.
+    
+    This class represents a full documentation project, including all modules,
+    metadata, and formatting preferences. It serves as the top-level container
+    for generated documentation.
+    
+    Attributes:
+        title: Project title (e.g., 'OpenEval Lab API Reference')
+        version: Project version string
+        modules: List of module documentation objects
+        generated_at: Timestamp of documentation generation
+        format: Output format (markdown, HTML, RST, etc.)
+    """
     title: str
     version: str
     modules: List[ModuleDocumentation] = field(default_factory=list)
@@ -100,7 +162,15 @@ class DocumentationProject:
     format: DocumentationFormat = DocumentationFormat.MARKDOWN
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """
+        Convert to dictionary representation.
+        
+        Converts the entire documentation project into a dictionary format
+        suitable for serialization to JSON or other formats.
+        
+        Returns:
+            A dictionary containing all project details and module documentation
+        """
         return {
             "title": self.title,
             "version": self.version,
@@ -113,9 +183,32 @@ class DocumentationProject:
 class DocumentationGenerator:
     """
     Automated documentation generator for Python codebases.
+    
+    This class provides comprehensive tools for generating documentation
+    from Python code, including API references, usage examples, and tutorials.
+    It uses introspection to extract docstrings, signatures, and type hints
+    to create rich, well-structured documentation.
+    
+    Features:
+    - Automatic API reference generation
+    - Usage example extraction and formatting
+    - Tutorial creation and management
+    - Multiple output formats (Markdown, HTML, RST, JSON)
+    - Docstring parsing and formatting
+    - Documentation completeness checking
+    
+    The generator supports Google, NumPy, and reStructuredText docstring styles
+    and can be extended to support custom documentation formats.
     """
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Optional[Path] = None) -> None:
+        """
+        Initialize a new documentation generator.
+        
+        Args:
+            project_root: Path to the root of the project to document.
+                         If not provided, the current working directory is used.
+        """
         self.project_root = project_root or Path.cwd()
         self.source_dir = self.project_root / "src"
         self.docs_dir = self.project_root / "docs"
@@ -128,6 +221,21 @@ class DocumentationGenerator:
     ) -> Path:
         """
         Generate comprehensive API reference documentation.
+        
+        Creates detailed API reference documentation for the specified package,
+        including modules, classes, functions, methods, and their signatures,
+        docstrings, parameters, and return types.
+        
+        Args:
+            package_name: Name of the package to document
+            output_format: Format for the generated documentation
+            
+        Returns:
+            Path to the generated documentation file
+            
+        Raises:
+            ImportError: If the specified package cannot be imported
+            FileNotFoundError: If required source files cannot be found
 
         Args:
             package_name: Name of the package to document
@@ -275,7 +383,25 @@ class DocumentationGenerator:
         return modules
 
     def _document_module(self, module_name: str) -> Optional[ModuleDocumentation]:
-        """Generate documentation for a single module."""
+        """
+        Generate documentation for a single module.
+        
+        Uses introspection to analyze a module and extract its functions,
+        classes, docstrings, and other documentation-related information.
+        
+        Args:
+            module_name: Fully qualified name of the module to document
+                        (e.g., 'openeval.core')
+            
+        Returns:
+            ModuleDocumentation object if successful, None if the module
+            cannot be imported or documented
+            
+        Note:
+            This method uses importlib to dynamically import the module,
+            which means the module and its dependencies must be importable
+            in the current environment.
+        """
         try:
             module = importlib.import_module(module_name)
             module_file = getattr(module, '__file__', None)
@@ -321,7 +447,25 @@ class DocumentationGenerator:
         func: Callable,
         module_name: str
     ) -> Optional[APIEndpoint]:
-        """Document a function."""
+        """
+        Document a function or method.
+        
+        Extracts documentation details from a function object including its
+        signature, docstring, parameters, return type, and decorators.
+        
+        Args:
+            name: Name of the function
+            func: Function object to document
+            module_name: Name of the module containing the function
+            
+        Returns:
+            APIEndpoint object containing the function documentation,
+            or None if documentation extraction fails
+            
+        Note:
+            This method handles both regular functions and class methods,
+            though method detection is handled by the calling context.
+        """
         try:
             sig = inspect.signature(func)
             docstring = inspect.getdoc(func)
