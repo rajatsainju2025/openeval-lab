@@ -20,6 +20,13 @@ import re
 import tempfile
 import shutil
 
+# Try to import black for direct API usage
+try:
+    import black
+    BLACK_AVAILABLE = True
+except ImportError:
+    BLACK_AVAILABLE = False
+
 from .enhanced_logging import get_logger
 
 logger = get_logger(__name__)
@@ -664,6 +671,18 @@ class CIIntegration:
             This check is non-blocking if the formatting tool is not available,
             to prevent CI failures in minimal environments.
         """
+        # Use Black API directly if available for better performance
+        if BLACK_AVAILABLE:
+            try:
+                # Use Black's check mode via API
+                src_path = self.project_root / "src"
+                result = black.main(["--check", "--diff", str(src_path)], standalone_mode=False)  # type: ignore
+                return result == 0
+            except Exception:
+                # Fall back to subprocess if API fails
+                pass
+        
+        # Fall back to subprocess call
         try:
             # Try to run black --check
             result = subprocess.run(
