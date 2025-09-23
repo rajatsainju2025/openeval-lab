@@ -145,17 +145,27 @@ class Adapter(Protocol):
 
 
 class Metric(Protocol):
-    """Protocol defining evaluation metrics for comparing model outputs.
+    """Protocol defining evaluation metrics for model outputs.
     
-    A Metric provides a way to quantitatively evaluate model predictions against
-    reference answers. Different metrics can capture different aspects of performance
-    (e.g., exact match, semantic similarity, ROUGE score).
+    A Metric computes quantitative scores comparing model predictions against reference
+    answers. Metrics can range from simple exact match to complex semantic similarity
+    measures. They must be deterministic and return consistent scores for the same
+    inputs.
     
-    At minimum, metrics must provide a compute method that takes predicted outputs
-    and reference answers and returns a dictionary of scores.
+    Common metric types include:
+    - Accuracy metrics (exact match, case-insensitive match)
+    - Partial match metrics (F1 score, ROUGE)
+    - Semantic metrics (BERTScore, embedding similarity)
+    - Task-specific metrics (BLEU for translation, perplexity for LMs)
+    
+    Invariants:
+        - Must be deterministic given same inputs
+        - Must handle batched inputs efficiently
+        - Should be robust to common input variations
+        - Should validate inputs and raise informative errors
     
     Attributes:
-        name: A unique identifier for the metric.
+        name: A unique identifier for this metric.
     """
 
     name: str
@@ -163,17 +173,26 @@ class Metric(Protocol):
     def compute(
         self, predictions: Iterable[Any], references: Iterable[Any]
     ) -> Mapping[str, float]:
-        """Compute the metric scores comparing predictions to references.
+        """Compute evaluation scores comparing predictions to references.
+        
+        Both inputs must be iterables of the same length. The metric may compute
+        multiple related scores (e.g., precision/recall/F1) and return them in
+        a dictionary.
         
         Args:
-            predictions: An iterable of model predictions to evaluate.
-            references: An iterable of expected reference answers.
+            predictions: Model outputs to evaluate.
+            references: Expected correct outputs to compare against.
             
         Returns:
-            A mapping from score names to float values. Common keys include:
-                accuracy: Fraction of exact matches
-                f1: F1 score for partial matches
-                similarity: Semantic similarity score
+            Dictionary mapping score names to float values.
+            Common keys include:
+            - accuracy: Fraction of exact matches
+            - f1: F1 score for partial matches
+            - rouge_1/2/L: ROUGE scores for summarization
+            - bleu: BLEU score for translation
+            
+        Raises:
+            ValueError: If inputs are invalid or incompatible.
         """
         ...
 
