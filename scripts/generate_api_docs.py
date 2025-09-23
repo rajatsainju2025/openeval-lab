@@ -73,6 +73,8 @@ class APIDocumentationGenerator:
         # Cache for AST parsing to avoid reparsing files
         self._ast_cache: Dict[str, ast.AST] = {}
         self._content_cache: Dict[str, str] = {}
+        # Cache for string representations of AST nodes to avoid repeated str() calls
+        self._node_str_cache: Dict[int, str] = {}
 
     def generate_documentation(self) -> None:
         """Generate complete API documentation."""
@@ -247,12 +249,19 @@ class APIDocumentationGenerator:
 
     def _get_name(self, node: ast.AST) -> str:
         """Get name from AST node."""
+        node_id = id(node)
+        if node_id in self._node_str_cache:
+            return self._node_str_cache[node_id]
+        
         if isinstance(node, ast.Name):
-            return node.id
+            result = node.id
         elif isinstance(node, ast.Attribute):
-            return f"{self._get_name(node.value)}.{node.attr}"
+            result = f"{self._get_name(node.value)}.{node.attr}"
         else:
-            return str(node)
+            result = str(node)
+        
+        self._node_str_cache[node_id] = result
+        return result
 
     def _get_parents(self, node: ast.AST, tree: ast.AST) -> List[ast.AST]:
         """Get parent nodes for a given node."""
