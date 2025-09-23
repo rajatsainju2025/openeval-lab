@@ -362,25 +362,44 @@ class DocumentationGenerator:
         return file_path
 
     def _discover_modules(self, package_name: str) -> List[str]:
-        """Discover all modules in a package."""
-        modules = []
+        """
+        Discover all modules in a package using optimized directory scanning.
+        
+        Uses pathlib for faster directory traversal instead of pkgutil's
+        import-based discovery, avoiding unnecessary module imports.
+        """
+        modules = set()  # Use set to avoid duplicates
 
         try:
+            # Try to get package path without importing
             package = importlib.import_module(package_name)
             package_path = getattr(package, '__path__', [])
-
-            for importer, modname, ispkg in pkgutil.walk_packages(
-                package_path, package_name + "."
-            ):
-                modules.append(modname)
-
+            
+            if package_path:
+                # Use pathlib for faster directory scanning
+                from pathlib import Path
+                for path_str in package_path:
+                    path = Path(path_str)
+                    if path.exists():
+                        # Scan for Python files recursively
+                        for py_file in path.rglob("*.py"):
+                            if "__pycache__" not in str(py_file):
+                                # Convert file path to module name
+                                rel_path = py_file.relative_to(path)
+                                module_parts = list(rel_path.parts)
+                                if module_parts[-1].endswith('.py'):
+                                    module_parts[-1] = module_parts[-1][:-3]  # Remove .py
+                                
+                                full_module_name = package_name + "." + ".".join(module_parts)
+                                modules.add(full_module_name)
+            
             # Add the root package
-            modules.insert(0, package_name)
+            modules.add(package_name)
 
         except Exception as e:
             logger.error(f"Failed to discover modules in {package_name}: {e}")
 
-        return modules
+        return sorted(list(modules))  # Return sorted list for consistency
 
     def _document_module(self, module_name: str) -> Optional[ModuleDocumentation]:
         """
