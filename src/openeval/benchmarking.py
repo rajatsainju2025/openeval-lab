@@ -229,11 +229,15 @@ class BenchmarkSuite:
         
         # Calculate rankings for each metric
         rankings = {}
+        # Pre-compute available metrics per adapter for O(1) lookups
+        adapter_metric_sets = {adapter_name: set(metrics.keys()) for adapter_name, metrics in adapter_metrics.items()}
+        
         for metric_name in all_metric_names:
             adapter_scores = []
             
             for adapter_name, metrics in adapter_metrics.items():
-                if metric_name in metrics:
+                # Use pre-computed set for O(1) membership check
+                if metric_name in adapter_metric_sets[adapter_name]:
                     adapter_scores.append((adapter_name, metrics[metric_name]["mean"]))
             
             # Sort by mean score (descending)
