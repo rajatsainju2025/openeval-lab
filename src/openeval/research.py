@@ -182,15 +182,20 @@ class ResearchIntegrator:
             )
         ]
 
-        # Filter by query relevance
+        # Filter by query relevance - optimized with pre-tokenization
         relevant_papers = []
-        query_lower = query.lower()
+        query_tokens = set(query.lower().split())
 
         for paper in mock_papers:
-            if any(keyword in paper.title.lower() or
-                   keyword in paper.abstract.lower() or
-                   keyword in ' '.join(paper.topics).lower()
-                   for keyword in query_lower.split()):
+            # Pre-compute searchable text once per paper
+            searchable_text = (
+                paper.title.lower() + " " +
+                paper.abstract.lower() + " " +
+                ' '.join(paper.topics).lower()
+            )
+            
+            # Use set intersection for O(1) average-case lookup
+            if query_tokens & set(searchable_text.split()):
                 relevant_papers.append(paper)
 
         return relevant_papers[:max_results]
