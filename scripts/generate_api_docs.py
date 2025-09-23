@@ -70,6 +70,9 @@ class APIDocumentationGenerator:
         self.src_root = project_root / "src" / "openeval"
         self.docs_output = project_root / "docs" / "api"
         self.docs_output.mkdir(parents=True, exist_ok=True)
+        # Cache for AST parsing to avoid reparsing files
+        self._ast_cache: Dict[str, ast.AST] = {}
+        self._content_cache: Dict[str, str] = {}
 
     def generate_documentation(self) -> None:
         """Generate complete API documentation."""
@@ -113,14 +116,25 @@ class APIDocumentationGenerator:
     def _analyze_module(self, file_path: Path) -> Optional[APIModule]:
         """Analyze a single Python module."""
         try:
-            # Read and parse the file
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            file_path_str = str(file_path)
+            
+            # Check cache first
+            if file_path_str in self._ast_cache:
+                tree = self._ast_cache[file_path_str]
+                content = self._content_cache[file_path_str]
+            else:
+                # Read and parse the file
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
 
-            tree = ast.parse(content, filename=str(file_path))
+                tree = ast.parse(content, filename=file_path_str)
+                
+                # Cache the results
+                self._ast_cache[file_path_str] = tree  # type: ignore
+                self._content_cache[file_path_str] = content
 
             # Extract module docstring
-            module_doc = ast.get_docstring(tree) or ""
+            module_doc = ast.get_docstring(tree) or ""  # type: ignore
 
             # Extract classes and functions
             classes = []
