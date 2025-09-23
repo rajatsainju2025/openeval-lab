@@ -248,7 +248,9 @@ class ResearchIntegrator:
         ]
 
         if model_name:
-            mock_results = [r for r in mock_results if model_name.lower() in r.model_name.lower()]
+            # Pre-compute lowercase filter for efficiency
+            model_lower = model_name.lower()
+            mock_results = [r for r in mock_results if model_lower in r.model_name.lower()]
 
         return mock_results
 

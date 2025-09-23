@@ -83,19 +83,15 @@ class ResultAggregator:
         dataset: Optional[str] = None,
         min_size: Optional[int] = None
     ) -> List[RunSummary]:
-        """Filter runs by criteria."""
-        filtered = self.runs
-        
-        if task:
-            filtered = [r for r in filtered if task in r.task]
-        if adapter:
-            filtered = [r for r in filtered if adapter in r.adapter]
-        if dataset:
-            filtered = [r for r in filtered if dataset in r.dataset]
-        if min_size:
-            filtered = [r for r in filtered if r.size >= min_size]
-        
-        return filtered
+        """Filter runs by criteria with optimized single-pass filtering."""
+        # Use generator expression for memory-efficient single-pass filtering
+        return [
+            r for r in self.runs
+            if (not task or task in r.task) and
+               (not adapter or adapter in r.adapter) and
+               (not dataset or dataset in r.dataset) and
+               (min_size is None or r.size >= min_size)
+        ]
     
     def get_metric_values(self, runs: List[RunSummary], metric_name: str) -> List[float]:
         """Extract metric values from runs."""
