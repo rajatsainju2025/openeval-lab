@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Type, Optional, TypeVar, Protocol, Union
+import functools
 
 """
 Registry module for OpenEval Lab components.
@@ -246,6 +247,20 @@ def load_component(
         This function catches and logs import errors, making it safe to use
         for components with optional dependencies. If a component fails to load,
         the error will be logged and None will be returned.
+    """
+    return _load_component_cached(kind, name)
+
+
+@functools.lru_cache(maxsize=128)
+def _load_component_cached(
+    kind: str,
+    name: str
+) -> Optional[Union[Type[TaskType], Type[DatasetType], Type[AdapterType], Type[MetricType]]]:
+    """
+    Cached version of load_component to avoid repeated dynamic imports.
+    
+    This function is cached to prevent repeated imports of the same components,
+    which can be expensive for large libraries or when called frequently.
     """
     import importlib
 
