@@ -584,6 +584,8 @@ class CIIntegration:
         """
         self.project_root = project_root or Path.cwd()
         self.test_runner = TestRunner(self.project_root)
+        # Cache timestamp to avoid repeated datetime.now() calls
+        self._pipeline_timestamp = datetime.now()
 
     def run_ci_pipeline(self) -> Dict[str, Any]:
         """
@@ -609,7 +611,7 @@ class CIIntegration:
             - issues: List of identified issues requiring attention
         """
         results = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": self._pipeline_timestamp.isoformat(),
             "tests": {},
             "quality_checks": {},
             "deployment_ready": False
@@ -807,7 +809,7 @@ class CIIntegration:
         Raises:
             ValueError: If an unsupported output format is specified
         """
-        timestamp = int(datetime.now().timestamp())
+        timestamp = int(self._pipeline_timestamp.timestamp())
         reports_dir = self.project_root / "ci_reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
 
@@ -855,7 +857,7 @@ class CIIntegration:
 <body>
     <div class="header">
         <h1>🔬 OpenEval CI Report</h1>
-        <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p>Generated on {self._pipeline_timestamp.strftime('%Y-%m-%d %H:%M:%S')}</p>
         <div class="status {'passed' if results.get('deployment_ready', False) else 'failed'}">
             {'✅ Ready for Deployment' if results.get('deployment_ready', False) else '❌ Not Ready for Deployment'}
         </div>
@@ -899,7 +901,7 @@ class CIIntegration:
         """Generate Markdown CI report."""
         md = f"""# OpenEval CI Report
 
-Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Generated on {self._pipeline_timestamp.strftime('%Y-%m-%d %H:%M:%S')}
 
 ## Status
 
