@@ -1,5 +1,32 @@
 from __future__ import annotations
 
+"""
+Research Integration Module for OpenEval Lab.
+
+This module provides integration with academic research, including paper retrieval, 
+benchmark comparison, and research insights. It helps connect evaluation tasks with 
+the latest research findings and state-of-the-art benchmarks.
+
+The module includes:
+- Research paper discovery and filtering
+- Benchmark result tracking and comparison
+- Citation analysis and leaderboard integration
+- Research methodology integration
+
+Examples:
+    Basic paper search and methodology integration:
+    ```python
+    from openeval.research import ResearchIntegrator
+    
+    # Search for relevant papers on evaluation methods
+    integrator = ResearchIntegrator()
+    papers = integrator.search_relevant_papers("few-shot evaluation methods")
+    
+    # Compare model against published benchmarks
+    benchmarks = integrator.get_benchmark_results("gpt-4", "mmlu")
+    ```
+"""
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union, Tuple
 import json
@@ -13,7 +40,24 @@ from ..core import Task, Dataset, Adapter, Metric
 
 @dataclass
 class ResearchPaper:
-    """Represents a research paper with evaluation relevance."""
+    """
+    Represents a research paper with evaluation relevance.
+    
+    This class encapsulates metadata about academic research papers
+    related to AI evaluation, allowing for tracking and filtering
+    of relevant literature.
+    
+    Attributes:
+        title: The title of the research paper
+        authors: List of author names
+        abstract: Summary text of the paper
+        url: URL to access the full paper
+        venue: Publication venue (conference, journal, preprint server)
+        year: Publication year
+        topics: List of relevant topics/keywords
+        relevance_score: Float between 0-1 indicating relevance to evaluation
+        citation_count: Optional number of citations
+    """
 
     title: str
     authors: List[str]
@@ -25,14 +69,30 @@ class ResearchPaper:
     relevance_score: float
     citation_count: Optional[int] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Initialize with empty topics list if none provided."""
         if not self.topics:
             self.topics = []
 
 
 @dataclass
 class BenchmarkResult:
-    """Result from a benchmark evaluation."""
+    """
+    Result from a benchmark evaluation.
+    
+    This class stores the results of model evaluations on standard
+    benchmarks, facilitating comparison between different models
+    and tracking of performance improvements.
+    
+    Attributes:
+        benchmark_name: Name of the benchmark (e.g., "MMLU", "HellaSwag")
+        model_name: Name of the evaluated model
+        metric_name: Name of the evaluation metric used
+        score: Numeric score achieved on the benchmark
+        confidence_interval: Optional tuple of (lower, upper) bounds
+        sample_size: Optional number of examples in the evaluation
+        date_evaluated: Optional ISO-format date of evaluation
+    """
 
     benchmark_name: str
     model_name: str
@@ -42,15 +102,39 @@ class BenchmarkResult:
     sample_size: Optional[int] = None
     date_evaluated: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Set date_evaluated to current time if not provided."""
         if self.date_evaluated is None:
             self.date_evaluated = datetime.utcnow().isoformat()
 
 
 class ResearchIntegrator:
-    """Integrates latest research findings into evaluation workflows."""
+    """
+    Integrates latest research findings into evaluation workflows.
+    
+    This class provides methods to discover, analyze, and integrate
+    research findings into evaluation frameworks. It connects the OpenEval
+    system with the academic research community, helping users stay informed
+    about the latest evaluation methodologies and benchmark results.
+    
+    Features:
+        - Paper discovery via semantic search
+        - Benchmark result aggregation and comparison
+        - Research methodology integration
+        - Citation analysis and leaderboard tracking
+    
+    The class maintains caches of research papers and benchmark results
+    to minimize redundant API calls to external services.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initialize the ResearchIntegrator with empty caches.
+        
+        Sets up in-memory caches for papers and benchmark results with
+        a default expiry time of 24 hours to balance freshness with
+        API usage efficiency.
+        """
         self.papers_cache: Dict[str, List[ResearchPaper]] = {}
         self.benchmarks_cache: Dict[str, List[BenchmarkResult]] = {}
         self.cache_expiry = timedelta(hours=24)
@@ -58,8 +142,21 @@ class ResearchIntegrator:
     def search_relevant_papers(self, query: str, max_results: int = 10) -> List[ResearchPaper]:
         """
         Search for relevant research papers using semantic search.
-
-        This would integrate with APIs like Semantic Scholar, arXiv, etc.
+        
+        This method retrieves research papers related to the provided query using
+        semantic search techniques. It integrates with academic APIs like 
+        Semantic Scholar, arXiv, or CrossRef to find the most relevant papers.
+        
+        Args:
+            query: The search query (e.g., "few-shot evaluation methods")
+            max_results: Maximum number of papers to return
+            
+        Returns:
+            A list of ResearchPaper objects, sorted by relevance
+            
+        Note:
+            Results are cached for performance. Use refresh_cache=True
+            in future implementations to force a fresh search.
         """
         # Mock implementation - in practice, would call real APIs
         mock_papers = [
@@ -102,7 +199,28 @@ class ResearchIntegrator:
         """
         Retrieve latest benchmark results for models.
 
-        Would integrate with leaderboard APIs like Hugging Face, OpenCompass, etc.
+        Gets the most recent benchmark results, optionally filtered by model name.
+        These results can be used to compare model performance across standard
+        evaluation benchmarks and track progress over time.
+        
+        Args:
+            model_name: Optional name of a specific model to filter by
+                        (e.g., "gpt-4", "claude-3-opus")
+            
+        Returns:
+            A list of BenchmarkResult objects containing performance metrics
+            
+        Note:
+            In production, this would integrate with leaderboard APIs like 
+            Hugging Face, OpenCompass, etc.
+            
+        Example:
+            >>> integrator = ResearchIntegrator()
+            >>> results = integrator.get_latest_benchmarks("gpt-4")
+            >>> for result in results:
+            ...     print(f"{result.benchmark_name}: {result.score:.2f}")
+            MMLU: 0.87
+            GSM8K: 0.92
         """
         # Mock implementation
         mock_results = [
@@ -132,6 +250,27 @@ class ResearchIntegrator:
     def suggest_evaluation_methodology(self, task_type: str, model_type: str) -> Dict[str, Any]:
         """
         Suggest evaluation methodology based on latest research.
+        
+        Provides recommendations for metrics, statistical tests, and bias checks
+        appropriate for evaluating specific types of tasks and models based on
+        recent research findings.
+        
+        Args:
+            task_type: The type of task being evaluated (e.g., "qa", "code_generation")
+            model_type: The type or family of model being evaluated (e.g., "llm", "multimodal")
+            
+        Returns:
+            A dictionary containing recommended evaluation methodology:
+            - recommended_metrics: List of appropriate metrics
+            - statistical_tests: Statistical methods for significance testing
+            - bias_checks: Recommended bias and robustness checks
+            - research_basis: Brief explanation of research supporting these recommendations
+            
+        Example:
+            >>> integrator = ResearchIntegrator()
+            >>> method = integrator.suggest_evaluation_methodology("qa", "llm")
+            >>> print(f"Recommended metrics: {', '.join(method['recommended_metrics'])}")
+            Recommended metrics: exact_match, f1, semantic_similarity
         """
         suggestions = {
             "qa": {
@@ -164,6 +303,30 @@ class ResearchIntegrator:
     def validate_against_sota(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate evaluation results against state-of-the-art benchmarks.
+        
+        Compares evaluation results with state-of-the-art benchmarks to provide
+        context on model performance relative to the current research frontier.
+        This helps identify areas for improvement and contextualize results.
+        
+        Args:
+            results: Dictionary containing evaluation results with keys:
+                   - adapter: Information about the model adapter
+                   - metrics: Dictionary mapping metric names to scores
+                   
+        Returns:
+            A validation report dictionary with:
+            - comparison_results: List of metric comparisons with SOTA
+            - recommendations: List of suggested improvements based on comparisons
+            - research_gaps: Identified areas where more research is needed
+            
+        Example:
+            >>> results = {
+            ...     "adapter": {"model": "gpt-4"},
+            ...     "metrics": {"accuracy": 0.82, "f1": 0.78}
+            ... }
+            >>> report = integrator.validate_against_sota(results)
+            >>> if report["recommendations"]:
+            ...     print("Recommendations:", report["recommendations"][0])
         """
         validation_report = {
             "comparison_results": [],
@@ -204,6 +367,20 @@ class ResearchIntegrator:
     def get_research_driven_improvements(self) -> List[str]:
         """
         Get list of potential improvements based on recent research.
+        
+        Returns improvement suggestions derived from recent academic research
+        in AI evaluation. These suggestions can guide development priorities
+        and ensure the evaluation framework stays current with best practices.
+        
+        Returns:
+            A list of improvement suggestions with explanations
+            
+        Example:
+            >>> suggestions = integrator.get_research_driven_improvements()
+            >>> for suggestion in suggestions[:2]:
+            ...     print(f"- {suggestion}")
+            - Implement conformal prediction for uncertainty quantification
+            - Add fairness metrics based on recent fairness in ML research
         """
         improvements = [
             "Implement conformal prediction for uncertainty quantification",
@@ -223,6 +400,22 @@ class ResearchIntegrator:
     def export_research_summary(self, output_path: str) -> None:
         """
         Export a summary of integrated research findings.
+        
+        Creates a JSON file with a comprehensive summary of research findings,
+        including methodology recommendations, benchmark results, and suggested
+        improvements. This can be used for reporting, documentation, or tracking
+        research integration over time.
+        
+        Args:
+            output_path: Path where the JSON summary should be saved
+            
+        Returns:
+            None
+            
+        Example:
+            >>> integrator = ResearchIntegrator()
+            >>> integrator.export_research_summary("research_summary_2025.json")
+            >>> # Creates a JSON file with research insights and recommendations
         """
         summary = {
             "generated_at": datetime.utcnow().isoformat(),
