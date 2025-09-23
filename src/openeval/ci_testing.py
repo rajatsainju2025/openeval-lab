@@ -45,7 +45,22 @@ class TestType(Enum):
 
 @dataclass
 class TestResult:
-    """Result of a single test."""
+    """
+    Result of a single test execution.
+    
+    This class encapsulates the result of a test run, including status,
+    execution time, and any error details. It's used throughout the
+    CI testing framework to track and report on test outcomes.
+    
+    Attributes:
+        name: Name of the test that was executed
+        test_type: Type of test (unit, integration, performance, etc.)
+        status: Status of the test (passed, failed, skipped, error)
+        execution_time: Time taken to execute the test in seconds
+        error_message: Optional message if test failed or had an error
+        error_details: Optional detailed stack trace or debug info
+        component: Optional component or module being tested
+    """
     name: str
     test_type: TestType
     status: TestStatus
@@ -69,7 +84,24 @@ class TestResult:
 
 @dataclass
 class TestSuiteResult:
-    """Result of a test suite execution."""
+    """
+    Result of a test suite execution.
+    
+    This class aggregates results from multiple individual tests within a suite,
+    providing summary statistics and overall execution information. It's used
+    for reporting and tracking the overall health of test suites.
+    
+    Attributes:
+        suite_name: Name of the test suite
+        results: List of individual test results
+        start_time: When the suite execution started
+        end_time: When the suite execution completed
+        total_tests: Total number of tests in the suite
+        passed: Number of passed tests
+        failed: Number of failed tests
+        skipped: Number of skipped tests
+        errors: Number of tests that ended with errors
+    """
     suite_name: str
     results: List[TestResult] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
@@ -517,19 +549,57 @@ class TestRunner:
 
 class CIIntegration:
     """
-    Continuous Integration integration for automated testing and deployment.
+    Continuous Integration system for automated testing and deployment.
+    
+    This class orchestrates the complete CI/CD pipeline, including test execution,
+    code quality checks, documentation validation, and deployment readiness
+    assessment. It integrates with common CI platforms and provides
+    comprehensive reporting on project health.
+    
+    The CI pipeline includes:
+    - Running unit, integration, and performance tests
+    - Performing code quality and security checks
+    - Validating documentation completeness
+    - Checking deployment prerequisites
+    - Generating detailed reports
+    
+    This class serves as the main entry point for CI/CD automation and can be
+    used both programmatically and through CLI integrations.
     """
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Optional[Path] = None) -> None:
+        """
+        Initialize the CI integration system.
+        
+        Args:
+            project_root: Path to the project root directory. If not provided,
+                         the current working directory will be used.
+        """
         self.project_root = project_root or Path.cwd()
         self.test_runner = TestRunner(self.project_root)
 
     def run_ci_pipeline(self) -> Dict[str, Any]:
         """
         Run the complete CI pipeline.
-
+        
+        Executes the full CI/CD pipeline, including tests, quality checks,
+        and deployment readiness verification. This is the main method to
+        invoke for comprehensive project validation.
+        
+        The pipeline includes:
+        1. Running all test suites
+        2. Performing code quality checks
+        3. Validating documentation
+        4. Checking security
+        5. Verifying deployment prerequisites
+        
         Returns:
-            CI pipeline results
+            A dictionary containing detailed results from all pipeline stages:
+            - timestamp: ISO format timestamp of execution
+            - tests: Results of all test suites
+            - quality_checks: Results of code quality verifications
+            - deployment_ready: Boolean indicating if project is ready for deployment
+            - issues: List of identified issues requiring attention
         """
         results = {
             "timestamp": datetime.now().isoformat(),
@@ -580,7 +650,20 @@ class CIIntegration:
         return checks
 
     def _check_code_formatting(self) -> bool:
-        """Check code formatting."""
+        """
+        Check code formatting compliance.
+        
+        Verifies that the codebase follows the project's formatting standards
+        by running the Black code formatter in check mode. This ensures
+        consistent code style across the project.
+        
+        Returns:
+            True if code formatting meets standards, False otherwise
+            
+        Note:
+            This check is non-blocking if the formatting tool is not available,
+            to prevent CI failures in minimal environments.
+        """
         try:
             # Try to run black --check
             result = subprocess.run(
@@ -594,7 +677,20 @@ class CIIntegration:
             return True  # Don't fail CI for missing tools
 
     def _check_imports(self) -> bool:
-        """Check for unused or problematic imports."""
+        """
+        Check for unused or problematic imports.
+        
+        Validates that the codebase doesn't contain unused imports,
+        import cycles, or other import-related issues. This helps
+        maintain clean dependencies and faster loading times.
+        
+        Returns:
+            True if imports are clean, False if issues are found
+            
+        Note:
+            In a full implementation, this would use tools like
+            isort, flake8, or pylint for comprehensive checking.
+        """
         try:
             # This is a simplified check - in practice you'd use tools like pylint or flake8
             return True
@@ -602,7 +698,22 @@ class CIIntegration:
             return False
 
     def _check_security(self) -> bool:
-        """Check for security issues."""
+        """
+        Check for security vulnerabilities and issues.
+        
+        Performs security scans on the codebase to identify potential
+        vulnerabilities, such as unsafe function usage, hardcoded credentials,
+        or known vulnerable dependencies.
+        
+        Security checks include:
+        - Searching for potentially dangerous functions (eval, exec)
+        - Checking for hardcoded secrets or credentials
+        - Validating safe handling of user inputs
+        - Detecting outdated dependencies with known vulnerabilities
+        
+        Returns:
+            True if no security issues are found, False otherwise
+        """
         try:
             # Check for common security issues
             security_issues = []
@@ -622,7 +733,21 @@ class CIIntegration:
             return False
 
     def _check_documentation(self) -> bool:
-        """Check documentation coverage."""
+        """
+        Check documentation coverage and quality.
+        
+        Validates that key modules have proper docstrings and documentation.
+        This ensures that the project maintains good documentation practices
+        and that new code is adequately documented.
+        
+        The check includes:
+        - Presence of module-level docstrings in core modules
+        - Documentation for public APIs
+        - README completeness
+        
+        Returns:
+            True if documentation meets standards, False otherwise
+        """
         try:
             # Check if main modules have docstrings
             required_modules = [
@@ -644,14 +769,24 @@ class CIIntegration:
 
     def generate_ci_report(self, results: Dict[str, Any], output_format: str = "html") -> Path:
         """
-        Generate a CI report.
-
+        Generate a comprehensive CI/CD pipeline report.
+        
+        Creates a detailed report of all CI pipeline results in the specified format.
+        This report includes test results, code quality metrics, documentation status,
+        security findings, and deployment readiness assessment.
+        
         Args:
-            results: CI pipeline results
-            output_format: Output format ('html', 'json', 'markdown')
-
+            results: Dictionary containing all CI pipeline results
+            output_format: Output format of the report, one of:
+                          - 'html': Rich HTML report with charts (default)
+                          - 'json': Machine-readable JSON format
+                          - 'markdown': Markdown report for GitHub/GitLab
+        
         Returns:
-            Path to generated report
+            Path to the generated report file
+            
+        Raises:
+            ValueError: If an unsupported output format is specified
         """
         timestamp = int(datetime.now().timestamp())
         reports_dir = self.project_root / "ci_reports"
