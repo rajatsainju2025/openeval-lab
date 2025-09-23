@@ -1,3 +1,36 @@
+"""Core module containing the fundamental abstractions and interfaces.
+
+This module defines the core protocols and abstract base classes that form the
+foundation of the evaluation framework:
+
+1. Example - A single evaluation instance with input and reference
+2. Dataset - Collection of examples for evaluation
+3. Task - Defines how to evaluate model on specific capability
+4. Adapter - Interface to model API or local model
+5. Metric - Computes evaluation scores
+
+Together these components enable flexible and reproducible model evaluation:
+
+- Tasks define how to format inputs and handle outputs
+- Datasets provide evaluation examples with references
+- Adapters abstract away model-specific details
+- Metrics compute quantitative performance scores
+
+Example:
+    >>> from openeval.tasks import QATask
+    >>> from openeval.datasets import JSONLDataset 
+    >>> from openeval.adapters import OpenAIAdapter
+    >>> from openeval.metrics import ExactMatch
+    
+    >>> task = QATask()
+    >>> dataset = JSONLDataset("examples.jsonl")
+    >>> adapter = OpenAIAdapter(model="gpt-4")
+    >>> metric = ExactMatch()
+    
+    >>> results = task.evaluate(adapter, dataset, [metric])
+    >>> print(f"Accuracy: {results['metrics']['exact_match']['accuracy']:.2%}")
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
