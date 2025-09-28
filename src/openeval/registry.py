@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any, Dict, Type, Optional, TypeVar, Protocol, Union
 import functools
 
+from openeval.core import Task, Dataset, Adapter, Metric
+
 """
 Registry module for OpenEval Lab components.
 
@@ -28,28 +30,10 @@ Note:
 
 # Type variables for improved type safety
 T = TypeVar('T')
-
-# Forward references for type safety
-TaskType = TypeVar('TaskType')
-DatasetType = TypeVar('DatasetType')
-AdapterType = TypeVar('AdapterType')
-MetricType = TypeVar('MetricType')
-
-from __future__ import annotations
-
-from typing import Any, Dict, Type, Optional, TypeVar, Protocol
-
-from openeval.tasks.base import BaseTask
-from openeval.datasets.base import BaseDataset
-from openeval.adapters.base import BaseAdapter
-from openeval.metrics.base import BaseMetric
-
-# Type variables for improved type safety
-T = TypeVar('T')
-TaskType = TypeVar('TaskType', bound=BaseTask)
-DatasetType = TypeVar('DatasetType', bound=BaseDataset)
-AdapterType = TypeVar('AdapterType', bound=BaseAdapter)
-MetricType = TypeVar('MetricType', bound=BaseMetric)
+TaskType = TypeVar('TaskType', bound=Task)
+DatasetType = TypeVar('DatasetType', bound=Dataset)
+AdapterType = TypeVar('AdapterType', bound=Adapter)
+MetricType = TypeVar('MetricType', bound=Metric)
 
 # Registry of evaluation tasks and their import paths
 TASKS: Dict[str, str] = {
@@ -219,7 +203,7 @@ def info(kind: str, name: str) -> Optional[Dict[str, str]]:
 def load_component(
     kind: str,
     name: str
-) -> Optional[Union[Type[TaskType], Type[DatasetType], Type[AdapterType], Type[MetricType]]]:
+) -> Optional[Union[Type[Task], Type[Dataset], Type[Adapter], Type[Metric]]]:
     """
     Dynamically load and return a component class from the registry.
 
@@ -255,7 +239,7 @@ def load_component(
 def _load_component_cached(
     kind: str,
     name: str
-) -> Optional[Union[Type[TaskType], Type[DatasetType], Type[AdapterType], Type[MetricType]]]:
+) -> Optional[Union[Type[Task], Type[Dataset], Type[Adapter], Type[Metric]]]:
     """
     Cached version of load_component to avoid repeated dynamic imports.
     
