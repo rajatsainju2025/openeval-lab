@@ -8,12 +8,10 @@ across different evaluation tasks, metrics, and datasets.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 from datetime import datetime
-import statistics
 
 try:
     import plotly.graph_objects as go

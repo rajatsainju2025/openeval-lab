@@ -1,6 +1,5 @@
 """Test cases for CLI error handling and edge cases."""
 
-import pytest
 from typer.testing import CliRunner
 from openeval.cli import app
 import json

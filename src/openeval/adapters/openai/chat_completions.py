@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
-import math
-import numpy as np
 
 try:
     from openai import OpenAI

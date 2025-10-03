@@ -40,7 +40,7 @@ class LLMJudge:
     def _judge_once(self, adapter, prompt: str) -> str:
         try:
             out = adapter.generate(prompt)
-        except Exception as e:  # pragma: no cover - network or adapter errors
+        except Exception:  # pragma: no cover - network or adapter errors
             return "Tie"
         text = (out or "").strip().upper()
         if "A" in text and "B" not in text:

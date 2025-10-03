@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union, Tuple, Iterable
+from typing import Any, Dict, List, Optional, Tuple, Iterable
 import numpy as np
 
 try:

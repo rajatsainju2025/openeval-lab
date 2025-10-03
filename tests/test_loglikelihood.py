@@ -1,7 +1,5 @@
 """Tests for log-likelihood multiple choice evaluation."""
 
-import pytest
-from pathlib import Path
 
 from openeval.loglikelihood import MCQATask, MockLogLikelihoodAdapter, evaluate_multiple_choice
 from openeval.datasets.mcqa import MCQAExample

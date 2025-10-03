@@ -5,11 +5,10 @@ This module provides log-likelihood evaluation capabilities,
 inspired by lm-evaluation-harness multiple-choice evaluation.
 """
 
-from typing import Any, Dict, List, Optional, Protocol, Tuple
-import math
+from typing import Any, Dict, List, Optional, Protocol
 import numpy as np
 
-from .core import Adapter, Example, Task
+from .core import Example, Task
 from .datasets.mcqa import MCQAExample
 
 

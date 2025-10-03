@@ -1,8 +1,5 @@
 """Tests for code execution metric."""
 
-import pytest
-import tempfile
-import os
 
 from openeval.metrics.code_execution import (
     CodeExecutionMetric,
@@ -10,7 +7,7 @@ from openeval.metrics.code_execution import (
     execute_code_safely,
     calculate_pass_at_k,
 )
-from openeval.datasets.code import CodeDataset, HumanEvalDataset, CodeExample, HumanEvalExample
+from openeval.datasets.code import CodeDataset, HumanEvalDataset, HumanEvalExample
 
 
 class TestCodeExecutionUtils:

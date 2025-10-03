@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Type, Optional, TypeVar, Protocol, Union
+from typing import Dict, Type, Optional, TypeVar, Union
 import functools
 
 from openeval.core import Task, Dataset, Adapter, Metric

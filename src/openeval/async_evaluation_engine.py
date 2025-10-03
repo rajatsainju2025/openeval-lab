@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Dict, List, Optional, Callable, Union, AsyncIterator, Tuple
+from typing import Any, Dict, List, Optional, Callable, AsyncIterator, Tuple
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
-import threading
 from contextlib import asynccontextmanager
 from collections import deque
 import statistics
@@ -34,7 +33,7 @@ except ImportError:
 
 from .enhanced_logging import get_logger
 from .cache import PredictionCache, CacheStats
-from .utils import set_seed, hash_prompt
+from .utils import hash_prompt
 
 logger = get_logger(__name__)
 

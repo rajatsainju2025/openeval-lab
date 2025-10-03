@@ -13,10 +13,8 @@ import bz2
 import lzma
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Iterator, Union, Callable, TextIO
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
-import mmap
-import io
 import csv
 from collections import deque
 

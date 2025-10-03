@@ -4,16 +4,14 @@ This module provides a distributed evaluation system that can scale across
 multiple workers with automatic load balancing, fault tolerance, and failover.
 """
 
-import asyncio
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 from queue import Queue
 from threading import Lock, Event
-from typing import Any, Dict, List, Optional, Callable, Union
-import logging
+from typing import Any, Dict, List, Optional
 
 from .core import Task, Dataset, Adapter, Metric
 from .enhanced_logging import get_logger

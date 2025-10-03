@@ -9,21 +9,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Callable, Union
+from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 from queue import Queue
-import logging
 
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
-from rich.prompt import Prompt, Confirm, IntPrompt, FloatPrompt
-from rich.text import Text
 
 from .enhanced_logging import get_logger
 

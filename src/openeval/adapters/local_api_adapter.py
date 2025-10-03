@@ -1,7 +1,6 @@
 """Local API adapter for models served via HTTP API (e.g., Ollama, local servers)."""
 
 import json
-from typing import Any, Dict, Optional
 
 import httpx
 

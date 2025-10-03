@@ -7,7 +7,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTimeoutError
 from pathlib import Path
 from typing import Callable, Optional, TypeVar
-from typing import Optional as _Optional
 
 
 def set_seed(seed: Optional[int]) -> None:

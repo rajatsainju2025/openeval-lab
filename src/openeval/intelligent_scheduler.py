@@ -6,19 +6,13 @@ performance patterns to optimize evaluation workflows. It uses machine learning
 to predict optimal batch sizes, concurrency levels, and resource allocation.
 """
 
-import json
-import time
 import sqlite3
 import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Union
-from dataclasses import dataclass, asdict
-from contextlib import contextmanager
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
 import threading
-import queue
-import asyncio
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from sklearn.ensemble import RandomForestRegressor

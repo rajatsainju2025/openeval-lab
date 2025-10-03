@@ -3,9 +3,9 @@
 import time
 import json
 import statistics
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
-from collections import defaultdict, Counter
+from collections import defaultdict
 from pathlib import Path
 import numpy as np
 

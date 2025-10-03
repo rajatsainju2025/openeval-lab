@@ -8,15 +8,13 @@ and managing evaluation outputs.
 from __future__ import annotations
 
 import json
-from typing import Optional, List
-from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from ..spec import EvalSpec
-from ..results_schema import RESULTS_JSON_SCHEMA
 
 console = Console()
 
@@ -28,7 +26,7 @@ def validate_spec(
     try:
         data = json.load(spec_path)
         spec = EvalSpec.model_validate(data)
-        console.print(f"[green]✓ Specification is valid[/green]")
+        console.print("[green]✓ Specification is valid[/green]")
         console.print(f"Task: {spec.task}")
         console.print(f"Dataset: {spec.dataset}")
         console.print(f"Adapter: {spec.adapter}")

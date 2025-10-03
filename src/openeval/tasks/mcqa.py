@@ -1,11 +1,10 @@
 """Multiple Choice Question Answering task."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from ..core import Adapter, Example
-from ..loglikelihood import MCQATask as BaseMCQATask, LogLikelihoodAdapter
-from ..prompt import PromptTemplate
+from ..loglikelihood import MCQATask as BaseMCQATask
 
 
 @dataclass

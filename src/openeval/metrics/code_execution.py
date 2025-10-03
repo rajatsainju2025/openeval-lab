@@ -5,17 +5,12 @@ Evaluates generated code by running it and measuring pass@k scores,
 commonly used for code generation benchmarks like HumanEval.
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional
 import subprocess
 import tempfile
 import os
 import sys
-import contextlib
-import io
-import traceback
-import multiprocessing
 import time
-from pathlib import Path
 
 from ..core import Metric
 

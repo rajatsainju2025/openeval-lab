@@ -1,10 +1,8 @@
 """Enhanced CLI help and documentation utilities."""
 
-from typing import Dict, List, Any
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.columns import Columns
 from rich.markdown import Markdown
 
 console = Console()

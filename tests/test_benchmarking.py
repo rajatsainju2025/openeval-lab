@@ -5,10 +5,8 @@ comparison tools, regression detection, and optimization recommendations.
 """
 
 import pytest
-import tempfile
 import time
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime
 
 # Test for optional benchmarking dependencies
@@ -192,7 +190,6 @@ class TestSystemInfo:
     
     def test_system_info_creation(self):
         """Test SystemInfo dataclass creation."""
-        from datetime import datetime
         
         system_info = SystemInfo(
             cpu_count=8,

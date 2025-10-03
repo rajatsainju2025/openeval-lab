@@ -1,9 +1,6 @@
 """
 Test trace collection for ToolUseTask with --traces flag.
 """
-import json
-from pathlib import Path
-import tempfile
 
 from openeval.tasks.tooluse import ToolUseTask
 from openeval.adapters.echo import EchoAdapter

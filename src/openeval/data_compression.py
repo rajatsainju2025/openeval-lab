@@ -15,10 +15,9 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union, Tuple, Callable
+from typing import Any, Dict, List, Optional, Union, Tuple
 from collections import defaultdict
 import hashlib
-import io
 
 try:
     import zstandard as zstd

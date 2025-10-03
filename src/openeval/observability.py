@@ -5,18 +5,16 @@ structured logging, metrics collection, and real-time monitoring for production-
 evaluation deployments.
 """
 
-import os
 import json
 import time
 import uuid
 import threading
-import asyncio
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Callable, ContextManager
+from typing import Any, Dict, List, Optional, Union, Callable
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from datetime import datetime, timedelta
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import contextmanager
 import logging
 import structlog
 from collections import defaultdict, deque

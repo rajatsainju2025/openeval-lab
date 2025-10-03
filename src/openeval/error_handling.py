@@ -2,7 +2,7 @@
 
 import time
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 from dataclasses import dataclass
 from enum import Enum
 import traceback

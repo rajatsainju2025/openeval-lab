@@ -1,7 +1,7 @@
 """Anthropic Claude adapter for OpenEval."""
 
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from ..core import Adapter
 

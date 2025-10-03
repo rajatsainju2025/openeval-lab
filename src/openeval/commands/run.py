@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import json
 from typing import Optional
-from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.progress import track
 
 from ..spec import EvalSpec
 

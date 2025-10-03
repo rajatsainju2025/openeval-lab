@@ -28,14 +28,10 @@ Examples:
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import json
-import requests
-from pathlib import Path
-import time
 from datetime import datetime, timedelta
 
-from ..core import Task, Dataset, Adapter, Metric
 
 
 @dataclass

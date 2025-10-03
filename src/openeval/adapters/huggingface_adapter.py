@@ -2,7 +2,7 @@
 
 import os
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 import torch
 
 from ..core import Adapter
@@ -115,7 +115,6 @@ class HuggingFaceAdapter(Adapter):
         inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
         
         # Generate
-        import torch
         with torch.no_grad():
             outputs = self._model.generate(
                 **inputs,
@@ -165,7 +164,6 @@ class HuggingFaceAdapter(Adapter):
         inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
         
         # Generate with scores
-        import torch
         with torch.no_grad():
             outputs = self._model.generate(
                 **inputs,

@@ -3,7 +3,7 @@
 import json
 import re
 import statistics
-from typing import Dict, List, Any, Optional, Set, Tuple
+from typing import List, Optional
 from dataclasses import dataclass, field
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -241,7 +241,7 @@ class DataQualityAssessor:
             ))
             
             if format_consistency < self.thresholds["consistency"]:
-                issues.append(f"Inconsistent formatting detected across samples")
+                issues.append("Inconsistent formatting detected across samples")
                 recommendations.append("Standardize input formatting (capitalization, punctuation)")
         
         return metrics
@@ -451,7 +451,7 @@ class DataQualityAssessor:
     
     def generate_report(self, quality_report: QualityReport) -> str:
         """Generate a human-readable quality assessment report."""
-        report = [f"# Data Quality Assessment Report\n"]
+        report = ["# Data Quality Assessment Report\n"]
         
         # Executive summary
         report.append("## Executive Summary\n")

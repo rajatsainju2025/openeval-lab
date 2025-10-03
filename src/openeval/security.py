@@ -12,11 +12,10 @@ import hashlib
 import secrets
 import base64
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Protocol, Callable
+from typing import Any, Dict, List, Optional, Protocol, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime, timedelta
-import logging
+from datetime import datetime
 import threading
 from contextlib import contextmanager
 

@@ -406,7 +406,7 @@ class AdapterPerformanceProfiler:
                     for _ in batch:
                         monitor.record_latency(avg_latency)
                 
-                except Exception as e:
+                except Exception:
                     # Record error but continue profiling
                     pass
                 

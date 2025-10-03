@@ -1,6 +1,5 @@
 """Tests for statistical evaluation metrics."""
 
-import pytest
 from openeval.metrics.statistical import (
     BootstrapAccuracy,
     PairedBootstrapTest,

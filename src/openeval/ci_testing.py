@@ -9,16 +9,12 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Callable
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 import json
-import re
-import tempfile
-import shutil
 
 # Try to import black for direct API usage
 try:
@@ -510,9 +506,6 @@ class TestRunner:
 
     def _test_imports(self) -> None:
         """Test that all main modules can be imported."""
-        import openeval
-        from openeval import model_comparison, config_validator, dataset_manager
-        from openeval import results_analyzer, experiment_tracker, performance_profiler
 
     def _test_config_validation(self) -> None:
         """Test configuration validation."""

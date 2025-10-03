@@ -7,10 +7,9 @@ benchmarks without manual configuration.
 """
 
 from typing import Dict, List, Optional, Any
-from pathlib import Path
 import json
 
-from .core import Task, Dataset, Adapter, Metric
+from .core import Adapter
 from .spec import EvalSpec
 
 

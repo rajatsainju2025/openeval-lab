@@ -8,7 +8,6 @@ and ensuring proper automation setup.
 import pytest
 import yaml
 from pathlib import Path
-from typing import Dict, Any
 
 
 class TestCICDWorkflows:

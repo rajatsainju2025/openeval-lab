@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional, Dict, Any, List, Union
+from typing import Iterator, Optional, Dict, Any, List
 import json
 
 from ..core import Dataset, Example

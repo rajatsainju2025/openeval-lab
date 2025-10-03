@@ -45,7 +45,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .utils import set_seed, hash_file, retry_call, run_with_timeout, hash_prompt
 from .cache import PredictionCache, CacheStats
-from .prompt import PromptTemplate, build_prompt
+from .prompt import PromptTemplate
 from .enhanced_logging import get_logger
 
 logger = get_logger(__name__)
@@ -947,8 +947,6 @@ class Task(ABC):
 
         # Build result payload (similar to original method)
         import datetime as _dt
-        import platform
-        import sys
         
         # Manifest and other metadata (simplified for streaming)
         manifest: Dict[str, Any] = {

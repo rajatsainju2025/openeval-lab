@@ -7,16 +7,14 @@ fault tolerance, and result aggregation.
 """
 
 import asyncio
-import json
 import logging
 import multiprocessing
-import os
 import threading
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Callable, Union
-from queue import Queue, Empty
+from typing import Any, Dict, List, Optional
+from queue import Queue
 
 logger = logging.getLogger(__name__)
 

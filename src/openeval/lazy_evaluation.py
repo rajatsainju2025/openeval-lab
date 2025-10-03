@@ -11,9 +11,6 @@ import time
 import threading
 from typing import Any, Dict, List, Optional, Union, Callable, Iterator, Generic, TypeVar
 from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
-from functools import partial
-import weakref
 
 try:
     import dask

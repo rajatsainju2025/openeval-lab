@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Iterator, List, Mapping, Any, Optional, Dict
+from typing import Iterator, List, Any, Optional, Dict
 
 from ..core import Dataset, Example
 

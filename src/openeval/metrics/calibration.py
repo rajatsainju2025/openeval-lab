@@ -1,6 +1,6 @@
 """Calibration and uncertainty metrics."""
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Iterable, List, Mapping
 import math
 from dataclasses import dataclass
 

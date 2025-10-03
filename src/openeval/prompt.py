@@ -6,7 +6,7 @@ inspired by lm-evaluation-harness and OpenAI evals.
 """
 
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 
 try:
     import jinja2

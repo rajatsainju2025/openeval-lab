@@ -1,7 +1,6 @@
 """vLLM adapter for high-throughput inference."""
 
-from typing import Any, Dict, List, Optional
-import os
+from typing import Optional
 
 from ..core import Adapter
 

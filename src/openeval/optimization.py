@@ -4,18 +4,16 @@ import time
 import threading
 import statistics
 import asyncio
-import concurrent.futures
-from typing import Dict, List, Any, Optional, Callable, Union, TypeVar
+from typing import Dict, List, Any, Optional, Callable, TypeVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from contextlib import contextmanager
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import gc
 import resource
 from functools import wraps
 
 from .logging import get_logger
-from .core import Adapter, Dataset, Example
+from .core import Dataset
 
 T = TypeVar('T')
 

@@ -35,7 +35,7 @@ import time
 import psutil
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Callable, Union, Tuple
+from typing import Any, Dict, List, Optional, Callable, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 import statistics
@@ -45,10 +45,6 @@ import io
 from contextlib import contextmanager
 import tracemalloc
 import gc
-from collections import defaultdict, deque
-import asyncio
-import concurrent.futures
-import json
 
 try:
     import psutil  # type: ignore

@@ -3,9 +3,8 @@
 import json
 import pytest
 import numpy as np
-from pathlib import Path
-from unittest.mock import Mock, patch
-from typing import Dict, List, Any
+from unittest.mock import Mock
+from typing import Dict
 
 from openeval.icml_framework import (
     ICMLExperimentRunner,
@@ -13,7 +12,7 @@ from openeval.icml_framework import (
     ExperimentResult,
     create_icml_benchmark_suite
 )
-from openeval.core import Task, Dataset, Adapter, Metric, Example
+from openeval.core import Task, Dataset, Metric, Example
 from openeval.adapters.echo import EchoAdapter
 
 

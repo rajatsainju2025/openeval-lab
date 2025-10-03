@@ -1,4 +1,3 @@
-from openeval.core import Example
 from openeval.tasks.qa import QATask
 from openeval.adapters.echo import EchoAdapter
 from openeval.datasets.jsonl import JSONLinesDataset

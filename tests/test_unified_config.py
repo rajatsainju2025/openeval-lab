@@ -6,13 +6,9 @@ and enterprise features like configuration management and validation.
 """
 
 import json
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from typing import Dict, Any
 import pytest
-import yaml
 
 from openeval.unified_config import (
     UnifiedConfig,

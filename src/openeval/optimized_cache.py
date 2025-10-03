@@ -15,12 +15,10 @@ import zlib
 import lzma
 import bz2
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, OrderedDict
-from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
 from collections import OrderedDict as OrderedDictType
-import hashlib
 import pickle
-import io
 
 try:
     import lru_cache

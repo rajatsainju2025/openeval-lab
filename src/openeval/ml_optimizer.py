@@ -5,13 +5,11 @@ This module integrates machine learning techniques to optimize evaluation strate
 predict performance bottlenecks, and adapt evaluation parameters dynamically.
 """
 
-import asyncio
-import json
 import logging
 import threading
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict, deque
 import statistics
 import random

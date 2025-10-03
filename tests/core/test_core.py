@@ -1,12 +1,9 @@
 """Unit tests for core module functionality."""
 
-from pathlib import Path
-import pytest
 import random
-from typing import Any, Dict, List, Optional
 
 from openeval.core import _categorize_error, _summarize_errors
-from openeval.utils import set_seed, hash_file, retry_call, run_with_timeout, hash_prompt
+from openeval.utils import set_seed, hash_file, hash_prompt
 
 
 def test_error_categorization():

@@ -3,14 +3,13 @@
 import json
 import time
 import statistics
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from pathlib import Path
 from collections import defaultdict
 
 from .core import Task, Dataset, Adapter, Metric
 from .logging import get_logger
-from .metrics_collection import EvaluationMetrics
 
 
 @dataclass

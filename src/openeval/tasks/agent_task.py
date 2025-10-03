@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
-from pathlib import Path
-import json
+from typing import Any, Dict, List, Optional
 import re
-import time
 
 from ..core import Task, Example
 
@@ -49,7 +46,6 @@ Think step by step and use tools when needed. Provide your final answer clearly.
     def process_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """Process agent task record with tool-augmented reasoning."""
         # Use template rendering with agent-specific variables
-        from ..core import Example
 
         example = Example(
             id=record.get("id", ""),

@@ -5,13 +5,9 @@ Tests cover the core security functionality that is actually implemented
 and available in the codebase.
 """
 
-import os
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from datetime import datetime
 import pytest
 
 from openeval.security import (

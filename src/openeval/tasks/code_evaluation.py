@@ -16,8 +16,7 @@ import sys
 import tempfile
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-import json
+from typing import Any, Dict, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)

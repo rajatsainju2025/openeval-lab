@@ -1,7 +1,7 @@
 """F1 Score metric for evaluation."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Mapping
+from typing import Iterable, Mapping
 
 
 @dataclass

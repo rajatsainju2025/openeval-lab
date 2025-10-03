@@ -8,7 +8,6 @@ from unittest.mock import patch, MagicMock
 
 from openeval.cli import app
 from openeval.core import Example, Dataset, Task, Adapter, Metric
-from openeval.spec import load_spec
 from typer.testing import CliRunner
 
 runner = CliRunner()

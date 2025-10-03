@@ -43,14 +43,12 @@ Advanced Features:
 
 from __future__ import annotations
 
-import re
 import math
-from typing import Any, Dict, List, Optional, Union, Iterable, Callable, Tuple
+from typing import Any, Dict, List, Optional, Iterable, Callable, Tuple
 from collections import Counter
 from dataclasses import dataclass
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 
 try:
@@ -942,7 +940,6 @@ def benchmark_metrics_performance(
     Returns:
         Benchmark results
     """
-    import time
 
     # Prepare data
     pred_list = list(predictions)

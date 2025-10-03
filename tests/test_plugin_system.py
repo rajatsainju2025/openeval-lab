@@ -4,15 +4,12 @@ This module tests plugin discovery, loading, execution, validation, security,
 marketplace operations, and complete plugin lifecycle management.
 """
 
-import os
 import json
 import tempfile
 import shutil
-import asyncio
 from pathlib import Path
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from typing import Dict, Any, List
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 import pytest
 

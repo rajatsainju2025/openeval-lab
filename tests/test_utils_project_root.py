@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 
 from openeval.utils import get_project_root
 

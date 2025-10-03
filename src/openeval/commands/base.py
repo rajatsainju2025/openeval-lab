@@ -7,12 +7,9 @@ version information, and system health checks.
 
 from __future__ import annotations
 
-import json
-from typing import Optional, List
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 from .. import registry
 from ..utils import get_project_root

@@ -24,20 +24,14 @@ Version: 0.1.0
 from __future__ import annotations
 
 import json
-import os
-import sys
-from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
-from . import registry
 from .commands import base_app, eval_app, run_app
 from .results_schema import RESULTS_JSON_SCHEMA
 from .spec import EvalSpec
-from .utils import get_project_root, hash_file
 
 # Create the main app
 app = typer.Typer(

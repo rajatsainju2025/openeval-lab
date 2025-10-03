@@ -1,7 +1,6 @@
 """ICML-standard experimental evaluation framework."""
 
 import json
-import time
 import hashlib
 import numpy as np
 from pathlib import Path
@@ -10,7 +9,6 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 
 from .core import Task, Dataset, Adapter, Metric
-from .metrics.statistical import BootstrapAccuracy, PairedBootstrapTest, PearsonCorrelation
 from .optimization import ProgressTracker
 
 
@@ -145,7 +143,7 @@ class ICMLExperimentRunner:
         seed_results = []
         tracker = ProgressTracker(
             len(config.random_seeds), 
-            f"Multi-seed evaluation"
+            "Multi-seed evaluation"
         )
         
         for seed in config.random_seeds:
