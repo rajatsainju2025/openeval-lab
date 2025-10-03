@@ -84,7 +84,10 @@ try:
 except ImportError:
     HAS_NUMBA = False
     numba = None
-    jit = lambda x: x  # type: ignore
+
+    def jit(x):
+        return x  # type: ignore
+
     prange = range  # type: ignore
 
 try:

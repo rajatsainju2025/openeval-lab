@@ -1,36 +1,27 @@
 from __future__ import annotations
 
-"""
-Research Integration Module for OpenEval Lab.
-
-This module provides integration with academic research, including paper retrieval,
-benchmark comparison, and research insights. It helps connect evaluation tasks with
-the latest research findings and state-of-the-art benchmarks.
-
-The module includes:
-- Research paper discovery and filtering
-- Benchmark result tracking and comparison
-- Citation analysis and leaderboard integration
-- Research methodology integration
-
-Examples:
-    Basic paper search and methodology integration:
-    ```python
-    from openeval.research import ResearchIntegrator
-
-    # Search for relevant papers on evaluation methods
-    integrator = ResearchIntegrator()
-    papers = integrator.search_relevant_papers("few-shot evaluation methods")
-
-    # Compare model against published benchmarks
-    benchmarks = integrator.get_benchmark_results("gpt-4", "mmlu")
-    ```
-"""
-
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 import json
 from datetime import datetime, timedelta
+
+"""
+Research utilities for OpenEval Lab.
+
+This module provides utilities for research integration, including:
+- Paper analysis and citation tracking
+- Benchmark comparison tools
+- Research data management
+- Academic collaboration features
+
+Example:
+    # Analyze recent papers on evaluation
+    papers = ResearchIntegrator().find_papers("LLM evaluation", limit=10)
+
+    # Compare model against published benchmarks
+    benchmarks = integrator.get_benchmark_results("gpt-4", "mmlu")
+"""
+
 
 
 @dataclass

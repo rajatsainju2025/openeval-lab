@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 
-
 class SecurityAuditor:
     """Comprehensive security auditor for the project."""
 

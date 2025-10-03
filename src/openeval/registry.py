@@ -255,7 +255,7 @@ def _load_component_cached(
 
         logging.error(f"Failed to load {kind} '{name}' from {path}: {e}")
         return None
-    return {"name": name, "path": path, "description": desc}
+    return {"name": name, "path": path, "description": _get_desc_map(kind).get(name, "")}
 
 
 def list_items(kind: str) -> Dict[str, Dict[str, str]]:

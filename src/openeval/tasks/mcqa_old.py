@@ -64,13 +64,6 @@ Answer:"""
 
         return "A"  # Default fallback
 
-        super().__init__(
-            prompt_template=prompt_template,
-            normalize_length=normalize_length,
-            choice_prefix=" ",  # Space before choice
-            choice_suffix="",
-        )
-
     def build_prompt(self, ex: Example) -> str:
         """Build context prompt using template."""
         return self.build_prompt_with_template(ex)
