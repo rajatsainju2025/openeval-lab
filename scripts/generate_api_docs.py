@@ -7,20 +7,16 @@ from the codebase, including modules, classes, functions, and usage examples.
 """
 
 import ast
-import inspect
-import json
-import os
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
-from dataclasses import dataclass, asdict
-import importlib.util
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 import re
 
 
 @dataclass
 class APIEndpoint:
     """Represents an API endpoint."""
+
     path: str
     method: str
     description: str
@@ -32,17 +28,19 @@ class APIEndpoint:
 @dataclass
 class APIModule:
     """Represents a module in the API."""
+
     name: str
     path: str
     description: str
     classes: List[Dict[str, Any]]
     functions: List[Dict[str, Any]]
-    submodules: List['APIModule']
+    submodules: List["APIModule"]
 
 
 @dataclass
 class APIClass:
     """Represents a class in the API."""
+
     name: str
     description: str
     methods: List[Dict[str, Any]]
@@ -53,6 +51,7 @@ class APIClass:
 @dataclass
 class APIFunction:
     """Represents a function in the API."""
+
     name: str
     signature: str
     description: str
@@ -119,18 +118,18 @@ class APIDocumentationGenerator:
         """Analyze a single Python module."""
         try:
             file_path_str = str(file_path)
-            
+
             # Check cache first
             if file_path_str in self._ast_cache:
                 tree = self._ast_cache[file_path_str]
                 content = self._content_cache[file_path_str]
             else:
                 # Read and parse the file
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 tree = ast.parse(content, filename=file_path_str)
-                
+
                 # Cache the results
                 self._ast_cache[file_path_str] = tree  # type: ignore
                 self._content_cache[file_path_str] = content
@@ -156,7 +155,7 @@ class APIDocumentationGenerator:
 
             # Create module info
             rel_path = file_path.relative_to(self.src_root)
-            module_name = str(rel_path).replace('/', '.').replace('.py', '')
+            module_name = str(rel_path).replace("/", ".").replace(".py", "")
 
             return APIModule(
                 name=module_name,
@@ -164,7 +163,7 @@ class APIDocumentationGenerator:
                 description=module_doc,
                 classes=classes,
                 functions=functions,
-                submodules=[]
+                submodules=[],
             )
 
         except Exception as e:
@@ -185,18 +184,24 @@ class APIDocumentationGenerator:
                     methods.append(method_info)
             elif isinstance(item, ast.AnnAssign):
                 # Simple attribute analysis
-                attr_name = item.target.id if isinstance(item.target, ast.Name) else str(item.target)
-                attributes.append({
-                    "name": attr_name,
-                    "type": self._get_type_annotation(item.annotation) if item.annotation else "Any"
-                })
+                attr_name = (
+                    item.target.id if isinstance(item.target, ast.Name) else str(item.target)
+                )
+                attributes.append(
+                    {
+                        "name": attr_name,
+                        "type": (
+                            self._get_type_annotation(item.annotation) if item.annotation else "Any"
+                        ),
+                    }
+                )
 
         return {
             "name": node.name,
             "description": class_doc,
             "methods": methods,
             "attributes": attributes,
-            "bases": [self._get_name(base) for base in node.bases]
+            "bases": [self._get_name(base) for base in node.bases],
         }
 
     def _analyze_function(self, node: ast.FunctionDef, content: str) -> Dict[str, Any]:
@@ -212,14 +217,12 @@ class APIDocumentationGenerator:
             param_info = {
                 "name": arg.arg,
                 "type": self._get_type_annotation(arg.annotation) if arg.annotation else "Any",
-                "default": None  # Would need more complex analysis
+                "default": None,  # Would need more complex analysis
             }
             parameters.append(param_info)
 
         # Extract return type
-        returns = {
-            "type": self._get_type_annotation(node.returns) if node.returns else "Any"
-        }
+        returns = {"type": self._get_type_annotation(node.returns) if node.returns else "Any"}
 
         return {
             "name": node.name,
@@ -227,7 +230,7 @@ class APIDocumentationGenerator:
             "description": func_doc,
             "parameters": parameters,
             "returns": returns,
-            "examples": self._extract_examples(func_doc)
+            "examples": self._extract_examples(func_doc),
         }
 
     def _get_type_annotation(self, node: ast.AST) -> str:
@@ -252,14 +255,14 @@ class APIDocumentationGenerator:
         node_id = id(node)
         if node_id in self._node_str_cache:
             return self._node_str_cache[node_id]
-        
+
         if isinstance(node, ast.Name):
             result = node.id
         elif isinstance(node, ast.Attribute):
             result = f"{self._get_name(node.value)}.{node.attr}"
         else:
             result = str(node)
-        
+
         self._node_str_cache[node_id] = result
         return result
 
@@ -275,24 +278,24 @@ class APIDocumentationGenerator:
     def _extract_examples(self, docstring: str) -> List[str]:
         """Extract code examples from docstring."""
         examples = []
-        lines = docstring.split('\n')
+        lines = docstring.split("\n")
         in_example = False
         current_example = []
 
         for line in lines:
-            if line.strip().startswith('>>>') or line.strip().startswith('...'):
+            if line.strip().startswith(">>>") or line.strip().startswith("..."):
                 in_example = True
                 current_example.append(line)
             elif in_example and line.strip():
                 current_example.append(line)
             elif in_example and not line.strip():
                 if current_example:
-                    examples.append('\n'.join(current_example))
+                    examples.append("\n".join(current_example))
                     current_example = []
                 in_example = False
 
         if current_example:
-            examples.append('\n'.join(current_example))
+            examples.append("\n".join(current_example))
 
         return examples
 
@@ -304,27 +307,29 @@ class APIDocumentationGenerator:
         web_files = list(self.src_root.glob("web/*.py"))
         for web_file in web_files:
             try:
-                with open(web_file, 'r', encoding='utf-8') as f:
+                with open(web_file, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 # Simple regex-based endpoint extraction
                 # This could be enhanced with AST analysis
                 route_patterns = [
                     r'@app\.(get|post|put|delete)\(["\']([^"\']+)["\']',
-                    r'@router\.(get|post|put|delete)\(["\']([^"\']+)["\']'
+                    r'@router\.(get|post|put|delete)\(["\']([^"\']+)["\']',
                 ]
 
                 for pattern in route_patterns:
                     matches = re.findall(pattern, content)
                     for method, path in matches:
-                        endpoints.append(APIEndpoint(
-                            path=path,
-                            method=method.upper(),
-                            description=f"{method.upper()} {path}",
-                            parameters=[],
-                            responses={},
-                            examples=[]
-                        ))
+                        endpoints.append(
+                            APIEndpoint(
+                                path=path,
+                                method=method.upper(),
+                                description=f"{method.upper()} {path}",
+                                parameters=[],
+                                responses={},
+                                examples=[],
+                            )
+                        )
 
             except Exception as e:
                 print(f"Warning: Failed to analyze web endpoints in {web_file}: {e}")
@@ -338,7 +343,7 @@ class APIDocumentationGenerator:
         try:
             cli_file = self.src_root / "cli.py"
             if cli_file.exists():
-                with open(cli_file, 'r', encoding='utf-8') as f:
+                with open(cli_file, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 # Extract Typer commands
@@ -346,11 +351,13 @@ class APIDocumentationGenerator:
                 matches = re.findall(command_pattern, content)
 
                 for command in matches:
-                    commands.append({
-                        "name": command,
-                        "description": f"CLI command: {command}",
-                        "usage": f"openeval {command}"
-                    })
+                    commands.append(
+                        {
+                            "name": command,
+                            "description": f"CLI command: {command}",
+                            "usage": f"openeval {command}",
+                        }
+                    )
 
         except Exception as e:
             print(f"Warning: Failed to analyze CLI commands: {e}")
@@ -373,17 +380,17 @@ class APIDocumentationGenerator:
                 content += "## Classes\n\n"
                 for cls in module.classes:
                     content += f"### {cls['name']}\n\n"
-                    if cls['description']:
+                    if cls["description"]:
                         content += f"{cls['description']}\n\n"
 
-                    if cls['bases']:
+                    if cls["bases"]:
                         content += f"**Inherits from:** {', '.join(cls['bases'])}\n\n"
 
-                    if cls['methods']:
+                    if cls["methods"]:
                         content += "#### Methods\n\n"
-                        for method in cls['methods']:
+                        for method in cls["methods"]:
                             content += f"- `{method['signature']}`\n"
-                            if method['description']:
+                            if method["description"]:
                                 content += f"  {method['description'].split('.')[0]}\n"
                         content += "\n"
 
@@ -393,21 +400,23 @@ class APIDocumentationGenerator:
                 for func in module.functions:
                     content += f"### {func['name']}\n\n"
                     content += f"```python\n{func['signature']}\n```\n\n"
-                    if func['description']:
+                    if func["description"]:
                         content += f"{func['description']}\n\n"
 
-                    if func['parameters']:
+                    if func["parameters"]:
                         content += "#### Parameters\n\n"
-                        for param in func['parameters']:
-                            content += f"- `{param['name']}` ({param['type']}): Parameter description\n"
+                        for param in func["parameters"]:
+                            content += (
+                                f"- `{param['name']}` ({param['type']}): Parameter description\n"
+                            )
                         content += "\n"
 
-                    if func['examples']:
+                    if func["examples"]:
                         content += "#### Examples\n\n"
-                        for example in func['examples'][:2]:  # Limit examples
+                        for example in func["examples"][:2]:  # Limit examples
                             content += f"```python\n{example}\n```\n\n"
 
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 f.write(content)
 
     def _create_web_api_docs(self, endpoints: List[APIEndpoint]) -> None:
@@ -425,7 +434,7 @@ class APIDocumentationGenerator:
         else:
             content += "No endpoints documented yet.\n\n"
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(content)
 
     def _create_cli_docs(self, commands: List[Dict[str, Any]]) -> None:
@@ -444,7 +453,7 @@ class APIDocumentationGenerator:
         else:
             content += "No commands documented yet.\n\n"
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(content)
 
     def _create_index(self) -> None:
@@ -476,7 +485,7 @@ class APIDocumentationGenerator:
         content += "results = evaluate('config.json')\n"
         content += "```\n\n"
 
-        with open(index_file, 'w', encoding='utf-8') as f:
+        with open(index_file, "w", encoding="utf-8") as f:
             f.write(content)
 
 

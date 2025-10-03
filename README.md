@@ -302,15 +302,15 @@ OpenEval follows a **clean plugin architecture** with four core abstractions:
 ```mermaid
 graph TB
     A[Task] --> B[Dataset]
-    B --> C[Adapter] 
+    B --> C[Adapter]
     C --> D[Metrics]
     D --> E[Results]
-    
+
     F[Spec] --> A
     F --> B
     F --> C
     F --> D
-    
+
     G[CLI] --> F
     H[Dashboard] --> E
 ```
@@ -344,7 +344,7 @@ git push origin feature/amazing-feature
 
 **📖 Development Guides:**
 - [Contributing Guidelines](CONTRIBUTING.md)
-- [Architecture Overview](docs/Architecture.md) 
+- [Architecture Overview](docs/Architecture.md)
 - [Plugin Development](docs/concepts.md)
 - [Testing Strategy](docs/testing.md)
 
@@ -392,7 +392,7 @@ Every evaluation result includes:
 
 When using OpenAI adapters, be mindful of:
 - 💰 **API Costs**: Monitor usage with built-in cost tracking
-- ⏱️ **Rate Limits**: Use `--concurrency` and `--request-timeout` appropriately  
+- ⏱️ **Rate Limits**: Use `--concurrency` and `--request-timeout` appropriately
 - 🔒 **API Keys**: Store securely and never commit to version control
 - 📊 **Usage Analytics**: Review cost summaries in evaluation manifests
 
@@ -447,7 +447,7 @@ from openeval.tasks import QATask
 class CustomTask(Task):
     def build_prompt(self, example):
         return f"Question: {example.input}\nAnswer:"
-    
+
     def postprocess(self, raw_output):
         return raw_output.strip()
 ```

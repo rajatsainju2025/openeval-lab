@@ -84,15 +84,17 @@ class FederatedEvaluator:
 
         if self.config.client_selection_strategy == "random":
             import random
+
             return random.sample(available_clients, self.config.max_clients_per_round)
         elif self.config.client_selection_strategy == "importance":
             # Select based on dataset size or previous performance
-            return sorted(available_clients,
-                         key=lambda c: c.dataset_size,
-                         reverse=True)[:self.config.max_clients_per_round]
+            return sorted(available_clients, key=lambda c: c.dataset_size, reverse=True)[
+                : self.config.max_clients_per_round
+            ]
         else:
             # Default to random
             import random
+
             return random.sample(available_clients, self.config.max_clients_per_round)
 
     def aggregate_updates(self, updates: List[ClientUpdate]) -> Dict[str, float]:
@@ -154,11 +156,13 @@ class FederatedEvaluator:
             if self.config.privacy_mechanism == "gaussian":
                 # Gaussian mechanism
                 import numpy as np
+
                 noise_scale = sensitivity * np.sqrt(2 * np.log(1.25 / 0.01)) / self.config.epsilon
                 noise = np.random.normal(0, noise_scale)
             elif self.config.privacy_mechanism == "laplace":
                 # Laplace mechanism
                 import numpy as np
+
                 noise_scale = sensitivity / self.config.epsilon
                 noise = np.random.laplace(0, noise_scale)
             else:
@@ -183,8 +187,9 @@ class FederatedEvaluator:
 
         return True
 
-    def run_federated_evaluation(self, task: Task, global_dataset: Dataset,
-                               adapter: Adapter, metrics: List[Metric]) -> List[FederatedResult]:
+    def run_federated_evaluation(
+        self, task: Task, global_dataset: Dataset, adapter: Adapter, metrics: List[Metric]
+    ) -> List[FederatedResult]:
         """Run federated evaluation for multiple rounds."""
         results = []
 
@@ -221,7 +226,7 @@ class FederatedEvaluator:
                 privacy_budget_used=self.privacy_budget_used,
                 convergence_metrics=self.convergence_history.copy(),
                 round=round_num,
-                total_clients=len(selected_clients)
+                total_clients=len(selected_clients),
             )
             results.append(result)
 
@@ -242,14 +247,13 @@ class FederatedClient:
     compute_capability: float = 1.0  # Relative compute power
     privacy_preference: str = "balanced"  # strict, balanced, relaxed
 
-    def evaluate_locally(self, task: Task, adapter: Adapter,
-                        metrics: List[Metric]) -> ClientUpdate:
+    def evaluate_locally(self, task: Task, adapter: Adapter, metrics: List[Metric]) -> ClientUpdate:
         """Perform local evaluation on client's dataset."""
         # Run evaluation on local dataset
         from ..core import evaluate
 
         # Create a subset of the local dataset for efficiency
-        local_examples = list(self.local_dataset)[:min(100, len(self.local_dataset))]
+        local_examples = list(self.local_dataset)[: min(100, len(self.local_dataset))]
 
         # Evaluate locally
         results = evaluate(task, adapter, local_examples, metrics)
@@ -257,27 +261,28 @@ class FederatedClient:
         # Extract metrics
         local_metrics = {}
         for metric in metrics:
-            if hasattr(results, 'metrics'):
+            if hasattr(results, "metrics"):
                 local_metrics.update(results.metrics)
             else:
                 # Fallback: compute metrics directly
-                predictions = [getattr(ex, 'prediction', '') for ex in local_examples]
-                references = [getattr(ex, 'reference', '') for ex in local_examples]
+                predictions = [getattr(ex, "prediction", "") for ex in local_examples]
+                references = [getattr(ex, "reference", "") for ex in local_examples]
                 local_metrics.update(metric.compute(predictions, references))
 
         return ClientUpdate(
             client_id=self.client_id,
             local_metrics=local_metrics,
             local_dataset_size=self.dataset_size,
-            timestamp=time.time()
+            timestamp=time.time(),
         )
 
 
 class FederatedDataset(Dataset):
     """Dataset that supports federated partitioning."""
 
-    def __init__(self, base_dataset: Dataset, num_clients: int = 5,
-                 partitioning: str = "iid"):  # iid, non-iid, dirichlet
+    def __init__(
+        self, base_dataset: Dataset, num_clients: int = 5, partitioning: str = "iid"
+    ):  # iid, non-iid, dirichlet
         self.base_dataset = base_dataset
         self.num_clients = num_clients
         self.partitioning = partitioning
@@ -292,24 +297,30 @@ class FederatedDataset(Dataset):
         if self.partitioning == "iid":
             # Independent and identically distributed
             import random
+
             random.shuffle(all_examples)
             examples_per_client = len(all_examples) // self.num_clients
 
             for i in range(self.num_clients):
                 start_idx = i * examples_per_client
-                end_idx = (i + 1) * examples_per_client if i < self.num_clients - 1 else len(all_examples)
+                end_idx = (
+                    (i + 1) * examples_per_client if i < self.num_clients - 1 else len(all_examples)
+                )
                 self.client_datasets[f"client_{i}"] = all_examples[start_idx:end_idx]
 
         elif self.partitioning == "non-iid":
             # Non-IID partitioning (simplified)
             # In practice, would use more sophisticated non-IID partitioning
             import random
+
             random.shuffle(all_examples)
             examples_per_client = len(all_examples) // self.num_clients
 
             for i in range(self.num_clients):
                 start_idx = i * examples_per_client
-                end_idx = (i + 1) * examples_per_client if i < self.num_clients - 1 else len(all_examples)
+                end_idx = (
+                    (i + 1) * examples_per_client if i < self.num_clients - 1 else len(all_examples)
+                )
                 self.client_datasets[f"client_{i}"] = all_examples[start_idx:end_idx]
 
     def get_client_dataset(self, client_id: str) -> List[Any]:

@@ -54,8 +54,8 @@ Think step by step and use tools when needed. Provide your final answer clearly.
             meta={
                 "max_steps": self.max_steps,
                 "tools_available": ", ".join(self.tools_available),
-                "instruction": self.instruction
-            }
+                "instruction": self.instruction,
+            },
         )
 
         prompt = self.build_prompt_with_template(example)
@@ -67,7 +67,7 @@ Think step by step and use tools when needed. Provide your final answer clearly.
             "max_steps": self.max_steps,
             "tools_available": self.tools_available,
             "environment": self.environment_setup,
-            "success_criteria": self.success_criteria
+            "success_criteria": self.success_criteria,
         }
 
         return processed
@@ -93,7 +93,7 @@ class AgentTrajectory:
         reasoning_trace = []
 
         # Parse prediction for tool usage and reasoning
-        lines = prediction.split('\n')
+        lines = prediction.split("\n")
         current_step = 0
         current_reasoning = []
 
@@ -103,25 +103,29 @@ class AgentTrajectory:
                 continue
 
             # Detect tool usage
-            tool_match = re.search(r'Tool:\s*(\w+)', line, re.IGNORECASE)
+            tool_match = re.search(r"Tool:\s*(\w+)", line, re.IGNORECASE)
             if tool_match:
                 tool_name = tool_match.group(1).lower()
                 tools_used.append(tool_name)
-                steps.append({
-                    "step": current_step,
-                    "tool": tool_name,
-                    "reasoning": ' '.join(current_reasoning)
-                })
+                steps.append(
+                    {
+                        "step": current_step,
+                        "tool": tool_name,
+                        "reasoning": " ".join(current_reasoning),
+                    }
+                )
                 current_reasoning = []
                 current_step += 1
 
             # Detect reasoning
-            elif any(keyword in line.lower() for keyword in ['think', 'reason', 'consider', 'analyze']):
+            elif any(
+                keyword in line.lower() for keyword in ["think", "reason", "consider", "analyze"]
+            ):
                 current_reasoning.append(line)
 
             # Detect final answer
-            elif 'final answer' in line.lower() or 'answer:' in line.lower():
-                final_answer = line.split(':', 1)[-1].strip() if ':' in line else line
+            elif "final answer" in line.lower() or "answer:" in line.lower():
+                final_answer = line.split(":", 1)[-1].strip() if ":" in line else line
                 break
         else:
             # If no final answer found, use last line
@@ -134,7 +138,7 @@ class AgentTrajectory:
             tools_used=list(set(tools_used)),
             execution_time=0.0,  # Will be set by evaluator
             success=False,  # Will be determined by metrics
-            reasoning_trace=reasoning_trace
+            reasoning_trace=reasoning_trace,
         )
 
 
@@ -172,15 +176,18 @@ class AgentMetrics:
             score = 0.0
 
             # Check for analytical keywords
-            analytical_keywords = ['because', 'therefore', 'however', 'although', 'since']
+            analytical_keywords = ["because", "therefore", "however", "although", "since"]
             score += min(0.3, len([k for k in analytical_keywords if k in reasoning.lower()]) * 0.1)
 
             # Check for evidence-based reasoning
-            if any(word in reasoning.lower() for word in ['evidence', 'data', 'information', 'based on']):
+            if any(
+                word in reasoning.lower()
+                for word in ["evidence", "data", "information", "based on"]
+            ):
                 score += 0.2
 
             # Check for conclusion
-            if any(word in reasoning.lower() for word in ['conclude', 'therefore', 'thus', 'so']):
+            if any(word in reasoning.lower() for word in ["conclude", "therefore", "thus", "so"]):
                 score += 0.2
 
             # Length appropriateness (not too short, not too long)

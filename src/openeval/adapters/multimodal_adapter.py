@@ -16,6 +16,7 @@ except Exception:  # pragma: no cover - optional dep
 @dataclass
 class OpenAIMultimodalAdapter:
     """OpenAI Vision API adapter for multimodal evaluation."""
+
     model: str = "gpt-4o-mini"
     name: str = "openai-multimodal"
     api_key: str | None = None
@@ -31,13 +32,15 @@ class OpenAIMultimodalAdapter:
 
     def _client(self):  # pragma: no cover - network
         if OpenAI is None:
-            raise RuntimeError("Please install openeval-lab[openai] to use OpenAI multimodal adapter.")
+            raise RuntimeError(
+                "Please install openeval-lab[openai] to use OpenAI multimodal adapter."
+            )
         return OpenAI(api_key=self.api_key) if self.api_key else OpenAI()
 
     def encode_image(self, image_path: Union[str, Path]) -> str:
         """Encode image to base64 for API transmission."""
-        with open(image_path, 'rb') as f:
-            return base64.b64encode(f.read()).decode('utf-8')
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
 
     def decode_image(self, base64_string: str) -> Image.Image:
         """Decode base64 string to PIL Image."""
@@ -46,7 +49,7 @@ class OpenAIMultimodalAdapter:
 
     def validate_multimodal_input(self, input_data: Dict[str, Any]) -> bool:
         """Validate that input contains supported modalities."""
-        modalities = input_data.get('modalities', ['text'])
+        modalities = input_data.get("modalities", ["text"])
         return all(mod in self.supported_modalities for mod in modalities)
 
     def predict_multimodal(self, inputs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -58,10 +61,7 @@ class OpenAIMultimodalAdapter:
                 messages = self._build_multimodal_messages(input_data)
 
                 response = self._client().chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=1000,
-                    temperature=0.0
+                    model=self.model, messages=messages, max_tokens=1000, temperature=0.0
                 )
 
                 prediction = response.choices[0].message.content
@@ -71,22 +71,19 @@ class OpenAIMultimodalAdapter:
                     self.total_prompt_tokens += response.usage.prompt_tokens
                     self.total_completion_tokens += response.usage.completion_tokens
                     self.total_cost += self._calculate_cost(
-                        response.usage.prompt_tokens,
-                        response.usage.completion_tokens
+                        response.usage.prompt_tokens, response.usage.completion_tokens
                     )
 
-                results.append({
-                    "prediction": prediction,
-                    "usage": response.usage.model_dump() if response.usage else {},
-                    "model": response.model
-                })
+                results.append(
+                    {
+                        "prediction": prediction,
+                        "usage": response.usage.model_dump() if response.usage else {},
+                        "model": response.model,
+                    }
+                )
 
             except Exception as e:
-                results.append({
-                    "prediction": "",
-                    "error": str(e),
-                    "model": self.model
-                })
+                results.append({"prediction": "", "error": str(e), "model": self.model})
 
         return results
 
@@ -110,17 +107,16 @@ class OpenAIMultimodalAdapter:
             for image_data in input_data["images"]:
                 if isinstance(image_data, str) and image_data.startswith("data:"):
                     # Base64 encoded image
-                    user_content.append({
-                        "type": "image_url",
-                        "image_url": {"url": image_data}
-                    })
+                    user_content.append({"type": "image_url", "image_url": {"url": image_data}})
                 elif isinstance(image_data, str):
                     # File path
                     base64_image = self.encode_image(image_data)
-                    user_content.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                    })
+                    user_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                        }
+                    )
 
         messages.append({"role": "user", "content": user_content})
         return messages
@@ -130,7 +126,10 @@ class OpenAIMultimodalAdapter:
         # Costs as of September 2025 (approximate)
         costs = {
             "gpt-4o": {"prompt": 5e-6, "completion": 15e-6},  # $5/$15 per million tokens
-            "gpt-4o-mini": {"prompt": 0.15e-6, "completion": 0.6e-6},  # $0.15/$0.60 per million tokens
+            "gpt-4o-mini": {
+                "prompt": 0.15e-6,
+                "completion": 0.6e-6,
+            },  # $0.15/$0.60 per million tokens
             "gpt-4-turbo": {"prompt": 10e-6, "completion": 30e-6},
             "gpt-4": {"prompt": 30e-6, "completion": 60e-6},
             "gpt-3.5-turbo": {"prompt": 0.5e-6, "completion": 1.5e-6},
@@ -148,5 +147,5 @@ class OpenAIMultimodalAdapter:
             "total_prompt_tokens": self.total_prompt_tokens,
             "total_completion_tokens": self.total_completion_tokens,
             "total_cost": self.total_cost,
-            "supported_modalities": self.supported_modalities
+            "supported_modalities": self.supported_modalities,
         }

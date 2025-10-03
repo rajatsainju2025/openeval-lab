@@ -19,5 +19,9 @@ class EchoAdapter:
             "text": prompt,
             "tokens": prompt.split(),
             "logprobs": [0.0] * len(prompt.split()),
-            "usage": {"prompt_tokens": len(prompt.split()), "completion_tokens": len(prompt.split()), "total_tokens": len(prompt.split()) * 2},
+            "usage": {
+                "prompt_tokens": len(prompt.split()),
+                "completion_tokens": len(prompt.split()),
+                "total_tokens": len(prompt.split()) * 2,
+            },
         }

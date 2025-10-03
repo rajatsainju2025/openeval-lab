@@ -17,12 +17,14 @@ try:
     import plotly.graph_objects as go
     import plotly.express as px
     from plotly.subplots import make_subplots
+
     HAS_PLOTLY = True
 except ImportError:
     HAS_PLOTLY = False
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
@@ -35,6 +37,7 @@ logger = get_logger(__name__)
 @dataclass
 class ModelResult:
     """Represents evaluation results for a single model."""
+
     model_name: str
     task: str
     dataset: str
@@ -46,7 +49,7 @@ class ModelResult:
     def primary_metric(self) -> Optional[float]:
         """Get the primary evaluation metric."""
         # Try common primary metrics in order
-        primary_candidates = ['accuracy', 'f1', 'bleu', 'rouge_l', 'exact_match']
+        primary_candidates = ["accuracy", "f1", "bleu", "rouge_l", "exact_match"]
         for metric in primary_candidates:
             if metric in self.metrics:
                 return self.metrics[metric]
@@ -57,6 +60,7 @@ class ModelResult:
 @dataclass
 class ComparisonReport:
     """Comprehensive model comparison report."""
+
     models: List[ModelResult] = field(default_factory=list)
     summary_stats: Dict[str, Any] = field(default_factory=dict)
     rankings: Dict[str, List[str]] = field(default_factory=dict)
@@ -89,11 +93,13 @@ class ComparisonReport:
 
         # Calculate summary statistics
         self.summary_stats = {
-            'total_models': len(self.models),
-            'unique_tasks': len(task_groups),
-            'unique_datasets': len(dataset_groups),
-            'task_breakdown': {task: len(results) for task, results in task_groups.items()},
-            'dataset_breakdown': {dataset: len(results) for dataset, results in dataset_groups.items()}
+            "total_models": len(self.models),
+            "unique_tasks": len(task_groups),
+            "unique_datasets": len(dataset_groups),
+            "task_breakdown": {task: len(results) for task, results in task_groups.items()},
+            "dataset_breakdown": {
+                dataset: len(results) for dataset, results in dataset_groups.items()
+            },
         }
 
     def generate_rankings(self) -> None:
@@ -112,12 +118,16 @@ class ComparisonReport:
 
         # Overall ranking (across all tasks)
         all_primary_scores = [(r.model_name, r.primary_metric or 0) for r in self.models]
-        rankings['overall'] = [name for name, _ in sorted(all_primary_scores, key=lambda x: x[1], reverse=True)]
+        rankings["overall"] = [
+            name for name, _ in sorted(all_primary_scores, key=lambda x: x[1], reverse=True)
+        ]
 
         # Task-specific rankings
         for task, results in task_groups.items():
             task_scores = [(r.model_name, r.primary_metric or 0) for r in results]
-            rankings[f'task_{task}'] = [name for name, _ in sorted(task_scores, key=lambda x: x[1], reverse=True)]
+            rankings[f"task_{task}"] = [
+                name for name, _ in sorted(task_scores, key=lambda x: x[1], reverse=True)
+            ]
 
         self.rankings = rankings
 
@@ -133,9 +143,7 @@ class ModelComparisonDashboard:
         self.reports: Dict[str, ComparisonReport] = {}
 
     def load_evaluation_results(
-        self,
-        results_dir: Union[str, Path],
-        pattern: str = "*.json"
+        self, results_dir: Union[str, Path], pattern: str = "*.json"
     ) -> str:
         """
         Load evaluation results from directory.
@@ -157,7 +165,7 @@ class ModelComparisonDashboard:
         # Load result files
         for result_file in results_path.glob(pattern):
             try:
-                with open(result_file, 'r', encoding='utf-8') as f:
+                with open(result_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
                 # Parse result data
@@ -181,20 +189,20 @@ class ModelComparisonDashboard:
         """Parse evaluation result data into ModelResult."""
         try:
             # Extract model information
-            model_name = data.get('model', {}).get('name', filename)
-            task = data.get('task', 'unknown')
-            dataset = data.get('dataset', {}).get('path', 'unknown')
+            model_name = data.get("model", {}).get("name", filename)
+            task = data.get("task", "unknown")
+            dataset = data.get("dataset", {}).get("path", "unknown")
 
             # Extract metrics
             metrics = {}
-            if 'results' in data and 'metrics' in data['results']:
-                metrics = data['results']['metrics']
+            if "results" in data and "metrics" in data["results"]:
+                metrics = data["results"]["metrics"]
 
             # Extract metadata
             metadata = {
-                'config': data.get('config', {}),
-                'timestamp': data.get('timestamp'),
-                'version': data.get('version')
+                "config": data.get("config", {}),
+                "timestamp": data.get("timestamp"),
+                "version": data.get("version"),
             }
 
             return ModelResult(
@@ -202,7 +210,7 @@ class ModelComparisonDashboard:
                 task=task,
                 dataset=dataset,
                 metrics=metrics,
-                metadata=metadata
+                metadata=metadata,
             )
 
         except Exception as e:
@@ -210,9 +218,7 @@ class ModelComparisonDashboard:
             return None
 
     def generate_comparison_report(
-        self,
-        report_id: str,
-        include_visualizations: bool = True
+        self, report_id: str, include_visualizations: bool = True
     ) -> Path:
         """
         Generate comprehensive comparison report.
@@ -238,7 +244,7 @@ class ModelComparisonDashboard:
 
         # Save report
         report_file = self.output_dir / f"model_comparison_{report_id}.html"
-        with open(report_file, 'w', encoding='utf-8') as f:
+        with open(report_file, "w", encoding="utf-8") as f:
             f.write(report_content)
 
         logger.info(f"Generated comparison report: {report_file}")
@@ -252,13 +258,13 @@ class ModelComparisonDashboard:
             return visualizations
 
         # Model performance comparison
-        visualizations['performance_chart'] = self._create_performance_chart(report)
+        visualizations["performance_chart"] = self._create_performance_chart(report)
 
         # Metric distribution
-        visualizations['metric_distribution'] = self._create_metric_distribution_chart(report)
+        visualizations["metric_distribution"] = self._create_metric_distribution_chart(report)
 
         # Ranking visualization
-        visualizations['ranking_chart'] = self._create_ranking_chart(report)
+        visualizations["ranking_chart"] = self._create_ranking_chart(report)
 
         return visualizations
 
@@ -267,20 +273,22 @@ class ModelComparisonDashboard:
         models = [r.model_name for r in report.models]
         scores = [r.primary_metric or 0 for r in report.models]
 
-        fig = go.Figure(data=[
-            go.Bar(
-                x=models,
-                y=scores,
-                text=[f"{s:.3f}" for s in scores],
-                textposition='auto',
-            )
-        ])
+        fig = go.Figure(
+            data=[
+                go.Bar(
+                    x=models,
+                    y=scores,
+                    text=[f"{s:.3f}" for s in scores],
+                    textposition="auto",
+                )
+            ]
+        )
 
         fig.update_layout(
             title="Model Performance Comparison",
             xaxis_title="Model",
             yaxis_title="Primary Metric Score",
-            showlegend=False
+            showlegend=False,
         )
 
         return fig.to_html(full_html=False)
@@ -311,7 +319,7 @@ class ModelComparisonDashboard:
         fig = make_subplots(
             rows=(n_metrics + 2) // 3,  # 3 columns
             cols=min(3, n_metrics),
-            subplot_titles=metrics_list
+            subplot_titles=metrics_list,
         )
 
         for i, metric in enumerate(metrics_list):
@@ -322,42 +330,38 @@ class ModelComparisonDashboard:
             row = (i // 3) + 1
             col = (i % 3) + 1
 
-            fig.add_trace(
-                go.Bar(x=models, y=values, name=metric),
-                row=row, col=col
-            )
+            fig.add_trace(go.Bar(x=models, y=values, name=metric), row=row, col=col)
 
-        fig.update_layout(
-            title="Metric Distribution Across Models",
-            showlegend=False
-        )
+        fig.update_layout(title="Metric Distribution Across Models", showlegend=False)
 
         return fig.to_html(full_html=False)
 
     def _create_ranking_chart(self, report: ComparisonReport) -> str:
         """Create ranking visualization."""
-        if 'overall' not in report.rankings:
+        if "overall" not in report.rankings:
             return "<p>No ranking data available</p>"
 
-        ranking = report.rankings['overall']
+        ranking = report.rankings["overall"]
         positions = list(range(1, len(ranking) + 1))
 
-        fig = go.Figure(data=[
-            go.Scatter(
-                x=positions,
-                y=ranking,
-                mode='markers+text',
-                text=ranking,
-                textposition="top center",
-                marker=dict(size=20, color=positions, colorscale='Viridis')
-            )
-        ])
+        fig = go.Figure(
+            data=[
+                go.Scatter(
+                    x=positions,
+                    y=ranking,
+                    mode="markers+text",
+                    text=ranking,
+                    textposition="top center",
+                    marker=dict(size=20, color=positions, colorscale="Viridis"),
+                )
+            ]
+        )
 
         fig.update_layout(
             title="Model Ranking (Overall Performance)",
             xaxis_title="Rank Position",
             yaxis_title="Model",
-            showlegend=False
+            showlegend=False,
         )
 
         return fig.to_html(full_html=False)
@@ -460,11 +464,7 @@ class ModelComparisonDashboard:
 
         return html
 
-    def export_comparison_data(
-        self,
-        report_id: str,
-        format: str = "json"
-    ) -> Path:
+    def export_comparison_data(self, report_id: str, format: str = "json") -> Path:
         """
         Export comparison data in various formats.
 
@@ -491,14 +491,14 @@ class ModelComparisonDashboard:
                         "dataset": r.dataset,
                         "metrics": r.metrics,
                         "metadata": r.metadata,
-                        "timestamp": r.timestamp.isoformat()
+                        "timestamp": r.timestamp.isoformat(),
                     }
                     for r in report.models
-                ]
+                ],
             }
 
             export_file = self.output_dir / f"comparison_data_{report_id}.json"
-            with open(export_file, 'w', encoding='utf-8') as f:
+            with open(export_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
         elif format in ["csv", "excel"] and HAS_PANDAS:
@@ -509,7 +509,7 @@ class ModelComparisonDashboard:
                     "model_name": result.model_name,
                     "task": result.task,
                     "dataset": result.dataset,
-                    "timestamp": result.timestamp.isoformat()
+                    "timestamp": result.timestamp.isoformat(),
                 }
                 # Convert metrics to strings for CSV/Excel compatibility
                 for metric_name, metric_value in result.metrics.items():
@@ -541,11 +541,13 @@ class ModelComparisonDashboard:
             "report_id": report_id,
             "total_models": len(report.models),
             "summary_stats": report.summary_stats,
-            "rankings": report.rankings
+            "rankings": report.rankings,
         }
 
 
-def create_model_comparison_dashboard(output_dir: Optional[Path] = None) -> ModelComparisonDashboard:
+def create_model_comparison_dashboard(
+    output_dir: Optional[Path] = None,
+) -> ModelComparisonDashboard:
     """Create a model comparison dashboard instance."""
     return ModelComparisonDashboard(output_dir)
 
@@ -553,7 +555,7 @@ def create_model_comparison_dashboard(output_dir: Optional[Path] = None) -> Mode
 def compare_models_from_directory(
     results_dir: Union[str, Path],
     output_dir: Optional[Path] = None,
-    include_visualizations: bool = True
+    include_visualizations: bool = True,
 ) -> Path:
     """
     Convenience function to compare models from a results directory.

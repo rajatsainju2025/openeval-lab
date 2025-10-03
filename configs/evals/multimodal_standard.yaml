@@ -1,4 +1,4 @@
-# Multimodal Evaluation  
+# Multimodal Evaluation
 # Evaluates vision-language models
 task: multimodal_qa
 dataset:

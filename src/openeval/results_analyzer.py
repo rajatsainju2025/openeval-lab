@@ -19,6 +19,7 @@ import itertools
 try:
     import numpy as np
     from scipy import stats
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -27,6 +28,7 @@ except ImportError:
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
@@ -39,6 +41,7 @@ logger = get_logger(__name__)
 @dataclass
 class EvaluationResult:
     """Represents a single evaluation result."""
+
     model_name: str
     task: str
     dataset: str
@@ -51,7 +54,7 @@ class EvaluationResult:
     def primary_metric(self) -> Optional[float]:
         """Get the primary evaluation metric."""
         # Try common primary metrics in order
-        primary_candidates = ['accuracy', 'f1', 'bleu', 'rouge_l', 'exact_match', 'pass_rate']
+        primary_candidates = ["accuracy", "f1", "bleu", "rouge_l", "exact_match", "pass_rate"]
         for metric in primary_candidates:
             if metric in self.metrics:
                 return self.metrics[metric]
@@ -62,6 +65,7 @@ class EvaluationResult:
 @dataclass
 class StatisticalTestResult:
     """Result of statistical significance test."""
+
     test_name: str
     p_value: float
     statistic: float
@@ -73,12 +77,15 @@ class StatisticalTestResult:
     def summary(self) -> str:
         """Get a summary of the test result."""
         sig_symbol = "✅" if self.significant else "❌"
-        return f"{sig_symbol} {self.test_name}: p={self.p_value:.4f}, significant={self.significant}"
+        return (
+            f"{sig_symbol} {self.test_name}: p={self.p_value:.4f}, significant={self.significant}"
+        )
 
 
 @dataclass
 class PerformanceComparison:
     """Comparison between two evaluation results."""
+
     result_a: EvaluationResult
     result_b: EvaluationResult
     metric_name: str
@@ -91,7 +98,9 @@ class PerformanceComparison:
         better = "A" if self.difference > 0 else "B"
         sig_note = ""
         if self.statistical_test:
-            sig_note = f" ({'significant' if self.statistical_test.significant else 'not significant'})"
+            sig_note = (
+                f" ({'significant' if self.statistical_test.significant else 'not significant'})"
+            )
 
         return f"{better} better by {abs(self.relative_difference):.1f}% on {self.metric_name}{sig_note}"
 
@@ -99,6 +108,7 @@ class PerformanceComparison:
 @dataclass
 class AnalysisReport:
     """Comprehensive analysis report."""
+
     title: str
     results: List[EvaluationResult] = field(default_factory=list)
     comparisons: List[PerformanceComparison] = field(default_factory=list)
@@ -119,9 +129,7 @@ class ResultsAnalyzer:
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
     def load_results(
-        self,
-        results_paths: Optional[List[Union[str, Path]]] = None,
-        pattern: str = "*.json"
+        self, results_paths: Optional[List[Union[str, Path]]] = None, pattern: str = "*.json"
     ) -> List[EvaluationResult]:
         """
         Load evaluation results from files.
@@ -142,7 +150,7 @@ class ResultsAnalyzer:
 
         for file_path in files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
                 result = self._parse_result_data(data, file_path.stem)
@@ -159,21 +167,21 @@ class ResultsAnalyzer:
         """Parse evaluation result data."""
         try:
             # Extract basic information
-            model_name = data.get('model', {}).get('name', filename)
-            task = data.get('task', 'unknown')
-            dataset = data.get('dataset', {}).get('path', 'unknown')
+            model_name = data.get("model", {}).get("name", filename)
+            task = data.get("task", "unknown")
+            dataset = data.get("dataset", {}).get("path", "unknown")
 
             # Extract metrics
             metrics = {}
-            if 'results' in data and 'metrics' in data['results']:
-                metrics = data['results']['metrics']
+            if "results" in data and "metrics" in data["results"]:
+                metrics = data["results"]["metrics"]
 
             # Extract config
-            config = data.get('config', {})
+            config = data.get("config", {})
 
             # Extract run ID and timestamp
-            run_id = data.get('run_id', filename)
-            timestamp_str = data.get('timestamp')
+            run_id = data.get("run_id", filename)
+            timestamp_str = data.get("timestamp")
             timestamp = datetime.fromisoformat(timestamp_str) if timestamp_str else datetime.now()
 
             return EvaluationResult(
@@ -183,7 +191,7 @@ class ResultsAnalyzer:
                 metrics=metrics,
                 config=config,
                 timestamp=timestamp,
-                run_id=run_id
+                run_id=run_id,
             )
 
         except Exception as e:
@@ -194,7 +202,7 @@ class ResultsAnalyzer:
         self,
         results: List[EvaluationResult],
         metric_name: Optional[str] = None,
-        group_by: str = "model"
+        group_by: str = "model",
     ) -> AnalysisReport:
         """
         Compare evaluation results.
@@ -207,10 +215,7 @@ class ResultsAnalyzer:
         Returns:
             AnalysisReport with comparisons and analysis
         """
-        report = AnalysisReport(
-            title=f"Results Comparison ({group_by} grouping)",
-            results=results
-        )
+        report = AnalysisReport(title=f"Results Comparison ({group_by} grouping)", results=results)
 
         if not results:
             return report
@@ -259,7 +264,7 @@ class ResultsAnalyzer:
                 common_metrics.add(metric)
 
         # Return primary metric if available, otherwise first common metric
-        primary_candidates = ['accuracy', 'f1', 'bleu', 'rouge_l', 'exact_match', 'pass_rate']
+        primary_candidates = ["accuracy", "f1", "bleu", "rouge_l", "exact_match", "pass_rate"]
         for candidate in primary_candidates:
             if candidate in common_metrics:
                 return candidate
@@ -267,9 +272,7 @@ class ResultsAnalyzer:
         return next(iter(common_metrics)) if common_metrics else None
 
     def _group_results(
-        self,
-        results: List[EvaluationResult],
-        group_by: str
+        self, results: List[EvaluationResult], group_by: str
     ) -> Dict[str, List[EvaluationResult]]:
         """Group results by specified attribute."""
         grouped = defaultdict(list)
@@ -289,9 +292,7 @@ class ResultsAnalyzer:
         return dict(grouped)
 
     def _generate_rankings(
-        self,
-        grouped_results: Dict[str, List[EvaluationResult]],
-        metric_name: str
+        self, grouped_results: Dict[str, List[EvaluationResult]], metric_name: str
     ) -> Dict[str, List[str]]:
         """Generate rankings for each group."""
         rankings = {}
@@ -311,9 +312,7 @@ class ResultsAnalyzer:
         return rankings
 
     def _generate_comparisons(
-        self,
-        grouped_results: Dict[str, List[EvaluationResult]],
-        metric_name: str
+        self, grouped_results: Dict[str, List[EvaluationResult]], metric_name: str
     ) -> List[PerformanceComparison]:
         """Generate pairwise comparisons."""
         comparisons = []
@@ -353,16 +352,14 @@ class ResultsAnalyzer:
                         result_b=result_b,
                         metric_name=metric_name,
                         difference=difference,
-                        relative_difference=relative_difference
+                        relative_difference=relative_difference,
                     )
                     comparisons.append(comparison)
 
         return comparisons
 
     def _perform_statistical_tests(
-        self,
-        grouped_results: Dict[str, List[EvaluationResult]],
-        metric_name: str
+        self, grouped_results: Dict[str, List[EvaluationResult]], metric_name: str
     ) -> List[StatisticalTestResult]:
         """Perform statistical significance tests."""
         if not HAS_SCIPY:
@@ -406,7 +403,7 @@ class ResultsAnalyzer:
                             p_value=p_value,
                             statistic=t_stat,
                             significant=significant,
-                            effect_size=effect_size
+                            effect_size=effect_size,
                         )
                         tests.append(test_result)
 
@@ -415,11 +412,7 @@ class ResultsAnalyzer:
 
         return tests
 
-    def _analyze_trends(
-        self,
-        results: List[EvaluationResult],
-        metric_name: str
-    ) -> Dict[str, Any]:
+    def _analyze_trends(self, results: List[EvaluationResult], metric_name: str) -> Dict[str, Any]:
         """Analyze performance trends."""
         trends = {}
 
@@ -470,19 +463,27 @@ class ResultsAnalyzer:
             if len(set(tuple(r) for r in all_rankings)) == 1:
                 recommendations.append("Model rankings are consistent across all groups.")
             else:
-                recommendations.append("Model rankings vary across groups - consider task-specific optimization.")
+                recommendations.append(
+                    "Model rankings vary across groups - consider task-specific optimization."
+                )
 
         # Check trends
         if "overall_trend" in report.trends:
             trend = report.trends["overall_trend"]
             if trend == "improving":
-                recommendations.append("Performance is trending upward - continue current optimization approach.")
+                recommendations.append(
+                    "Performance is trending upward - continue current optimization approach."
+                )
             elif trend == "declining":
-                recommendations.append("Performance is trending downward - review recent changes or configurations.")
+                recommendations.append(
+                    "Performance is trending downward - review recent changes or configurations."
+                )
 
         # General recommendations
         if not report.statistical_tests:
-            recommendations.append("Consider running multiple evaluation runs for statistical significance testing.")
+            recommendations.append(
+                "Consider running multiple evaluation runs for statistical significance testing."
+            )
 
         return recommendations
 
@@ -490,7 +491,7 @@ class ResultsAnalyzer:
         self,
         report: AnalysisReport,
         output_format: str = "html",
-        include_visualizations: bool = True
+        include_visualizations: bool = True,
     ) -> Path:
         """
         Generate a comprehensive analysis report.
@@ -520,7 +521,7 @@ class ResultsAnalyzer:
         else:
             raise ValueError(f"Unsupported output format: {output_format}")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"Generated analysis report: {file_path}")
@@ -638,7 +639,7 @@ class ResultsAnalyzer:
             "summary": {
                 "total_results": len(report.results),
                 "comparisons": len(report.comparisons),
-                "statistical_tests": len(report.statistical_tests)
+                "statistical_tests": len(report.statistical_tests),
             },
             "rankings": report.rankings,
             "comparisons": [
@@ -648,7 +649,7 @@ class ResultsAnalyzer:
                     "metric": c.metric_name,
                     "difference": c.difference,
                     "relative_difference": c.relative_difference,
-                    "significant": c.statistical_test.significant if c.statistical_test else None
+                    "significant": c.statistical_test.significant if c.statistical_test else None,
                 }
                 for c in report.comparisons
             ],
@@ -658,12 +659,12 @@ class ResultsAnalyzer:
                     "p_value": t.p_value,
                     "statistic": t.statistic,
                     "significant": t.significant,
-                    "effect_size": t.effect_size
+                    "effect_size": t.effect_size,
                 }
                 for t in report.statistical_tests
             ],
             "trends": report.trends,
-            "recommendations": report.recommendations
+            "recommendations": report.recommendations,
         }
 
         return json.dumps(data, indent=2, ensure_ascii=False)
@@ -724,7 +725,7 @@ def create_results_analyzer(results_dir: Optional[Path] = None) -> ResultsAnalyz
 def quick_comparison(
     results_files: List[Union[str, Path]],
     metric_name: Optional[str] = None,
-    output_format: str = "html"
+    output_format: str = "html",
 ) -> Path:
     """
     Perform a quick comparison of evaluation results.

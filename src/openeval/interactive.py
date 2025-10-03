@@ -12,6 +12,7 @@ from ..core import Task, Dataset, Adapter, Metric, Example
 
 class InteractionMode(Enum):
     """Modes of human-AI interaction for evaluation."""
+
     ACTIVE_LEARNING = "active_learning"
     HUMAN_IN_LOOP = "human_in_loop"
     COLLABORATIVE = "collaborative"
@@ -20,6 +21,7 @@ class InteractionMode(Enum):
 
 class FeedbackType(Enum):
     """Types of human feedback."""
+
     CORRECTION = "correction"
     CONFIDENCE = "confidence"
     PREFERENCE = "preference"
@@ -84,6 +86,7 @@ class InteractiveSession:
         else:
             # Default: random sampling
             import random
+
             all_examples = list(self.dataset)
             return random.sample(all_examples, min(num_examples, len(all_examples)))
 
@@ -172,7 +175,9 @@ class InteractiveSession:
 
         feedback_types = {}
         for feedback in self.feedback_history:
-            feedback_types[feedback.feedback_type.value] = feedback_types.get(feedback.feedback_type.value, 0) + 1
+            feedback_types[feedback.feedback_type.value] = (
+                feedback_types.get(feedback.feedback_type.value, 0) + 1
+            )
 
         progress = min(self.current_iteration / self.max_iterations, 1.0)
 
@@ -182,7 +187,7 @@ class InteractiveSession:
             "session_progress": progress,
             "iterations_completed": self.current_iteration,
             "has_converged": self.check_convergence(),
-            "performance_trajectory": self.performance_history
+            "performance_trajectory": self.performance_history,
         }
 
 
@@ -194,10 +199,17 @@ class InteractiveEvaluator:
         self.feedback_queue: queue.Queue = queue.Queue()
         self.session_lock = threading.Lock()
 
-    def create_session(self, task: Task, dataset: Dataset, adapter: Adapter,
-                      metrics: List[Metric], mode: InteractionMode = InteractionMode.HUMAN_IN_LOOP) -> str:
+    def create_session(
+        self,
+        task: Task,
+        dataset: Dataset,
+        adapter: Adapter,
+        metrics: List[Metric],
+        mode: InteractionMode = InteractionMode.HUMAN_IN_LOOP,
+    ) -> str:
         """Create a new interactive evaluation session."""
         import uuid
+
         session_id = str(uuid.uuid4())
 
         session = InteractiveSession(
@@ -206,7 +218,7 @@ class InteractiveEvaluator:
             dataset=dataset,
             adapter=adapter,
             metrics=metrics,
-            mode=mode
+            mode=mode,
         )
 
         with self.session_lock:
@@ -264,12 +276,14 @@ class InteractiveEvaluator:
 
             # Update model
             performance = session.update_model_with_feedback()
-            results.append({
-                "iteration": iteration,
-                "examples_evaluated": len(examples),
-                "feedback_collected": len(simulated_feedback),
-                "performance": performance
-            })
+            results.append(
+                {
+                    "iteration": iteration,
+                    "examples_evaluated": len(examples),
+                    "feedback_collected": len(simulated_feedback),
+                    "performance": performance,
+                }
+            )
 
             # Check convergence
             if session.check_convergence():
@@ -278,12 +292,16 @@ class InteractiveEvaluator:
         return {
             "session_id": session_id,
             "total_iterations": len(results),
-            "final_performance": session.performance_history[-1] if session.performance_history else {},
+            "final_performance": (
+                session.performance_history[-1] if session.performance_history else {}
+            ),
             "feedback_summary": session.generate_feedback_summary(),
-            "iteration_results": results
+            "iteration_results": results,
         }
 
-    def _simulate_human_feedback(self, examples: List[Example], adapter: Adapter) -> List[HumanFeedback]:
+    def _simulate_human_feedback(
+        self, examples: List[Example], adapter: Adapter
+    ) -> List[HumanFeedback]:
         """Simulate human feedback for examples (for demonstration)."""
         feedback = []
 
@@ -301,14 +319,16 @@ class InteractiveEvaluator:
             # Simulate confidence score
             confidence = 0.8 if len(prediction.split()) > 5 else 0.5
 
-            feedback.append(HumanFeedback(
-                example_id=getattr(example, 'id', str(hash(example.input))),
-                original_prediction=prediction,
-                human_correction=correction,
-                confidence_score=confidence,
-                feedback_type=FeedbackType.CORRECTION,
-                explanation="Simulated human feedback for demonstration"
-            ))
+            feedback.append(
+                HumanFeedback(
+                    example_id=getattr(example, "id", str(hash(example.input))),
+                    original_prediction=prediction,
+                    human_correction=correction,
+                    confidence_score=confidence,
+                    feedback_type=FeedbackType.CORRECTION,
+                    explanation="Simulated human feedback for demonstration",
+                )
+            )
 
         return feedback
 
@@ -321,7 +341,7 @@ class InteractiveEvaluator:
                     "mode": session.mode.value,
                     "current_iteration": session.current_iteration,
                     "total_feedback": len(session.feedback_history),
-                    "has_converged": session.check_convergence()
+                    "has_converged": session.check_convergence(),
                 }
                 for session_id, session in self.sessions.items()
             ]

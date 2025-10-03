@@ -31,7 +31,9 @@ class ReActAgent(Agent):
                     tool_name = line.split(":", 1)[1].strip()
                 if line.upper().startswith("TOOL_INPUT:"):
                     tool_input = line.split(":", 1)[1].strip()
-            steps.append(AgentStep(thought=plan, action=tool_name, input=tool_input, observation=None))
+            steps.append(
+                AgentStep(thought=plan, action=tool_name, input=tool_input, observation=None)
+            )
 
             if not tool_name or not tool_input or tool_name not in self.tools:
                 # Fallback: answer directly
@@ -42,7 +44,9 @@ class ReActAgent(Agent):
             tool = self.tools[tool_name]
             tool_res = tool.run(tool_input)
             observation = str(tool_res.output if tool_res.success else tool_res.error)
-            steps.append(AgentStep(thought=None, action=tool_name, input=tool_input, observation=observation))
+            steps.append(
+                AgentStep(thought=None, action=tool_name, input=tool_input, observation=observation)
+            )
 
             # Ask LLM to form final answer
             final = self.adapter.generate(

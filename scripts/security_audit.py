@@ -10,14 +10,12 @@ This script performs comprehensive security checks including:
 """
 
 import json
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Any
 
-import requests
 
 
 class SecurityAuditor:
@@ -32,7 +30,9 @@ class SecurityAuditor:
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "list", "--format=json"],
-                capture_output=True, text=True, cwd=self.project_root
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
             )
             if result.returncode == 0:
                 packages = json.loads(result.stdout)
@@ -41,19 +41,23 @@ class SecurityAuditor:
                     if self._is_vulnerable_package(pkg["name"], pkg["version"]):
                         vulnerable.append(f"{pkg['name']}=={pkg['version']}")
                 if vulnerable:
-                    self.issues.append({
-                        "severity": "HIGH",
-                        "category": "DEPENDENCY",
-                        "description": f"Vulnerable packages found: {', '.join(vulnerable)}",
-                        "recommendation": "Update packages or use safety check"
-                    })
+                    self.issues.append(
+                        {
+                            "severity": "HIGH",
+                            "category": "DEPENDENCY",
+                            "description": f"Vulnerable packages found: {', '.join(vulnerable)}",
+                            "recommendation": "Update packages or use safety check",
+                        }
+                    )
         except Exception as e:
-            self.issues.append({
-                "severity": "MEDIUM",
-                "category": "DEPENDENCY",
-                "description": f"Failed to audit dependencies: {e}",
-                "recommendation": "Install safety and run pip-audit"
-            })
+            self.issues.append(
+                {
+                    "severity": "MEDIUM",
+                    "category": "DEPENDENCY",
+                    "description": f"Failed to audit dependencies: {e}",
+                    "recommendation": "Install safety and run pip-audit",
+                }
+            )
 
     def _is_vulnerable_package(self, name: str, version: str) -> bool:
         """Check if package version is known to be vulnerable."""
@@ -78,7 +82,7 @@ class SecurityAuditor:
     def _analyze_file_security(self, file_path: Path) -> None:
         """Analyze a single file for security issues."""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Check for hardcoded secrets
@@ -92,65 +96,77 @@ class SecurityAuditor:
             for pattern in secrets_patterns:
                 matches = re.findall(pattern, content, re.IGNORECASE)
                 if matches:
-                    self.issues.append({
-                        "severity": "CRITICAL",
-                        "category": "CODE_SECURITY",
-                        "description": f"Potential hardcoded secrets in {file_path}",
-                        "recommendation": "Use environment variables or secure key management"
-                    })
+                    self.issues.append(
+                        {
+                            "severity": "CRITICAL",
+                            "category": "CODE_SECURITY",
+                            "description": f"Potential hardcoded secrets in {file_path}",
+                            "recommendation": "Use environment variables or secure key management",
+                        }
+                    )
 
             # Check for dangerous functions
             dangerous_functions = [
-                'eval(', 'exec(', 'subprocess.call(', 'os.system(',
-                'pickle.loads(', 'yaml.load('
+                "eval(",
+                "exec(",
+                "subprocess.call(",
+                "os.system(",
+                "pickle.loads(",
+                "yaml.load(",
             ]
 
             for func in dangerous_functions:
                 if func in content:
-                    self.issues.append({
-                        "severity": "HIGH",
-                        "category": "CODE_SECURITY",
-                        "description": f"Dangerous function '{func[:-1]}' used in {file_path}",
-                        "recommendation": "Review usage and consider safer alternatives"
-                    })
+                    self.issues.append(
+                        {
+                            "severity": "HIGH",
+                            "category": "CODE_SECURITY",
+                            "description": f"Dangerous function '{func[:-1]}' used in {file_path}",
+                            "recommendation": "Review usage and consider safer alternatives",
+                        }
+                    )
 
         except Exception as e:
-            self.issues.append({
-                "severity": "LOW",
-                "category": "CODE_SECURITY",
-                "description": f"Failed to analyze {file_path}: {e}",
-                "recommendation": "Check file permissions and encoding"
-            })
+            self.issues.append(
+                {
+                    "severity": "LOW",
+                    "category": "CODE_SECURITY",
+                    "description": f"Failed to analyze {file_path}: {e}",
+                    "recommendation": "Check file permissions and encoding",
+                }
+            )
 
     def audit_configuration(self) -> None:
         """Audit configuration files for security issues."""
-        config_files = [
-            "pyproject.toml", ".env", ".env.local", "config.yaml", "config.json"
-        ]
+        config_files = ["pyproject.toml", ".env", ".env.local", "config.yaml", "config.json"]
 
         for config_file in config_files:
             config_path = self.project_root / config_file
             if config_path.exists():
                 try:
-                    with open(config_path, 'r', encoding='utf-8') as f:
+                    with open(config_path, "r", encoding="utf-8") as f:
                         content = f.read()
 
                     # Check for exposed secrets in config
-                    if re.search(r'api_key|password|secret|token', content, re.IGNORECASE):
-                        self.issues.append({
-                            "severity": "HIGH",
-                            "category": "CONFIGURATION",
-                            "description": f"Potential secrets in {config_file}",
-                            "recommendation": "Move secrets to environment variables"
-                        })
+                    if re.search(r"api_key|password|secret|token", content, re.IGNORECASE):
+                        self.issues.append(
+                            {
+                                "severity": "HIGH",
+                                "category": "CONFIGURATION",
+                                "description": f"Potential secrets in {config_file}",
+                                "recommendation": "Move secrets to environment variables",
+                            }
+                        )
 
                 except Exception as e:
-                    self.issues.append({
-                        "severity": "MEDIUM",
-                        "category": "CONFIGURATION",
-                        "description": f"Failed to audit {config_file}: {e}",
-                        "recommendation": "Check file permissions"
-                    })
+                    self.issues.append(
+                        {
+                            "severity": "MEDIUM",
+                            "category": "CONFIGURATION",
+                            "description": f"Failed to audit {config_file}: {e}",
+                            "recommendation": "Check file permissions",
+                        }
+                    )
 
     def generate_report(self) -> str:
         """Generate a comprehensive security report."""
@@ -195,7 +211,7 @@ def main():
 
     report = auditor.generate_report()
     report_path = project_root / "security_audit_report.md"
-    with open(report_path, 'w', encoding='utf-8') as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
 
     print(f"📄 Report saved to {report_path}")

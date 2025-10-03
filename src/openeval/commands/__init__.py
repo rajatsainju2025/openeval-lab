@@ -15,20 +15,11 @@ from __future__ import annotations
 import typer
 
 # Create command group apps
-base_app = typer.Typer(
-    no_args_is_help=True,
-    help="Base system commands"
-)
+base_app = typer.Typer(no_args_is_help=True, help="Base system commands")
 
-eval_app = typer.Typer(
-    no_args_is_help=True, 
-    help="Evaluation management commands"
-)
+eval_app = typer.Typer(no_args_is_help=True, help="Evaluation management commands")
 
-run_app = typer.Typer(
-    no_args_is_help=True,
-    help="Run evaluation commands"
-)
+run_app = typer.Typer(no_args_is_help=True, help="Run evaluation commands")
 
 # Import command implementations
 from .base import *

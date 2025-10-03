@@ -70,7 +70,7 @@ eval-qa: ## Run QA benchmark
 	$(OPENEVAL) run examples/qa_spec.json --records --artifacts artifacts/qa --statistical
 	@echo "$(GREEN)✓ QA benchmark complete$(NC)"
 
-eval-code: ## Run code generation benchmark  
+eval-code: ## Run code generation benchmark
 	@echo "$(BLUE)Running code generation benchmark...$(NC)"
 	$(OPENEVAL) run examples/code_spec.json --records --artifacts artifacts/code
 	@echo "$(GREEN)✓ Code benchmark complete$(NC)"
@@ -102,19 +102,19 @@ benchmark-fast: ## Run fast benchmark subset
 # Validation and quality checks
 validate: ## Validate all example specs and configurations
 	@echo "🔍 Validating specs and configurations..."
-	@for spec in examples/*.json examples/*.yaml; do 
-		if [ -f "$$spec" ]; then 
-			echo "Validating $$spec..."; 
-			python -m openeval validate-comprehensive "$$spec" --strict || exit 1; 
-		fi; 
+	@for spec in examples/*.json examples/*.yaml; do
+		if [ -f "$$spec" ]; then
+			echo "Validating $$spec...";
+			python -m openeval validate-comprehensive "$$spec" --strict || exit 1;
+		fi;
 	done
 	@echo "✅ All validations passed!"
 
 validate-comprehensive: ## Run comprehensive validation on all project files
 	@echo "🔍 Running comprehensive validation..."
-	@find examples -name "*.json" -o -name "*.yaml" | head -10 | while read file; do 
-		echo "Validating $$file..."; 
-		python -m openeval validate-comprehensive "$$file" --check-imports --check-datasets --check-performance; 
+	@find examples -name "*.json" -o -name "*.yaml" | head -10 | while read file; do
+		echo "Validating $$file...";
+		python -m openeval validate-comprehensive "$$file" --check-imports --check-datasets --check-performance;
 	done
 	@echo "✅ Comprehensive validation complete!"
 
@@ -125,9 +125,9 @@ validate-examples: ## Validate all example files quickly
 
 validate-configs: ## Validate configuration files
 	@echo "🔍 Validating configuration files..."
-	@find . -name "*.yaml" -path "./configs/*" | while read config; do 
-		echo "Validating config $$config..."; 
-		python -m openeval validate-comprehensive "$$config" --type config; 
+	@find . -name "*.yaml" -path "./configs/*" | while read config; do
+		echo "Validating config $$config...";
+		python -m openeval validate-comprehensive "$$config" --type config;
 	done
 	@echo "✅ Configuration validation complete!"
 
@@ -195,11 +195,11 @@ quickstart: install validate eval ## Complete quickstart sequence
 	@echo ""
 	@echo "$(BLUE)Next steps:$(NC)"
 	@echo "  • View results: $(YELLOW)openeval web$(NC)"
-	@echo "  • Run benchmarks: $(YELLOW)make benchmark$(NC)"  
+	@echo "  • Run benchmarks: $(YELLOW)make benchmark$(NC)"
 	@echo "  • Read docs: $(YELLOW)open README.md$(NC)"
 	@echo ""
 
-# CI shortcuts  
+# CI shortcuts
 ci: lint type-check test ## Run all CI checks
 	@echo "$(GREEN)✓ All CI checks passed$(NC)"
 

@@ -24,7 +24,7 @@ from openeval.unified_config import SecurityConfig
 
 class TestSecretStoreType:
     """Test SecretStoreType enumeration."""
-    
+
     def test_secret_store_type_values(self):
         """Test SecretStoreType enum values."""
         assert SecretStoreType.LOCAL.value == "local"
@@ -43,7 +43,7 @@ class TestSecretStoreType:
 
 class TestSecurityLevel:
     """Test SecurityLevel enumeration."""
-    
+
     def test_security_level_values(self):
         """Test SecurityLevel enum values."""
         assert SecurityLevel.DEVELOPMENT.value == "development"
@@ -58,17 +58,14 @@ class TestSecurityLevel:
 
 class TestSecretMetadata:
     """Test SecretMetadata dataclass."""
-    
+
     def test_secret_metadata_creation(self):
         """Test creating SecretMetadata with required fields."""
         now = datetime.now()
         metadata = SecretMetadata(
-            secret_id="test-secret-1",
-            created_at=now,
-            last_rotated=now,
-            rotation_interval_days=30
+            secret_id="test-secret-1", created_at=now, last_rotated=now, rotation_interval_days=30
         )
-        
+
         assert metadata.secret_id == "test-secret-1"
         assert metadata.created_at == now
         assert metadata.last_rotated == now
@@ -86,16 +83,16 @@ class TestSecretMetadata:
             created_at=now,
             last_rotated=now,
             rotation_interval_days=90,
-            tags={"environment": "production", "service": "openeval"}
+            tags={"environment": "production", "service": "openeval"},
         )
-        
+
         assert metadata.tags["environment"] == "production"
         assert metadata.tags["service"] == "openeval"
 
 
 class TestSecurityAuditEntry:
     """Test SecurityAuditEntry dataclass."""
-    
+
     def test_audit_entry_creation(self):
         """Test creating SecurityAuditEntry."""
         now = datetime.now()
@@ -105,9 +102,9 @@ class TestSecurityAuditEntry:
             resource="api-key-openai",
             user="test-user",
             action="retrieve_secret",
-            result="SUCCESS"
+            result="SUCCESS",
         )
-        
+
         assert entry.timestamp == now
         assert entry.event_type == "SECRET_ACCESS"
         assert entry.resource == "api-key-openai"
@@ -128,51 +125,51 @@ class TestSecurityAuditEntry:
             action="rotate_secret",
             result="SUCCESS",
             details={"rotation_id": "rot-12345"},
-            severity="WARN"
+            severity="WARN",
         )
-        
+
         assert entry.details["rotation_id"] == "rot-12345"
         assert entry.severity == "WARN"
 
 
 class TestLocalSecretStore:
     """Test LocalSecretStore implementation."""
-    
+
     def test_local_store_initialization(self):
         """Test LocalSecretStore initialization."""
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             assert store.storage_path == store_path
-            assert hasattr(store, '_cipher')
-            assert hasattr(store, '_secrets')
-            assert hasattr(store, '_metadata')
+            assert hasattr(store, "_cipher")
+            assert hasattr(store, "_secrets")
+            assert hasattr(store, "_metadata")
 
     def test_store_and_retrieve_secret(self):
         """Test storing and retrieving a secret."""
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             # Store a secret
             result = store.store_secret("test-key", "test-secret-value")
             assert result is True
-            
+
             # Retrieve the secret
             retrieved = store.retrieve_secret("test-key")
             assert retrieved == "test-secret-value"
-    
+
     def test_store_secret_with_metadata(self):
         """Test storing a secret with metadata."""
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             metadata = {"service": "openai", "environment": "production"}
             result = store.store_secret("openai-key", "sk-test123", metadata)
             assert result is True
-            
+
             # Verify secret can be retrieved
             retrieved = store.retrieve_secret("openai-key")
             assert retrieved == "sk-test123"
@@ -182,15 +179,15 @@ class TestLocalSecretStore:
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             # Store a secret
             store.store_secret("temp-key", "temp-value")
             assert store.retrieve_secret("temp-key") == "temp-value"
-            
+
             # Delete the secret
             result = store.delete_secret("temp-key")
             assert result is True
-            
+
             # Verify secret is gone
             retrieved = store.retrieve_secret("temp-key")
             assert retrieved is None
@@ -200,12 +197,12 @@ class TestLocalSecretStore:
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             # Store multiple secrets
             store.store_secret("key1", "value1")
             store.store_secret("key2", "value2")
             store.store_secret("key3", "value3")
-            
+
             # List secrets
             secrets = store.list_secrets()
             assert isinstance(secrets, list)
@@ -218,13 +215,13 @@ class TestLocalSecretStore:
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             # Store a secret
             store.store_secret("meta-test", "test-value")
-            
+
             # Get metadata
             metadata = store.get_metadata("meta-test")
-            
+
             if metadata:  # Metadata might not be fully implemented
                 assert isinstance(metadata, SecretMetadata)
                 assert metadata.secret_id == "meta-test"
@@ -234,7 +231,7 @@ class TestLocalSecretStore:
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             retrieved = store.retrieve_secret("nonexistent-key")
             assert retrieved is None
 
@@ -243,10 +240,10 @@ class TestLocalSecretStore:
         with tempfile.TemporaryDirectory() as temp_dir:
             store_path = Path(temp_dir)
             store = LocalSecretStore(store_path)
-            
+
             # Store a secret
             store.store_secret("rotation-test", "test-value")
-            
+
             # Check if rotation is needed
             needs_rotation = store.needs_rotation("rotation-test")
             assert isinstance(needs_rotation, bool)
@@ -254,44 +251,42 @@ class TestLocalSecretStore:
 
 class TestSecurityManager:
     """Test SecurityManager functionality."""
-    
+
     def test_security_manager_initialization(self):
         """Test SecurityManager initialization."""
         config = SecurityConfig()
         manager = SecurityManager(config)
-        
+
         assert manager is not None
-        assert hasattr(manager, 'config')
-        assert hasattr(manager, 'secret_store')
-        assert hasattr(manager, 'auditor')
+        assert hasattr(manager, "config")
+        assert hasattr(manager, "secret_store")
+        assert hasattr(manager, "auditor")
         assert manager.config == config
 
     def test_security_manager_with_local_store(self):
         """Test SecurityManager with local store configuration."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             assert manager.config.secret_store_type == "local"
 
     def test_store_and_get_secret(self):
         """Test storing and getting secrets via SecurityManager."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Store a secret
             result = manager.store_secret("test-service", "test-secret-value")
             assert result is True
-            
+
             # Get the secret using context manager
             with manager.get_secret("test-service") as retrieved:
                 assert retrieved == "test-secret-value"
@@ -300,18 +295,17 @@ class TestSecurityManager:
         """Test deleting secrets via SecurityManager."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Store and then delete a secret
             manager.store_secret("temp-service", "temp-value")
-            
+
             result = manager.delete_secret("temp-service")
             assert result is True
-            
+
             # Verify it's gone
             with manager.get_secret("temp-service") as retrieved:
                 assert retrieved is None
@@ -320,19 +314,18 @@ class TestSecurityManager:
         """Test rotating secrets via SecurityManager."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Store initial secret
             manager.store_secret("rotation-test", "old-value")
-            
+
             # Rotate the secret - providing a generator function
             result = manager.rotate_secret("rotation-test", lambda: "new-value")
             assert result is True
-            
+
             # Verify new value
             with manager.get_secret("rotation-test") as retrieved:
                 assert retrieved == "new-value"
@@ -341,9 +334,9 @@ class TestSecurityManager:
         """Test getting security status."""
         config = SecurityConfig()
         manager = SecurityManager(config)
-        
+
         status = manager.get_security_status()
-        
+
         assert isinstance(status, dict)
         # Basic structure verification - exact keys may vary
         if status:
@@ -353,30 +346,28 @@ class TestSecurityManager:
         """Test checking for secrets that need rotation."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Store a secret
             manager.store_secret("rotation-check", "test-value")
-            
+
             # Check rotations needed
             rotations = manager.check_rotations_needed()
-            
+
             assert isinstance(rotations, (list, dict))
 
     def test_auto_rotate_secrets(self):
         """Test automatic secret rotation."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local", 
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # This method might not be fully implemented
             try:
                 result = manager.auto_rotate_secrets()
@@ -389,18 +380,17 @@ class TestSecurityManager:
         """Test exporting security report."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Store some test data
             manager.store_secret("report-test", "test-value")
-            
+
             # Export report
             report_path = Path(temp_dir) / "security_report.json"
-            
+
             try:
                 result = manager.export_security_report(report_path)
                 if result:
@@ -412,16 +402,16 @@ class TestSecurityManager:
 
 class TestSecurityConfig:
     """Test SecurityConfig integration with security components."""
-    
+
     def test_security_config_defaults(self):
         """Test SecurityConfig default values."""
         config = SecurityConfig()
-        
+
         # Test default values are reasonable
-        assert hasattr(config, 'secret_store_type')
-        assert hasattr(config, 'api_key_encryption')
-        assert hasattr(config, 'audit_logging')
-        assert hasattr(config, 'security_scanning')
+        assert hasattr(config, "secret_store_type")
+        assert hasattr(config, "api_key_encryption")
+        assert hasattr(config, "audit_logging")
+        assert hasattr(config, "security_scanning")
 
     def test_security_config_customization(self):
         """Test customizing SecurityConfig."""
@@ -429,9 +419,9 @@ class TestSecurityConfig:
             secret_store_type="local",
             api_key_encryption=True,
             audit_logging=True,
-            security_scanning=False
+            security_scanning=False,
         )
-        
+
         assert config.secret_store_type == "local"
         assert config.api_key_encryption is True
         assert config.audit_logging is True
@@ -441,51 +431,50 @@ class TestSecurityConfig:
 @pytest.mark.integration
 class TestSecurityIntegration:
     """Integration tests for security components."""
-    
+
     def test_complete_secret_lifecycle(self):
         """Test complete secret lifecycle."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Setup security manager
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # 1. Store multiple secrets
             secrets = {
                 "openai": "sk-openai123456",
                 "anthropic": "sk-anthropic654321",
-                "google": "sk-google987654"
+                "google": "sk-google987654",
             }
-            
+
             for service, secret in secrets.items():
                 result = manager.store_secret(service, secret)
                 assert result is True
-            
+
             # 2. Retrieve all secrets
             for service, expected_secret in secrets.items():
                 with manager.get_secret(service) as retrieved:
                     assert retrieved == expected_secret
-            
+
             # 3. Rotate one secret
             new_openai_secret = "sk-openai-new789012"
             rotation_result = manager.rotate_secret("openai", lambda: new_openai_secret)
             assert rotation_result is True
-            
+
             # Verify rotation worked
             with manager.get_secret("openai") as rotated_secret:
                 assert rotated_secret == new_openai_secret
-            
+
             # 4. Delete one secret
             delete_result = manager.delete_secret("google")
             assert delete_result is True
-            
+
             # Verify deletion
             with manager.get_secret("google") as deleted_secret:
                 assert deleted_secret is None
-            
+
             # 5. Check final status
             status = manager.get_security_status()
             assert isinstance(status, dict)
@@ -495,7 +484,7 @@ class TestSecurityIntegration:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create store with no encryption
             store = LocalSecretStore(Path(temp_dir), encryption_key=None)
-            
+
             # Basic functionality should still work
             store.store_secret("test", "value")
             retrieved = store.retrieve_secret("test")
@@ -507,27 +496,25 @@ class TestSecurityIntegration:
             with tempfile.TemporaryDirectory() as temp_dir2:
                 # Create two separate managers
                 config1 = SecurityConfig(
-                    secret_store_type="local",
-                    secret_store_config={"path": temp_dir1}
+                    secret_store_type="local", secret_store_config={"path": temp_dir1}
                 )
                 config2 = SecurityConfig(
-                    secret_store_type="local",
-                    secret_store_config={"path": temp_dir2}
+                    secret_store_type="local", secret_store_config={"path": temp_dir2}
                 )
-                
+
                 manager1 = SecurityManager(config1)
                 manager2 = SecurityManager(config2)
-                
+
                 # Store different secrets in each
                 manager1.store_secret("service1", "secret1")
                 manager2.store_secret("service2", "secret2")
-                
+
                 # Verify isolation
                 with manager1.get_secret("service1") as secret1:
                     assert secret1 == "secret1"
                 with manager1.get_secret("service2") as secret2:
                     assert secret2 is None
-                
+
                 with manager2.get_secret("service2") as secret2:
                     assert secret2 == "secret2"
                 with manager2.get_secret("service1") as secret1:
@@ -536,21 +523,20 @@ class TestSecurityIntegration:
 
 class TestSecurityErrorHandling:
     """Test security error handling scenarios."""
-    
+
     def test_nonexistent_secret_handling(self):
         """Test handling of nonexistent secrets."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Get nonexistent secret
             with manager.get_secret("nonexistent") as result:
                 assert result is None
-            
+
             # Delete nonexistent secret
             result = manager.delete_secret("nonexistent")
             # Should not raise error, might return False or None
@@ -559,12 +545,11 @@ class TestSecurityErrorHandling:
         """Test handling of empty or None secrets."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config = SecurityConfig(
-                secret_store_type="local",
-                secret_store_config={"path": temp_dir}
+                secret_store_type="local", secret_store_config={"path": temp_dir}
             )
-            
+
             manager = SecurityManager(config)
-            
+
             # Try to store empty secret
             try:
                 result = manager.store_secret("empty-test", "")

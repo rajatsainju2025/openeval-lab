@@ -25,7 +25,7 @@ class HuggingFaceAdapter(Adapter):
     ):
         """
         Initialize Hugging Face adapter.
-        
+
         Args:
             model_name: HF model name/path
             device: Device to load model on ("auto", "cuda", "cpu")
@@ -42,7 +42,7 @@ class HuggingFaceAdapter(Adapter):
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
         self.do_sample = do_sample
-        
+
         self._model = None  # type: Optional[Any]
         self._tokenizer = None  # type: Optional[Any]
 
@@ -57,63 +57,56 @@ class HuggingFaceAdapter(Adapter):
                     "transformers and torch required. Install with: "
                     "pip install transformers torch"
                 ) from e
-            
+
             # Parse torch dtype
             dtype = None
             if self.torch_dtype == "float16":
                 dtype = torch.float16
             elif self.torch_dtype == "bfloat16":
                 dtype = torch.bfloat16
-            
+
             # Load tokenizer
             self._tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
                 use_auth_token=self.use_auth_token,
                 trust_remote_code=True,
             )
-            
+
             # Set pad token if not available
             if self._tokenizer and self._tokenizer.pad_token is None:
                 self._tokenizer.pad_token = self._tokenizer.eos_token
-            
+
             # Load model
             model_kwargs = {
                 "trust_remote_code": True,
                 "use_auth_token": self.use_auth_token,
             }
-            
+
             if dtype is not None:
                 model_kwargs["torch_dtype"] = dtype
-                
+
             if self.device != "auto":
                 model_kwargs["device_map"] = self.device
             else:
                 model_kwargs["device_map"] = "auto"
-            
-            self._model = AutoModelForCausalLM.from_pretrained(
-                self.model_name, **model_kwargs
-            )
+
+            self._model = AutoModelForCausalLM.from_pretrained(self.model_name, **model_kwargs)
 
     def generate(self, prompt: str, **kwargs) -> str:
         """Generate text using Hugging Face model."""
         self._load_model()
-        
+
         # Override defaults with kwargs
         max_new_tokens = kwargs.get("max_new_tokens", self.max_new_tokens)
         temperature = kwargs.get("temperature", self.temperature)
         do_sample = kwargs.get("do_sample", self.do_sample)
-        
+
         # Tokenize input
-        inputs = self._tokenizer(
-            prompt, 
-            return_tensors="pt", 
-            padding=True, 
-            truncation=True
-        )
-        
+        inputs = self._tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
+
         # Move to device
         inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
-        
+
         # Generate
         with torch.no_grad():
             outputs = self._model.generate(
@@ -124,15 +117,12 @@ class HuggingFaceAdapter(Adapter):
                 pad_token_id=self._tokenizer.pad_token_id,
                 eos_token_id=self._tokenizer.eos_token_id,
             )
-        
+
         # Decode only the new tokens
         input_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs[0][input_length:]
-        generated_text = self._tokenizer.decode(
-            generated_tokens, 
-            skip_special_tokens=True
-        )
-        
+        generated_text = self._tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
         return generated_text.strip()
 
     def generate_with_logprobs(self, prompt: str, **kwargs) -> Dict[str, Any]:
@@ -143,26 +133,21 @@ class HuggingFaceAdapter(Adapter):
             Dictionary with generated text, tokens, and log probabilities
         """
         self._load_model()
-        
+
         if not self._tokenizer or not self._model:
             raise RuntimeError("Model or tokenizer not loaded")
-        
+
         # Override defaults with kwargs
         max_new_tokens = kwargs.get("max_new_tokens", self.max_new_tokens)
         temperature = kwargs.get("temperature", self.temperature)
         do_sample = kwargs.get("do_sample", self.do_sample)
-        
+
         # Tokenize input
-        inputs = self._tokenizer(
-            prompt, 
-            return_tensors="pt", 
-            padding=True, 
-            truncation=True
-        )
-        
+        inputs = self._tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
+
         # Move to device
         inputs = {k: v.to(self._model.device) for k, v in inputs.items()}
-        
+
         # Generate with scores
         with torch.no_grad():
             outputs = self._model.generate(
@@ -175,30 +160,27 @@ class HuggingFaceAdapter(Adapter):
                 return_dict_in_generate=True,
                 output_scores=True,
             )
-        
+
         # Extract generated tokens and scores
         input_length = inputs["input_ids"].shape[1]
         generated_tokens = outputs.sequences[0][input_length:]
-        
+
         # Convert tokens to text
-        generated_text = self._tokenizer.decode(
-            generated_tokens, 
-            skip_special_tokens=True
-        )
-        
+        generated_text = self._tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
         # Extract log probabilities
         logprobs = []
-        if hasattr(outputs, 'scores') and outputs.scores:
+        if hasattr(outputs, "scores") and outputs.scores:
             for i, score in enumerate(outputs.scores):
                 if i < len(generated_tokens):
                     token_id = generated_tokens[i]
                     if token_id < score.shape[-1]:
                         logprob = score[0][token_id].item()
                         logprobs.append(logprob)
-        
+
         # Get token strings
         tokens = [self._tokenizer.decode(token_id) for token_id in generated_tokens]
-        
+
         return {
             "text": generated_text,
             "tokens": tokens,
@@ -206,15 +188,15 @@ class HuggingFaceAdapter(Adapter):
             "usage": {
                 "prompt_tokens": input_length,
                 "completion_tokens": len(generated_tokens),
-                "total_tokens": input_length + len(generated_tokens)
-            }
+                "total_tokens": input_length + len(generated_tokens),
+            },
         }
 
     def set_runtime_options(
-        self, 
-        concurrency: Optional[int] = None, 
+        self,
+        concurrency: Optional[int] = None,
         max_retries: Optional[int] = None,
-        request_timeout: Optional[float] = None
+        request_timeout: Optional[float] = None,
     ):
         """Set runtime options."""
         # For local models, these don't apply directly
@@ -225,11 +207,11 @@ class HuggingFaceAdapter(Adapter):
 
 class CodeLlamaAdapter(HuggingFaceAdapter):
     """Convenience adapter for Code Llama models."""
-    
+
     def __init__(self, size: str = "7b", **kwargs):
         """
         Initialize Code Llama adapter.
-        
+
         Args:
             size: Model size ("7b", "13b", "34b")
             **kwargs: Additional arguments for HuggingFaceAdapter
@@ -240,11 +222,11 @@ class CodeLlamaAdapter(HuggingFaceAdapter):
 
 class LlamaAdapter(HuggingFaceAdapter):
     """Convenience adapter for Llama 2 models."""
-    
+
     def __init__(self, size: str = "7b", chat: bool = True, **kwargs):
         """
         Initialize Llama 2 adapter.
-        
+
         Args:
             size: Model size ("7b", "13b", "70b")
             chat: Whether to use chat variant

@@ -2,7 +2,7 @@
 # Evaluates programming ability with execution and style metrics
 task: code_execution
 dataset:
-  name: jsonl  
+  name: jsonl
   path: examples/code_toy.jsonl
 adapter:
   name: echo  # Replace with your preferred adapter

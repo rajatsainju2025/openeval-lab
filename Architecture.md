@@ -37,61 +37,61 @@ graph TB
         Web[Web Dashboard]
         API[Python API]
     end
-    
+
     subgraph "Core Engine"
         Runner[Evaluation Runner]
         Config[Config Manager]
         Registry[Plugin Registry]
     end
-    
+
     subgraph "Plugin System"
         Task[Task Plugins]
         Dataset[Dataset Plugins]
         Adapter[Adapter Plugins]
         Metric[Metric Plugins]
     end
-    
+
     subgraph "Evaluation Pipeline"
         Load[Data Loading]
         Generate[Generation]
         Score[Scoring]
         Analyze[Analysis]
     end
-    
+
     subgraph "Output & Storage"
         Results[Results JSON]
         Artifacts[Artifacts]
         Reports[Reports]
         Cache[Cache Layer]
     end
-    
+
     subgraph "External Systems"
         Models[Model APIs]
         Data[Data Sources]
         Storage[Storage Backends]
     end
-    
+
     CLI --> Runner
     Web --> Runner
     API --> Runner
-    
+
     Runner --> Config
     Runner --> Registry
     Config --> Plugin System
     Registry --> Plugin System
-    
+
     Plugin System --> Load
     Load --> Generate
     Generate --> Score
     Score --> Analyze
-    
+
     Analyze --> Results
     Analyze --> Artifacts
     Analyze --> Reports
-    
+
     Generate --> Cache
     Cache --> Generate
-    
+
     Adapter --> Models
     Dataset --> Data
     Artifacts --> Storage
@@ -109,10 +109,10 @@ graph TB
 @dataclass
 class EvaluationPipeline:
     task: Task           # Defines evaluation procedure
-    dataset: Dataset     # Provides test examples  
+    dataset: Dataset     # Provides test examples
     adapter: Adapter     # Interfaces with models
     metrics: List[Metric] # Computes performance measures
-    
+
     def run(self) -> EvaluationResult:
         """Execute evaluation with full provenance tracking"""
 ```
@@ -131,8 +131,8 @@ class Task(ABC):
     @abstractmethod
     def build_prompt(self, example: Example) -> str:
         """Convert example to model input"""
-    
-    @abstractmethod  
+
+    @abstractmethod
     def postprocess(self, output: str) -> str:
         """Clean and normalize model output"""
 ```
@@ -143,7 +143,7 @@ class Dataset(ABC):
     @abstractmethod
     def __iter__(self) -> Iterator[Example]:
         """Yield evaluation examples"""
-    
+
     @property
     @abstractmethod
     def metadata(self) -> Dict[str, Any]:
@@ -156,7 +156,7 @@ class Adapter(ABC):
     @abstractmethod
     def generate(self, prompt: str) -> str:
         """Generate text from prompt"""
-    
+
     def log_likelihood(self, prompt: str, target: str) -> float:
         """Compute log-likelihood of target given prompt"""
 ```
@@ -165,7 +165,7 @@ class Adapter(ABC):
 ```python
 class Metric(ABC):
     @abstractmethod
-    def compute(self, predictions: List[str], 
+    def compute(self, predictions: List[str],
                 references: List[str]) -> Dict[str, float]:
         """Compute evaluation metrics"""
 ```
@@ -176,7 +176,7 @@ class Metric(ABC):
 ```yaml
 # example_eval.yaml
 task: qa                    # Short name from registry
-dataset: 
+dataset:
   name: jsonl
   path: data/examples.jsonl
 adapter:
@@ -235,22 +235,22 @@ metrics:
 ### 1. Evaluation Execution Flow
 
 ```
-Spec Loading → Plugin Resolution → Dataset Iteration → 
-Model Generation → Metric Computation → Result Aggregation → 
+Spec Loading → Plugin Resolution → Dataset Iteration →
+Model Generation → Metric Computation → Result Aggregation →
 Artifact Storage → Report Generation
 ```
 
 ### 2. Plugin Resolution Flow
 
 ```
-Short Name → Registry Lookup → Class Loading → 
+Short Name → Registry Lookup → Class Loading →
 Parameter Validation → Instance Creation → Ready for Use
 ```
 
 ### 3. Caching Flow
 
 ```
-Input Hash → Cache Lookup → [Hit: Return Result | Miss: Execute] → 
+Input Hash → Cache Lookup → [Hit: Return Result | Miss: Execute] →
 Result Storage → Cache Update
 ```
 

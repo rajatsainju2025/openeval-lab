@@ -5,12 +5,13 @@ import time
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 from dataclasses import dataclass
 from contextlib import contextmanager
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     psutil = None
@@ -22,6 +23,7 @@ import numpy as np
 @dataclass
 class BenchmarkResult:
     """Result of a benchmark run."""
+
     name: str
     duration: float
     memory_usage: float
@@ -58,7 +60,7 @@ class PerformanceBenchmark:
             duration=duration,
             memory_usage=memory_usage,
             throughput=0.0,  # Will be set by caller
-            metrics={}
+            metrics={},
         )
 
         self.results.append(result)
@@ -73,24 +75,21 @@ class PerformanceBenchmark:
         """Benchmark file reading operations."""
         for i in range(iterations):
             with self.measure(f"file_read_{i}"):
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     content = f.read()
-                    lines = content.split('\n')
+                    lines = content.split("\n")
 
             # Calculate throughput
             if self.results:
                 result = self.results[-1]
                 result.throughput = len(lines) / result.duration
-                result.metrics = {
-                    "file_size_kb": len(content) / 1024,
-                    "lines_read": len(lines)
-                }
+                result.metrics = {"file_size_kb": len(content) / 1024, "lines_read": len(lines)}
 
     def benchmark_json_processing(self, json_path: str, iterations: int = 5):
         """Benchmark JSON processing."""
         for i in range(iterations):
             with self.measure(f"json_process_{i}"):
-                with open(json_path, 'r') as f:
+                with open(json_path, "r") as f:
                     data = json.load(f)
 
             # Calculate throughput
@@ -99,7 +98,7 @@ class PerformanceBenchmark:
                 result.throughput = len(str(data)) / result.duration
                 result.metrics = {
                     "data_size_kb": len(str(data)) / 1024,
-                    "num_keys": len(data) if isinstance(data, dict) else 0
+                    "num_keys": len(data) if isinstance(data, dict) else 0,
                 }
 
     def benchmark_cache_operations(self, cache_dir: str, operations: int = 100):
@@ -111,12 +110,12 @@ class PerformanceBenchmark:
         with self.measure("cache_writes"):
             for i in range(operations):
                 cache_data[f"key_{i}"] = f"value_{i}"
-            with open(cache_file, 'w') as f:
+            with open(cache_file, "w") as f:
                 json.dump(cache_data, f)
 
         # Benchmark reads
         with self.measure("cache_reads"):
-            with open(cache_file, 'r') as f:
+            with open(cache_file, "r") as f:
                 loaded_data = json.load(f)
 
         # Set throughput
@@ -132,20 +131,22 @@ class PerformanceBenchmark:
             "timestamp": time.time(),
             "system_info": {
                 "cpu_count": os.cpu_count(),
-                "platform": os.uname().sysname if hasattr(os, 'uname') else "unknown",
-                "has_psutil": HAS_PSUTIL
+                "platform": os.uname().sysname if hasattr(os, "uname") else "unknown",
+                "has_psutil": HAS_PSUTIL,
             },
-            "benchmarks": []
+            "benchmarks": [],
         }
 
         for result in self.results:
-            report["benchmarks"].append({
-                "name": result.name,
-                "duration_seconds": result.duration,
-                "memory_usage_mb": result.memory_usage,
-                "throughput": result.throughput,
-                "metrics": result.metrics
-            })
+            report["benchmarks"].append(
+                {
+                    "name": result.name,
+                    "duration_seconds": result.duration,
+                    "memory_usage_mb": result.memory_usage,
+                    "throughput": result.throughput,
+                    "metrics": result.metrics,
+                }
+            )
 
         # Calculate summary statistics
         if self.results:
@@ -158,10 +159,10 @@ class PerformanceBenchmark:
                 "max_duration": max(durations),
                 "total_memory": sum(memory_usage),
                 "avg_memory": np.mean(memory_usage),
-                "max_memory": max(memory_usage)
+                "max_memory": max(memory_usage),
             }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2)
 
         print(f"Benchmark report saved to {output_path}")

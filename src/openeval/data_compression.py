@@ -21,6 +21,7 @@ import hashlib
 
 try:
     import zstandard as zstd
+
     HAS_ZSTD = True
 except ImportError:
     zstd = None
@@ -28,6 +29,7 @@ except ImportError:
 
 try:
     import lz4.frame
+
     HAS_LZ4 = True
 except ImportError:
     lz4 = None
@@ -35,6 +37,7 @@ except ImportError:
 
 try:
     import snappy
+
     HAS_SNAPPY = True
 except ImportError:
     snappy = None
@@ -46,6 +49,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CompressionResult:
     """Result of a compression operation."""
+
     original_size: int
     compressed_size: int
     compression_time: float
@@ -56,9 +60,19 @@ class CompressionResult:
     decompression_speed: float = field(init=False)  # MB/s
 
     def __post_init__(self):
-        self.compression_ratio = self.original_size / self.compressed_size if self.compressed_size > 0 else 0
-        self.compression_speed = (self.original_size / 1024 / 1024) / self.compression_time if self.compression_time > 0 else 0
-        self.decompression_speed = (self.original_size / 1024 / 1024) / self.decompression_time if self.decompression_time > 0 else 0
+        self.compression_ratio = (
+            self.original_size / self.compressed_size if self.compressed_size > 0 else 0
+        )
+        self.compression_speed = (
+            (self.original_size / 1024 / 1024) / self.compression_time
+            if self.compression_time > 0
+            else 0
+        )
+        self.decompression_speed = (
+            (self.original_size / 1024 / 1024) / self.decompression_time
+            if self.decompression_time > 0
+            else 0
+        )
 
 
 class CompressionAlgorithm(ABC):
@@ -105,7 +119,7 @@ class CompressionAlgorithm(ABC):
             compressed_size=len(compressed),
             compression_time=sum(compress_times) / len(compress_times),
             decompression_time=sum(decompress_times) / len(decompress_times),
-            algorithm=self.name
+            algorithm=self.name,
         )
 
 
@@ -251,36 +265,38 @@ class AdaptiveCompressor:
         algorithms = {}
 
         # Always available algorithms
-        algorithms['gzip-6'] = GzipCompression(6)
-        algorithms['bzip2-9'] = Bzip2Compression(9)
-        algorithms['lzma-6'] = LzmaCompression(6)
-        algorithms['zlib-6'] = ZlibCompression(6)
+        algorithms["gzip-6"] = GzipCompression(6)
+        algorithms["bzip2-9"] = Bzip2Compression(9)
+        algorithms["lzma-6"] = LzmaCompression(6)
+        algorithms["zlib-6"] = ZlibCompression(6)
 
         # Optional algorithms
         if HAS_ZSTD:
-            algorithms['zstd-3'] = ZstdCompression(3)
+            algorithms["zstd-3"] = ZstdCompression(3)
         if HAS_LZ4:
-            algorithms['lz4'] = Lz4Compression()
+            algorithms["lz4"] = Lz4Compression()
         if HAS_SNAPPY:
-            algorithms['snappy'] = SnappyCompression()
+            algorithms["snappy"] = SnappyCompression()
 
         return algorithms
 
-    def compress(self, data: Union[str, bytes, Dict, List], algorithm: Optional[str] = None) -> Tuple[bytes, str, Dict[str, Any]]:
+    def compress(
+        self, data: Union[str, bytes, Dict, List], algorithm: Optional[str] = None
+    ) -> Tuple[bytes, str, Dict[str, Any]]:
         """Compress data using the specified or best algorithm."""
         # Convert data to bytes
         if isinstance(data, str):
-            data_bytes = data.encode('utf-8')
-            data_type = 'text'
+            data_bytes = data.encode("utf-8")
+            data_type = "text"
         elif isinstance(data, (dict, list)):
-            data_bytes = json.dumps(data, separators=(',', ':')).encode('utf-8')
-            data_type = 'json'
+            data_bytes = json.dumps(data, separators=(",", ":")).encode("utf-8")
+            data_type = "json"
         elif isinstance(data, bytes):
             data_bytes = data
-            data_type = 'binary'
+            data_type = "binary"
         else:
             data_bytes = pickle.dumps(data)
-            data_type = 'pickle'
+            data_type = "pickle"
 
         # Select algorithm
         if algorithm and algorithm in self.algorithms:
@@ -295,21 +311,21 @@ class AdaptiveCompressor:
 
         # Create metadata
         metadata = {
-            'original_size': len(data_bytes),
-            'compressed_size': len(compressed),
-            'compression_ratio': len(data_bytes) / len(compressed) if len(compressed) > 0 else 0,
-            'algorithm': selected_algorithm.name,
-            'data_type': data_type,
-            'compression_time': compression_time,
-            'checksum': hashlib.md5(data_bytes).hexdigest()
+            "original_size": len(data_bytes),
+            "compressed_size": len(compressed),
+            "compression_ratio": len(data_bytes) / len(compressed) if len(compressed) > 0 else 0,
+            "algorithm": selected_algorithm.name,
+            "data_type": data_type,
+            "compression_time": compression_time,
+            "checksum": hashlib.md5(data_bytes).hexdigest(),
         }
 
         return compressed, selected_algorithm.name, metadata
 
     def decompress(self, compressed_data: bytes, metadata: Dict[str, Any]) -> Any:
         """Decompress data using the specified algorithm."""
-        algorithm_name = metadata.get('algorithm', 'gzip-6')
-        data_type = metadata.get('data_type', 'binary')
+        algorithm_name = metadata.get("algorithm", "gzip-6")
+        data_type = metadata.get("data_type", "binary")
 
         if algorithm_name not in self.algorithms:
             raise ValueError(f"Unknown compression algorithm: {algorithm_name}")
@@ -322,17 +338,17 @@ class AdaptiveCompressor:
         decompression_time = time.time() - start_time
 
         # Verify checksum if available
-        if 'checksum' in metadata:
+        if "checksum" in metadata:
             actual_checksum = hashlib.md5(decompressed).hexdigest()
-            if actual_checksum != metadata['checksum']:
+            if actual_checksum != metadata["checksum"]:
                 raise ValueError("Data integrity check failed")
 
         # Convert back to original type
-        if data_type == 'text':
-            return decompressed.decode('utf-8')
-        elif data_type == 'json':
-            return json.loads(decompressed.decode('utf-8'))
-        elif data_type == 'pickle':
+        if data_type == "text":
+            return decompressed.decode("utf-8")
+        elif data_type == "json":
+            return json.loads(decompressed.decode("utf-8"))
+        elif data_type == "pickle":
             return pickle.loads(decompressed)
         else:
             return decompressed
@@ -343,23 +359,25 @@ class AdaptiveCompressor:
 
         # For small data, use fast algorithms
         if data_size < 1024:  # < 1KB
-            return self.algorithms.get('snappy', self.algorithms['gzip-6'])
+            return self.algorithms.get("snappy", self.algorithms["gzip-6"])
 
         # For medium data, balance speed and compression
         elif data_size < 1024 * 1024:  # < 1MB
-            if data_type == 'text':
-                return self.algorithms.get('zstd-3', self.algorithms['gzip-6'])
+            if data_type == "text":
+                return self.algorithms.get("zstd-3", self.algorithms["gzip-6"])
             else:
-                return self.algorithms.get('lz4', self.algorithms['gzip-6'])
+                return self.algorithms.get("lz4", self.algorithms["gzip-6"])
 
         # For large data, prioritize compression ratio
         else:
-            if data_type == 'text':
-                return self.algorithms.get('bzip2-9', self.algorithms['gzip-6'])
+            if data_type == "text":
+                return self.algorithms.get("bzip2-9", self.algorithms["gzip-6"])
             else:
-                return self.algorithms.get('zstd-3', self.algorithms['lzma-6'])
+                return self.algorithms.get("zstd-3", self.algorithms["lzma-6"])
 
-    def benchmark_algorithms(self, test_data: bytes, algorithms: Optional[List[str]] = None) -> Dict[str, CompressionResult]:
+    def benchmark_algorithms(
+        self, test_data: bytes, algorithms: Optional[List[str]] = None
+    ) -> Dict[str, CompressionResult]:
         """Benchmark compression algorithms on test data."""
         results = {}
         test_algorithms = algorithms or list(self.algorithms.keys())
@@ -369,9 +387,11 @@ class AdaptiveCompressor:
                 try:
                     result = self.algorithms[alg_name].benchmark(test_data)
                     results[alg_name] = result
-                    logger.info(f"Benchmarked {alg_name}: ratio={result.compression_ratio:.2f}, "
-                              f"compress_speed={result.compression_speed:.1f} MB/s, "
-                              f"decompress_speed={result.decompression_speed:.1f} MB/s")
+                    logger.info(
+                        f"Benchmarked {alg_name}: ratio={result.compression_ratio:.2f}, "
+                        f"compress_speed={result.compression_speed:.1f} MB/s, "
+                        f"decompress_speed={result.decompression_speed:.1f} MB/s"
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to benchmark {alg_name}: {e}")
 
@@ -380,14 +400,10 @@ class AdaptiveCompressor:
     def get_compression_stats(self) -> Dict[str, Any]:
         """Get compression statistics."""
         return {
-            'available_algorithms': list(self.algorithms.keys()),
-            'performance_cache_size': len(self.performance_cache),
-            'data_profiles_count': len(self.data_profiles),
-            'optional_algorithms': {
-                'zstd': HAS_ZSTD,
-                'lz4': HAS_LZ4,
-                'snappy': HAS_SNAPPY
-            }
+            "available_algorithms": list(self.algorithms.keys()),
+            "performance_cache_size": len(self.performance_cache),
+            "data_profiles_count": len(self.data_profiles),
+            "optional_algorithms": {"zstd": HAS_ZSTD, "lz4": HAS_LZ4, "snappy": HAS_SNAPPY},
         }
 
 
@@ -408,20 +424,18 @@ class CompressedStorage:
         file_path = f"{self.base_path}/{key}.compressed"
 
         # Store compressed data
-        with open(file_path, 'wb') as f:
+        with open(file_path, "wb") as f:
             f.write(compressed)
 
         # Update index
-        metadata.update({
-            'file_path': file_path,
-            'stored_at': time.time(),
-            'key': key
-        })
+        metadata.update({"file_path": file_path, "stored_at": time.time(), "key": key})
         self.index[key] = metadata
         self._save_index()
 
-        logger.info(f"Stored {key}: {metadata['original_size']} -> {metadata['compressed_size']} bytes "
-                   f"(ratio: {metadata['compression_ratio']:.2f})")
+        logger.info(
+            f"Stored {key}: {metadata['original_size']} -> {metadata['compressed_size']} bytes "
+            f"(ratio: {metadata['compression_ratio']:.2f})"
+        )
         return metadata
 
     def retrieve(self, key: str) -> Any:
@@ -430,10 +444,10 @@ class CompressedStorage:
             raise KeyError(f"Key not found: {key}")
 
         metadata = self.index[key]
-        file_path = metadata['file_path']
+        file_path = metadata["file_path"]
 
         # Read compressed data
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             compressed_data = f.read()
 
         # Decompress
@@ -445,11 +459,12 @@ class CompressedStorage:
             return
 
         metadata = self.index[key]
-        file_path = metadata['file_path']
+        file_path = metadata["file_path"]
 
         # Delete file
         try:
             import os
+
             os.remove(file_path)
         except FileNotFoundError:
             pass
@@ -464,24 +479,26 @@ class CompressedStorage:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get storage statistics."""
-        total_original = sum(meta['original_size'] for meta in self.index.values())
-        total_compressed = sum(meta['compressed_size'] for meta in self.index.values())
+        total_original = sum(meta["original_size"] for meta in self.index.values())
+        total_compressed = sum(meta["compressed_size"] for meta in self.index.values())
         total_savings = total_original - total_compressed
 
         return {
-            'total_keys': len(self.index),
-            'total_original_size': total_original,
-            'total_compressed_size': total_compressed,
-            'total_space_savings': total_savings,
-            'average_compression_ratio': total_original / total_compressed if total_compressed > 0 else 0,
-            'algorithms_used': list(set(meta['algorithm'] for meta in self.index.values()))
+            "total_keys": len(self.index),
+            "total_original_size": total_original,
+            "total_compressed_size": total_compressed,
+            "total_space_savings": total_savings,
+            "average_compression_ratio": (
+                total_original / total_compressed if total_compressed > 0 else 0
+            ),
+            "algorithms_used": list(set(meta["algorithm"] for meta in self.index.values())),
         }
 
     def _load_index(self) -> None:
         """Load storage index from disk."""
         index_path = f"{self.base_path}/storage_index.json"
         try:
-            with open(index_path, 'r') as f:
+            with open(index_path, "r") as f:
                 self.index = json.load(f)
         except FileNotFoundError:
             self.index = {}
@@ -489,10 +506,11 @@ class CompressedStorage:
     def _save_index(self) -> None:
         """Save storage index to disk."""
         import os
+
         os.makedirs(self.base_path, exist_ok=True)
 
         index_path = f"{self.base_path}/storage_index.json"
-        with open(index_path, 'w') as f:
+        with open(index_path, "w") as f:
             json.dump(self.index, f, indent=2)
 
 
@@ -508,21 +526,23 @@ class CompressionManager:
         """Initialize compressed storage."""
         self.storage = CompressedStorage(base_path, self.compressor)
 
-    def compress_data(self, data: Any, algorithm: Optional[str] = None) -> Tuple[bytes, Dict[str, Any]]:
+    def compress_data(
+        self, data: Any, algorithm: Optional[str] = None
+    ) -> Tuple[bytes, Dict[str, Any]]:
         """Compress data with optional algorithm selection."""
         compressed, alg_used, metadata = self.compressor.compress(data, algorithm)
 
         # Update stats
-        self.compression_stats['total_compressions'] += 1
-        self.compression_stats[f'algorithm_{alg_used}'] += 1
-        self.compression_stats['bytes_original'] += metadata['original_size']
-        self.compression_stats['bytes_compressed'] += metadata['compressed_size']
+        self.compression_stats["total_compressions"] += 1
+        self.compression_stats[f"algorithm_{alg_used}"] += 1
+        self.compression_stats["bytes_original"] += metadata["original_size"]
+        self.compression_stats["bytes_compressed"] += metadata["compressed_size"]
 
         return compressed, metadata
 
     def decompress_data(self, compressed_data: bytes, metadata: Dict[str, Any]) -> Any:
         """Decompress data."""
-        self.compression_stats['total_decompressions'] += 1
+        self.compression_stats["total_decompressions"] += 1
         return self.compressor.decompress(compressed_data, metadata)
 
     def benchmark_all_algorithms(self, test_data: bytes) -> Dict[str, CompressionResult]:
@@ -533,14 +553,14 @@ class CompressionManager:
         """Generate compression performance report."""
         stats = dict(self.compression_stats)
 
-        if stats.get('bytes_original', 0) > 0:
-            stats['overall_compression_ratio'] = stats['bytes_original'] / stats['bytes_compressed']
-            stats['total_space_savings'] = stats['bytes_original'] - stats['bytes_compressed']
+        if stats.get("bytes_original", 0) > 0:
+            stats["overall_compression_ratio"] = stats["bytes_original"] / stats["bytes_compressed"]
+            stats["total_space_savings"] = stats["bytes_original"] - stats["bytes_compressed"]
 
         if self.storage:
-            stats['storage_stats'] = self.storage.get_stats()
+            stats["storage_stats"] = self.storage.get_stats()
 
-        stats['available_algorithms'] = list(self.compressor.algorithms.keys())
-        stats['compressor_stats'] = self.compressor.get_compression_stats()
+        stats["available_algorithms"] = list(self.compressor.algorithms.keys())
+        stats["compressor_stats"] = self.compressor.get_compression_stats()
 
         return stats

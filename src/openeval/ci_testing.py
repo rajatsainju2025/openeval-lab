@@ -19,6 +19,7 @@ import json
 # Try to import black for direct API usage
 try:
     import black
+
     BLACK_AVAILABLE = True
 except ImportError:
     BLACK_AVAILABLE = False
@@ -30,6 +31,7 @@ logger = get_logger(__name__)
 
 class TestStatus(Enum):
     """Status of a test."""
+
     PASSED = "passed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -38,6 +40,7 @@ class TestStatus(Enum):
 
 class TestType(Enum):
     """Types of tests."""
+
     UNIT = "unit"
     INTEGRATION = "integration"
     PERFORMANCE = "performance"
@@ -50,11 +53,11 @@ class TestType(Enum):
 class TestResult:
     """
     Result of a single test execution.
-    
+
     This class encapsulates the result of a test run, including status,
     execution time, and any error details. It's used throughout the
     CI testing framework to track and report on test outcomes.
-    
+
     Attributes:
         name: Name of the test that was executed
         test_type: Type of test (unit, integration, performance, etc.)
@@ -64,6 +67,7 @@ class TestResult:
         error_details: Optional detailed stack trace or debug info
         component: Optional component or module being tested
     """
+
     name: str
     test_type: TestType
     status: TestStatus
@@ -81,7 +85,7 @@ class TestResult:
             "duration": self.duration,
             "output": self.output,
             "error_message": self.error_message,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -89,11 +93,11 @@ class TestResult:
 class TestSuiteResult:
     """
     Result of a test suite execution.
-    
+
     This class aggregates results from multiple individual tests within a suite,
     providing summary statistics and overall execution information. It's used
     for reporting and tracking the overall health of test suites.
-    
+
     Attributes:
         suite_name: Name of the test suite
         results: List of individual test results
@@ -105,6 +109,7 @@ class TestSuiteResult:
         skipped: Number of skipped tests
         errors: Number of tests that ended with errors
     """
+
     suite_name: str
     results: List[TestResult] = field(default_factory=list)
     start_time: datetime = field(default_factory=datetime.now)
@@ -168,7 +173,7 @@ class TestSuiteResult:
             "skipped": self.skipped,
             "errors": self.errors,
             "success_rate": self.success_rate,
-            "results": [r.to_dict() for r in self.results]
+            "results": [r.to_dict() for r in self.results],
         }
 
 
@@ -209,7 +214,14 @@ class TestRunner:
             cmd = [sys.executable, "-m", "pytest"]
             if verbose:
                 cmd.append("-v")
-            cmd.extend(["--tb=short", "--json-report", "--json-report-file", str(self.test_results_dir / "pytest_results.json")])
+            cmd.extend(
+                [
+                    "--tb=short",
+                    "--json-report",
+                    "--json-report-file",
+                    str(self.test_results_dir / "pytest_results.json"),
+                ]
+            )
             cmd.extend([str(f) for f in test_files])
 
             start_time = datetime.now()
@@ -220,7 +232,7 @@ class TestRunner:
             json_file = self.test_results_dir / "pytest_results.json"
             if json_file.exists():
                 try:
-                    with open(json_file, 'r') as f:
+                    with open(json_file, "r") as f:
                         pytest_data = json.load(f)
 
                     for test_data in pytest_data.get("tests", []):
@@ -228,16 +240,18 @@ class TestRunner:
                             "passed": TestStatus.PASSED,
                             "failed": TestStatus.FAILED,
                             "skipped": TestStatus.SKIPPED,
-                            "error": TestStatus.ERROR
+                            "error": TestStatus.ERROR,
                         }
 
                         test_result = TestResult(
                             name=test_data.get("nodeid", "unknown"),
                             test_type=TestType.UNIT,
-                            status=status_map.get(test_data.get("outcome", "error"), TestStatus.ERROR),
+                            status=status_map.get(
+                                test_data.get("outcome", "error"), TestStatus.ERROR
+                            ),
                             duration=test_data.get("duration", 0),
                             output=test_data.get("longrepr", ""),
-                            metadata={"markers": test_data.get("markers", [])}
+                            metadata={"markers": test_data.get("markers", [])},
                         )
                         suite.add_result(test_result)
 
@@ -253,7 +267,7 @@ class TestRunner:
                     status=status,
                     duration=duration,
                     output=result.stdout,
-                    error_message=result.stderr if result.returncode != 0 else None
+                    error_message=result.stderr if result.returncode != 0 else None,
                 )
                 suite.add_result(test_result)
 
@@ -264,7 +278,7 @@ class TestRunner:
                 test_type=TestType.UNIT,
                 status=TestStatus.ERROR,
                 duration=0,
-                error_message=str(e)
+                error_message=str(e),
             )
             suite.add_result(test_result)
 
@@ -303,7 +317,9 @@ class TestRunner:
                     if module_name:
                         # For now, just run the file with python
                         cmd = [sys.executable, str(test_file)]
-                        result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_root, timeout=300)
+                        result = subprocess.run(
+                            cmd, capture_output=True, text=True, cwd=self.project_root, timeout=300
+                        )
 
                         duration = (datetime.now() - start_time).total_seconds()
                         status = TestStatus.PASSED if result.returncode == 0 else TestStatus.FAILED
@@ -314,7 +330,7 @@ class TestRunner:
                             status=status,
                             duration=duration,
                             output=result.stdout,
-                            error_message=result.stderr if result.returncode != 0 else None
+                            error_message=result.stderr if result.returncode != 0 else None,
                         )
                         suite.add_result(test_result)
 
@@ -325,7 +341,7 @@ class TestRunner:
                         test_type=TestType.INTEGRATION,
                         status=TestStatus.ERROR,
                         duration=duration,
-                        error_message="Test timed out after 5 minutes"
+                        error_message="Test timed out after 5 minutes",
                     )
                     suite.add_result(test_result)
 
@@ -336,7 +352,7 @@ class TestRunner:
                         test_type=TestType.INTEGRATION,
                         status=TestStatus.ERROR,
                         duration=duration,
-                        error_message=str(e)
+                        error_message=str(e),
                     )
                     suite.add_result(test_result)
 
@@ -372,7 +388,7 @@ class TestRunner:
             # Load baseline if available
             baseline = {}
             if baseline_file and baseline_file.exists():
-                with open(baseline_file, 'r') as f:
+                with open(baseline_file, "r") as f:
                     baseline = json.load(f)
 
             for test_name, test_func in performance_tests:
@@ -403,9 +419,9 @@ class TestRunner:
                         duration=duration,
                         metadata={
                             "metrics": metrics.__dict__,
-                            "baseline_duration": baseline_duration
+                            "baseline_duration": baseline_duration,
                         },
-                        error_message=error_msg
+                        error_message=error_msg,
                     )
                     suite.add_result(test_result)
 
@@ -416,7 +432,7 @@ class TestRunner:
                         test_type=TestType.PERFORMANCE,
                         status=TestStatus.ERROR,
                         duration=duration,
-                        error_message=str(e)
+                        error_message=str(e),
                     )
                     suite.add_result(test_result)
 
@@ -452,7 +468,7 @@ class TestRunner:
                     name=test_name,
                     test_type=TestType.SMOKE,
                     status=TestStatus.PASSED,
-                    duration=duration
+                    duration=duration,
                 )
                 suite.add_result(test_result)
 
@@ -463,7 +479,7 @@ class TestRunner:
                     test_type=TestType.SMOKE,
                     status=TestStatus.FAILED,
                     duration=duration,
-                    error_message=str(e)
+                    error_message=str(e),
                 )
                 suite.add_result(test_result)
 
@@ -498,9 +514,9 @@ class TestRunner:
         try:
             relative_path = path.relative_to(self.project_root)
             module_parts = list(relative_path.parts)
-            if module_parts[-1].endswith('.py'):
+            if module_parts[-1].endswith(".py"):
                 module_parts[-1] = module_parts[-1][:-3]  # Remove .py extension
-            return '.'.join(module_parts)
+            return ".".join(module_parts)
         except ValueError:
             return None
 
@@ -516,7 +532,7 @@ class TestRunner:
             "task": "qa",
             "model": {"name": "test_model"},
             "dataset": {"path": "test.json"},
-            "metrics": ["accuracy"]
+            "metrics": ["accuracy"],
         }
 
         result = validator.validate_configuration(config)
@@ -532,37 +548,40 @@ class TestRunner:
         """Test model loading performance."""
         # Placeholder - simulate model loading
         import time
+
         time.sleep(0.1)
 
     def _test_dataset_loading_performance(self) -> None:
         """Test dataset loading performance."""
         # Placeholder - simulate dataset loading
         import time
+
         time.sleep(0.05)
 
     def _test_evaluation_pipeline_performance(self) -> None:
         """Test evaluation pipeline performance."""
         # Placeholder - simulate evaluation
         import time
+
         time.sleep(0.2)
 
 
 class CIIntegration:
     """
     Continuous Integration system for automated testing and deployment.
-    
+
     This class orchestrates the complete CI/CD pipeline, including test execution,
     code quality checks, documentation validation, and deployment readiness
     assessment. It integrates with common CI platforms and provides
     comprehensive reporting on project health.
-    
+
     The CI pipeline includes:
     - Running unit, integration, and performance tests
     - Performing code quality and security checks
     - Validating documentation completeness
     - Checking deployment prerequisites
     - Generating detailed reports
-    
+
     This class serves as the main entry point for CI/CD automation and can be
     used both programmatically and through CLI integrations.
     """
@@ -570,7 +589,7 @@ class CIIntegration:
     def __init__(self, project_root: Optional[Path] = None) -> None:
         """
         Initialize the CI integration system.
-        
+
         Args:
             project_root: Path to the project root directory. If not provided,
                          the current working directory will be used.
@@ -583,18 +602,18 @@ class CIIntegration:
     def run_ci_pipeline(self) -> Dict[str, Any]:
         """
         Run the complete CI pipeline.
-        
+
         Executes the full CI/CD pipeline, including tests, quality checks,
         and deployment readiness verification. This is the main method to
         invoke for comprehensive project validation.
-        
+
         The pipeline includes:
         1. Running all test suites
         2. Performing code quality checks
         3. Validating documentation
         4. Checking security
         5. Verifying deployment prerequisites
-        
+
         Returns:
             A dictionary containing detailed results from all pipeline stages:
             - timestamp: ISO format timestamp of execution
@@ -607,7 +626,7 @@ class CIIntegration:
             "timestamp": self._pipeline_timestamp.isoformat(),
             "tests": {},
             "quality_checks": {},
-            "deployment_ready": False
+            "deployment_ready": False,
         }
 
         try:
@@ -620,8 +639,7 @@ class CIIntegration:
 
             # Determine if deployment is ready
             all_tests_passed = all(
-                suite.failed == 0 and suite.errors == 0
-                for suite in test_results.values()
+                suite.failed == 0 and suite.errors == 0 for suite in test_results.values()
             )
             quality_passed = all(results["quality_checks"].values())
 
@@ -654,14 +672,14 @@ class CIIntegration:
     def _check_code_formatting(self) -> bool:
         """
         Check code formatting compliance.
-        
+
         Verifies that the codebase follows the project's formatting standards
         by running the Black code formatter in check mode. This ensures
         consistent code style across the project.
-        
+
         Returns:
             True if code formatting meets standards, False otherwise
-            
+
         Note:
             This check is non-blocking if the formatting tool is not available,
             to prevent CI failures in minimal environments.
@@ -676,14 +694,21 @@ class CIIntegration:
             except Exception:
                 # Fall back to subprocess if API fails
                 pass
-        
+
         # Fall back to subprocess call
         try:
             # Try to run black --check
             result = subprocess.run(
-                [sys.executable, "-m", "black", "--check", "--diff", str(self.project_root / "src")],
+                [
+                    sys.executable,
+                    "-m",
+                    "black",
+                    "--check",
+                    "--diff",
+                    str(self.project_root / "src"),
+                ],
                 capture_output=True,
-                text=True
+                text=True,
             )
             return result.returncode == 0
         except (subprocess.CalledProcessError, FileNotFoundError):
@@ -693,14 +718,14 @@ class CIIntegration:
     def _check_imports(self) -> bool:
         """
         Check for unused or problematic imports.
-        
+
         Validates that the codebase doesn't contain unused imports,
         import cycles, or other import-related issues. This helps
         maintain clean dependencies and faster loading times.
-        
+
         Returns:
             True if imports are clean, False if issues are found
-            
+
         Note:
             In a full implementation, this would use tools like
             isort, flake8, or pylint for comprehensive checking.
@@ -714,17 +739,17 @@ class CIIntegration:
     def _check_security(self) -> bool:
         """
         Check for security vulnerabilities and issues.
-        
+
         Performs security scans on the codebase to identify potential
         vulnerabilities, such as unsafe function usage, hardcoded credentials,
         or known vulnerable dependencies.
-        
+
         Security checks include:
         - Searching for potentially dangerous functions (eval, exec)
         - Checking for hardcoded secrets or credentials
         - Validating safe handling of user inputs
         - Detecting outdated dependencies with known vulnerabilities
-        
+
         Returns:
             True if no security issues are found, False otherwise
         """
@@ -735,9 +760,9 @@ class CIIntegration:
             # Check for eval() usage
             for py_file in self.project_root.rglob("*.py"):
                 try:
-                    with open(py_file, 'r', encoding='utf-8') as f:
+                    with open(py_file, "r", encoding="utf-8") as f:
                         content = f.read()
-                        if 'eval(' in content or 'exec(' in content:
+                        if "eval(" in content or "exec(" in content:
                             security_issues.append(f"Potentially unsafe code in {py_file}")
                 except Exception:
                     pass
@@ -749,16 +774,16 @@ class CIIntegration:
     def _check_documentation(self) -> bool:
         """
         Check documentation coverage and quality.
-        
+
         Validates that key modules have proper docstrings and documentation.
         This ensures that the project maintains good documentation practices
         and that new code is adequately documented.
-        
+
         The check includes:
         - Presence of module-level docstrings in core modules
         - Documentation for public APIs
         - README completeness
-        
+
         Returns:
             True if documentation meets standards, False otherwise
         """
@@ -772,7 +797,7 @@ class CIIntegration:
 
             for module_file in required_modules:
                 if module_file.exists():
-                    with open(module_file, 'r', encoding='utf-8') as f:
+                    with open(module_file, "r", encoding="utf-8") as f:
                         content = f.read()
                         if '"""' not in content[:200]:  # Check first 200 chars for docstring
                             return False
@@ -784,21 +809,21 @@ class CIIntegration:
     def generate_ci_report(self, results: Dict[str, Any], output_format: str = "html") -> Path:
         """
         Generate a comprehensive CI/CD pipeline report.
-        
+
         Creates a detailed report of all CI pipeline results in the specified format.
         This report includes test results, code quality metrics, documentation status,
         security findings, and deployment readiness assessment.
-        
+
         Args:
             results: Dictionary containing all CI pipeline results
             output_format: Output format of the report, one of:
                           - 'html': Rich HTML report with charts (default)
                           - 'json': Machine-readable JSON format
                           - 'markdown': Markdown report for GitHub/GitLab
-        
+
         Returns:
             Path to the generated report file
-            
+
         Raises:
             ValueError: If an unsupported output format is specified
         """
@@ -821,7 +846,7 @@ class CIIntegration:
         else:
             raise ValueError(f"Unsupported format: {output_format}")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"Generated CI report: {file_path}")
@@ -864,7 +889,11 @@ class CIIntegration:
         <h2>🧪 Test Results</h2>
 """
             for suite_name, suite_data in results["tests"].items():
-                status_class = "passed" if suite_data["failed"] == 0 and suite_data["errors"] == 0 else "failed"
+                status_class = (
+                    "passed"
+                    if suite_data["failed"] == 0 and suite_data["errors"] == 0
+                    else "failed"
+                )
                 html += f"""
         <div class="status {status_class}">
             {suite_name}: {suite_data['passed']}/{suite_data['total_tests']} passed

@@ -5,7 +5,7 @@
     "temperature": 0.0
   },
   "dataset": {
-    "type": "openeval.datasets.code:HumanEvalDataset", 
+    "type": "openeval.datasets.code:HumanEvalDataset",
     "path": "examples/code_toy.jsonl"
   },
   "adapter": {

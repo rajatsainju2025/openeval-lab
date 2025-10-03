@@ -21,9 +21,9 @@ def _levenshtein(a: str, b: str) -> int:
         for j, cb in enumerate(b, start=1):
             cost = 0 if ca == cb else 1
             cur[j] = min(
-                prev[j] + 1,      # deletion
-                cur[j - 1] + 1,    # insertion
-                prev[j - 1] + cost # substitution
+                prev[j] + 1,  # deletion
+                cur[j - 1] + 1,  # insertion
+                prev[j - 1] + cost,  # substitution
             )
         prev, cur = cur, prev
     return prev[-1]

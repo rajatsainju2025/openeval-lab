@@ -66,7 +66,7 @@ def bootstrap_metric(predictions, references, metric_func, n_bootstrap=1000):
         boot_ref = [references[i] for i in indices]
         score = metric_func(boot_pred, boot_ref)
         bootstrap_scores.append(score)
-    
+
     return np.percentile(bootstrap_scores, [2.5, 97.5])
 ```
 
@@ -78,16 +78,16 @@ For model comparison, we employ paired bootstrap tests and McNemar's test for bi
 def paired_bootstrap_test(pred1, pred2, references, n_bootstrap=1000):
     observed_diff = accuracy(pred1, references) - accuracy(pred2, references)
     bootstrap_diffs = []
-    
+
     for _ in range(n_bootstrap):
         indices = np.random.choice(len(references), size=len(references), replace=True)
         boot_pred1 = [pred1[i] for i in indices]
         boot_pred2 = [pred2[i] for i in indices]
         boot_ref = [references[i] for i in indices]
-        
+
         diff = accuracy(boot_pred1, boot_ref) - accuracy(boot_pred2, boot_ref)
         bootstrap_diffs.append(diff)
-    
+
     p_value = np.mean(np.abs(bootstrap_diffs) >= np.abs(observed_diff))
     return p_value
 ```
@@ -101,13 +101,13 @@ We systematically test for positional bias in multiple-choice evaluations by ran
 ```python
 def detect_positional_bias(task, dataset, adapter, n_permutations=10):
     position_accuracies = []
-    
+
     for perm in range(n_permutations):
         # Randomize choice positions
         permuted_dataset = randomize_choice_positions(dataset, seed=perm)
         results = evaluate(task, permuted_dataset, adapter)
         position_accuracies.append(results['accuracy'])
-    
+
     # Test for significant variation across positions
     return statistical_test(position_accuracies)
 ```
@@ -123,7 +123,7 @@ def prompt_sensitivity_analysis(base_prompt, variations, dataset, adapter):
         prompt_template = apply_variation(base_prompt, variant)
         task = Task(prompt_template=prompt_template)
         results[variant] = evaluate(task, dataset, adapter)
-    
+
     return analyze_sensitivity(results)
 ```
 

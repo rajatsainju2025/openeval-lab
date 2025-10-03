@@ -39,5 +39,7 @@ class Agent(ABC):
         return self.tools.get(name)
 
     @abstractmethod
-    def run(self, task_input: Any, **kwargs: Any) -> AgentResult:  # pragma: no cover - interface only
+    def run(
+        self, task_input: Any, **kwargs: Any
+    ) -> AgentResult:  # pragma: no cover - interface only
         raise NotImplementedError

@@ -20,6 +20,7 @@ from collections import deque
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
@@ -27,6 +28,7 @@ except ImportError:
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     HAS_PYARROW = True
 except ImportError:
     HAS_PYARROW = False
@@ -39,6 +41,7 @@ logger = get_logger(__name__)
 
 class CompressionType:
     """Supported compression types."""
+
     NONE = "none"
     GZIP = "gzip"
     BZIP2 = "bzip2"
@@ -48,6 +51,7 @@ class CompressionType:
 @dataclass
 class StreamingConfig:
     """Configuration for streaming datasets."""
+
     chunk_size: int = 1000  # Number of examples per chunk
     max_memory_mb: int = 100  # Maximum memory usage in MB
     compression: str = CompressionType.NONE
@@ -82,10 +86,10 @@ class JSONLProcessor(StreamProcessor):
         try:
             data = json.loads(line)
             return Example(
-                id=str(data.get('id', '')),
-                input=data.get('input', ''),
-                reference=data.get('reference', ''),
-                meta=data.get('meta', {})
+                id=str(data.get("id", "")),
+                input=data.get("input", ""),
+                reference=data.get("reference", ""),
+                meta=data.get("meta", {}),
             )
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Failed to parse JSONL line: {e}")
@@ -107,7 +111,7 @@ class JSONLProcessor(StreamProcessor):
 class CSVProcessor(StreamProcessor):
     """Processor for CSV format."""
 
-    def __init__(self, delimiter: str = ',', has_header: bool = True):
+    def __init__(self, delimiter: str = ",", has_header: bool = True):
         self.delimiter = delimiter
         self.has_header = has_header
         self.fieldnames = None
@@ -122,10 +126,10 @@ class CSVProcessor(StreamProcessor):
             row = next(reader)
 
             return Example(
-                id=str(row.get('id', '')),
-                input=row.get('input', ''),
-                reference=row.get('reference', ''),
-                meta={k: v for k, v in row.items() if k not in ['id', 'input', 'reference']}
+                id=str(row.get("id", "")),
+                input=row.get("input", ""),
+                reference=row.get("reference", ""),
+                meta={k: v for k, v in row.items() if k not in ["id", "input", "reference"]},
             )
         except Exception as e:
             logger.warning(f"Failed to parse CSV line: {e}")
@@ -143,7 +147,7 @@ class CSVProcessor(StreamProcessor):
                 data_lines = sample_lines[1:]
             else:
                 # Assume standard fieldnames
-                self.fieldnames = ['id', 'input', 'reference']
+                self.fieldnames = ["id", "input", "reference"]
                 data_lines = sample_lines
 
             valid_count = 0
@@ -167,7 +171,7 @@ class StreamingDataset(Dataset):
         file_path: Union[str, Path],
         processor: StreamProcessor,
         config: Optional[StreamingConfig] = None,
-        transform: Optional[Callable[[Example], Example]] = None
+        transform: Optional[Callable[[Example], Example]] = None,
     ):
         self.file_path = Path(file_path)
         self.processor = processor
@@ -202,13 +206,13 @@ class StreamingDataset(Dataset):
     def _open_file(self) -> TextIO:
         """Open file with appropriate compression handling."""
         if self.config.compression == CompressionType.GZIP:
-            return gzip.open(self.file_path, 'rt', encoding='utf-8')
+            return gzip.open(self.file_path, "rt", encoding="utf-8")
         elif self.config.compression == CompressionType.BZIP2:
-            return bz2.open(self.file_path, 'rt', encoding='utf-8')
+            return bz2.open(self.file_path, "rt", encoding="utf-8")
         elif self.config.compression == CompressionType.LZMA:
-            return lzma.open(self.file_path, 'rt', encoding='utf-8')
+            return lzma.open(self.file_path, "rt", encoding="utf-8")
         else:
-            return open(self.file_path, 'r', encoding='utf-8')
+            return open(self.file_path, "r", encoding="utf-8")
 
     def _get_file_size(self) -> int:
         """Get file size in bytes."""
@@ -232,7 +236,7 @@ class StreamingDataset(Dataset):
         with self._open_file() as f:
             for line in f:
                 sample_lines.append(line)
-                bytes_read += len(line.encode('utf-8'))
+                bytes_read += len(line.encode("utf-8"))
                 if bytes_read >= sample_size:
                     break
 
@@ -344,6 +348,7 @@ class StreamingDataset(Dataset):
     def sample(self, n: int, seed: Optional[int] = None) -> List[Example]:
         """Sample n examples from the dataset."""
         import random
+
         if seed is not None:
             random.seed(seed)
 
@@ -368,6 +373,7 @@ class StreamingDataset(Dataset):
 
     def filter(self, predicate: Callable[[Example], bool]) -> StreamingDataset:
         """Create a filtered version of the dataset."""
+
         def transform_filter(example: Example) -> Optional[Example]:
             if predicate(example):
                 return self.transform(example) if self.transform else example
@@ -375,7 +381,9 @@ class StreamingDataset(Dataset):
 
         # Create a new processor that applies the filter
         class FilteredProcessor(StreamProcessor):
-            def __init__(self, base_processor: StreamProcessor, predicate: Callable[[Example], bool]):
+            def __init__(
+                self, base_processor: StreamProcessor, predicate: Callable[[Example], bool]
+            ):
                 self.base_processor = base_processor
                 self.predicate = predicate
 
@@ -389,15 +397,15 @@ class StreamingDataset(Dataset):
                 return self.base_processor.validate_format(sample_lines)
 
         return StreamingDataset(
-            self.file_path,
-            FilteredProcessor(self.processor, predicate),
-            self.config
+            self.file_path, FilteredProcessor(self.processor, predicate), self.config
         )
 
     def get_memory_usage(self) -> Dict[str, Any]:
         """Get memory usage statistics."""
         cache_size = len(self._chunk_cache) if self.config.cache_chunks else 0
-        cache_memory = sum(len(chunk) * 1000 for chunk in self._chunk_cache.values())  # Rough estimate
+        cache_memory = sum(
+            len(chunk) * 1000 for chunk in self._chunk_cache.values()
+        )  # Rough estimate
 
         return {
             "file_size_mb": self._get_file_size() / (1024 * 1024),
@@ -405,7 +413,7 @@ class StreamingDataset(Dataset):
             "cached_chunks": cache_size,
             "estimated_cache_memory_mb": cache_memory / (1024 * 1024),
             "chunk_size": self.config.chunk_size,
-            "compression": self.config.compression
+            "compression": self.config.compression,
         }
 
 
@@ -456,8 +464,7 @@ class MemoryEfficientDatasetIterator:
 
 # Utility functions for creating streaming datasets
 def create_jsonl_streaming_dataset(
-    file_path: Union[str, Path],
-    config: Optional[StreamingConfig] = None
+    file_path: Union[str, Path], config: Optional[StreamingConfig] = None
 ) -> StreamingDataset:
     """Create a streaming dataset from a JSONL file."""
     return StreamingDataset(file_path, JSONLProcessor(), config)
@@ -465,9 +472,9 @@ def create_jsonl_streaming_dataset(
 
 def create_csv_streaming_dataset(
     file_path: Union[str, Path],
-    delimiter: str = ',',
+    delimiter: str = ",",
     has_header: bool = True,
-    config: Optional[StreamingConfig] = None
+    config: Optional[StreamingConfig] = None,
 ) -> StreamingDataset:
     """Create a streaming dataset from a CSV file."""
     return StreamingDataset(file_path, CSVProcessor(delimiter, has_header), config)
@@ -476,16 +483,16 @@ def create_csv_streaming_dataset(
 def create_compressed_streaming_dataset(
     file_path: Union[str, Path],
     compression: str,
-    format_type: str = 'jsonl',
-    config: Optional[StreamingConfig] = None
+    format_type: str = "jsonl",
+    config: Optional[StreamingConfig] = None,
 ) -> StreamingDataset:
     """Create a streaming dataset from a compressed file."""
     config = config or StreamingConfig()
     config.compression = compression
 
-    if format_type == 'jsonl':
+    if format_type == "jsonl":
         processor = JSONLProcessor()
-    elif format_type == 'csv':
+    elif format_type == "csv":
         processor = CSVProcessor()
     else:
         raise ValueError(f"Unsupported format: {format_type}")
@@ -499,6 +506,7 @@ def get_memory_usage() -> float:
     try:
         import psutil
         import os
+
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / 1024 / 1024
     except ImportError:
@@ -507,6 +515,7 @@ def get_memory_usage() -> float:
 
 def monitor_memory_usage(func: Callable) -> Callable:
     """Decorator to monitor memory usage of a function."""
+
     def wrapper(*args, **kwargs):
         start_memory = get_memory_usage()
         peak_memory = start_memory

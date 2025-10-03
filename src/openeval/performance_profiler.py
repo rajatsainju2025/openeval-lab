@@ -48,6 +48,7 @@ import gc
 
 try:
     import psutil  # type: ignore
+
     HAS_PSUTIL = True
 except ImportError:
     psutil = None  # type: ignore
@@ -55,6 +56,7 @@ except ImportError:
 
 try:
     import memory_profiler  # type: ignore
+
     HAS_MEMORY_PROFILER = True
 except ImportError:
     memory_profiler = None  # type: ignore
@@ -62,6 +64,7 @@ except ImportError:
 
 try:
     import numpy as np  # type: ignore
+
     HAS_NUMPY = True
 except ImportError:
     np = None  # type: ignore
@@ -75,6 +78,7 @@ logger = get_logger(__name__)
 @dataclass
 class PerformanceMetrics:
     """Container for performance metrics with predictive analytics."""
+
     execution_time: float = 0.0
     cpu_usage: float = 0.0
     memory_usage: float = 0.0
@@ -98,13 +102,14 @@ class PerformanceMetrics:
             "timestamp": self.timestamp.isoformat(),
             "predicted_time": self.predicted_time,
             "efficiency_score": self.efficiency_score,
-            "bottleneck_type": self.bottleneck_type
+            "bottleneck_type": self.bottleneck_type,
         }
 
 
 @dataclass
 class BottleneckAnalysis:
     """Analysis of performance bottlenecks."""
+
     slowest_functions: List[Tuple[str, float]] = field(default_factory=list)
     memory_hungry_functions: List[Tuple[str, float]] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
@@ -136,7 +141,7 @@ class PerformanceProfiler:
         self,
         name: str = "evaluation",
         enable_memory_profiling: bool = True,
-        enable_cpu_profiling: bool = True
+        enable_cpu_profiling: bool = True,
     ):
         """
         Context manager for profiling code execution.
@@ -182,10 +187,12 @@ class PerformanceProfiler:
                 end_snapshot = tracemalloc.take_snapshot()
                 tracemalloc.stop()
 
-                start_stats = start_snapshot.statistics('lineno')
-                end_stats = end_snapshot.statistics('lineno')
+                start_stats = start_snapshot.statistics("lineno")
+                end_stats = end_snapshot.statistics("lineno")
 
-                metrics.memory_growth = sum(stat.size for stat in end_stats) - sum(stat.size for stat in start_stats)
+                metrics.memory_growth = sum(stat.size for stat in end_stats) - sum(
+                    stat.size for stat in start_stats
+                )
                 metrics.peak_memory = max((stat.size for stat in end_stats), default=0)
 
             # CPU profiling analysis
@@ -196,7 +203,7 @@ class PerformanceProfiler:
 
             # Extract function calls count from stats output
             # This is a simplified approach - in practice you'd parse the output
-            metrics.function_calls = stats_output.count('\n')  # Rough estimate
+            metrics.function_calls = stats_output.count("\n")  # Rough estimate
 
             # Get current memory usage
             process = psutil.Process()
@@ -227,10 +234,7 @@ class PerformanceProfiler:
             logger.info(f"  Bottleneck type: {metrics.bottleneck_type}")
 
     def _start_monitoring(
-        self,
-        metrics: PerformanceMetrics,
-        enable_memory: bool,
-        enable_cpu: bool
+        self, metrics: PerformanceMetrics, enable_memory: bool, enable_cpu: bool
     ) -> None:
         """Start background monitoring thread."""
         self._stop_monitoring.clear()
@@ -262,9 +266,7 @@ class PerformanceProfiler:
         self._monitoring_thread.start()
 
     def analyze_bottlenecks(
-        self,
-        profile_data: Optional[pstats.Stats] = None,
-        top_n: int = 10
+        self, profile_data: Optional[pstats.Stats] = None, top_n: int = 10
     ) -> BottleneckAnalysis:
         """
         Analyze performance bottlenecks from profiling data.
@@ -292,7 +294,9 @@ class PerformanceProfiler:
 
             memory_usages = [m.memory_usage for m in recent_metrics]
             if len(memory_usages) > 1:
-                memory_growth_rate = statistics.mean(memory_usages[-3:]) - statistics.mean(memory_usages[:3])
+                memory_growth_rate = statistics.mean(memory_usages[-3:]) - statistics.mean(
+                    memory_usages[:3]
+                )
                 if memory_growth_rate > 50:  # MB
                     analysis.add_recommendation(
                         f"Memory usage is growing at {memory_growth_rate:.1f}MB. "
@@ -311,12 +315,8 @@ class PerformanceProfiler:
         analysis.add_optimization_opportunity(
             "Use batch processing for large datasets to reduce memory overhead"
         )
-        analysis.add_optimization_opportunity(
-            "Implement caching for expensive computations"
-        )
-        analysis.add_optimization_opportunity(
-            "Use multiprocessing for CPU-bound tasks"
-        )
+        analysis.add_optimization_opportunity("Implement caching for expensive computations")
+        analysis.add_optimization_opportunity("Use multiprocessing for CPU-bound tasks")
         analysis.add_optimization_opportunity(
             "Profile with different batch sizes to find optimal configuration"
         )
@@ -324,9 +324,7 @@ class PerformanceProfiler:
         return analysis
 
     def generate_performance_report(
-        self,
-        analysis: Optional[BottleneckAnalysis] = None,
-        include_recommendations: bool = True
+        self, analysis: Optional[BottleneckAnalysis] = None, include_recommendations: bool = True
     ) -> Path:
         """
         Generate a comprehensive performance report.
@@ -346,7 +344,7 @@ class PerformanceProfiler:
         else:
             html_content = self._generate_full_report(analysis, include_recommendations)
 
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         logger.info(f"Generated performance report: {report_path}")
@@ -379,9 +377,7 @@ class PerformanceProfiler:
 </html>"""
 
     def _generate_full_report(
-        self,
-        analysis: Optional[BottleneckAnalysis],
-        include_recommendations: bool
+        self, analysis: Optional[BottleneckAnalysis], include_recommendations: bool
     ) -> str:
         """Generate a full performance report."""
         html = f"""
@@ -515,13 +511,15 @@ class PerformanceProfiler:
 
         if format == "json":
             import json
+
             export_path = self.output_dir / f"performance_metrics_{timestamp}.json"
-            with open(export_path, 'w', encoding='utf-8') as f:
+            with open(export_path, "w", encoding="utf-8") as f:
                 json.dump(metrics_data, f, indent=2, ensure_ascii=False)
 
         elif format == "csv":
             try:
                 import pandas as pd
+
                 df = pd.DataFrame(metrics_data)
                 export_path = self.output_dir / f"performance_metrics_{timestamp}.csv"
                 df.to_csv(export_path, index=False)
@@ -549,22 +547,19 @@ class OptimizationAdvisor:
         self.optimization_patterns = {
             "memory_leak": {
                 "indicators": ["memory_growth", "peak_memory"],
-                "advice": "Consider using weak references or implementing proper cleanup"
+                "advice": "Consider using weak references or implementing proper cleanup",
             },
             "cpu_bound": {
                 "indicators": ["cpu_usage", "execution_time"],
-                "advice": "Consider using multiprocessing or async processing"
+                "advice": "Consider using multiprocessing or async processing",
             },
             "io_bound": {
                 "indicators": ["function_calls", "execution_time"],
-                "advice": "Consider using async I/O or caching"
-            }
+                "advice": "Consider using async I/O or caching",
+            },
         }
 
-    def get_optimization_suggestions(
-        self,
-        metrics: List[PerformanceMetrics]
-    ) -> List[str]:
+    def get_optimization_suggestions(self, metrics: List[PerformanceMetrics]) -> List[str]:
         """
         Get optimization suggestions based on performance metrics.
 
@@ -618,7 +613,7 @@ class OptimizationAdvisor:
             "memory_usage": statistics.mean(m.memory_usage for m in metrics),
             "peak_memory": statistics.mean(m.peak_memory for m in metrics),
             "memory_growth": statistics.mean(m.memory_growth for m in metrics),
-            "function_calls": statistics.mean(m.function_calls for m in metrics)
+            "function_calls": statistics.mean(m.function_calls for m in metrics),
         }
 
 
@@ -632,6 +627,7 @@ def profile_function(func: Callable) -> Callable:
     Returns:
         Wrapped function with profiling
     """
+
     def wrapper(*args, **kwargs):
         profiler = PerformanceProfiler()
 
@@ -656,9 +652,7 @@ def create_performance_profiler(output_dir: Optional[Path] = None) -> Performanc
 
 
 def quick_performance_analysis(
-    func: Callable,
-    *args,
-    **kwargs
+    func: Callable, *args, **kwargs
 ) -> Tuple[Any, PerformanceMetrics, BottleneckAnalysis]:
     """
     Perform a quick performance analysis of a function call.

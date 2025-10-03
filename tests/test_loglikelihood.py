@@ -1,6 +1,5 @@
 """Tests for log-likelihood multiple choice evaluation."""
 
-
 from openeval.loglikelihood import MCQATask, MockLogLikelihoodAdapter, evaluate_multiple_choice
 from openeval.datasets.mcqa import MCQAExample
 from openeval.core import Example

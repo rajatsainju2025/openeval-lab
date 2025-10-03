@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     psutil = None
@@ -31,6 +32,7 @@ except ImportError:
 @dataclass
 class MetricData:
     """Container for metric data points."""
+
     timestamp: float
     name: str
     value: Union[int, float]
@@ -41,6 +43,7 @@ class MetricData:
 @dataclass
 class AlertRule:
     """Alert rule configuration."""
+
     name: str
     metric: str
     condition: str  # ">", "<", ">=", "<=", "==", "!="
@@ -55,6 +58,7 @@ class AlertRule:
 @dataclass
 class Alert:
     """Alert instance."""
+
     rule_name: str
     metric: str
     value: Union[int, float]
@@ -128,7 +132,7 @@ class MetricsCollector:
             self.record_metric("system.memory.available_mb", memory.available / 1024 / 1024)
 
             # Disk metrics
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             self.record_metric("system.disk.percent", disk.percent)
             self.record_metric("system.disk.used_gb", disk.used / 1024 / 1024 / 1024)
 
@@ -165,9 +169,13 @@ class MetricsCollector:
         except Exception as e:
             logger.warning(f"Failed to collect application metrics: {e}")
 
-    def record_metric(self, name: str, value: Union[int, float],
-                     tags: Optional[Dict[str, str]] = None,
-                     metadata: Optional[Dict[str, Any]] = None) -> None:
+    def record_metric(
+        self,
+        name: str,
+        value: Union[int, float],
+        tags: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Record a metric data point."""
         with self._lock:
             metric_data = MetricData(
@@ -175,7 +183,7 @@ class MetricsCollector:
                 name=name,
                 value=value,
                 tags=tags or {},
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
             self.metrics[name].append(metric_data)
 
@@ -203,7 +211,7 @@ class MetricsCollector:
             "median": statistics.median(values),
             "std_dev": statistics.stdev(values) if len(values) > 1 else 0,
             "latest": values[-1],
-            "latest_timestamp": data[-1].timestamp
+            "latest_timestamp": data[-1].timestamp,
         }
 
     def _update_aggregates(self) -> None:
@@ -269,8 +277,9 @@ class AlertManager:
                     elif rule.name in self.active_alerts:
                         self._resolve_alert(rule.name)
 
-    def _check_condition(self, value: Union[int, float], condition: str,
-                        threshold: Union[int, float]) -> bool:
+    def _check_condition(
+        self, value: Union[int, float], condition: str, threshold: Union[int, float]
+    ) -> bool:
         """Check if a condition is met."""
         if condition == ">":
             return value > threshold
@@ -304,7 +313,7 @@ class AlertManager:
             severity=rule.severity,
             timestamp=now,
             message=f"Alert triggered: {rule.metric} {rule.condition} {rule.threshold} "
-                   f"(current: {current_value})"
+            f"(current: {current_value})",
         )
 
         self.active_alerts[rule.name] = alert
@@ -416,7 +425,7 @@ class DashboardGenerator:
             "system.cpu.percent",
             "system.memory.percent",
             "system.disk.percent",
-            "system.network.bytes_sent_mb"
+            "system.network.bytes_sent_mb",
         ]
 
         html = '<div class="grid">'
@@ -435,17 +444,12 @@ class DashboardGenerator:
                 </div>
                 """
 
-        html += '</div>'
+        html += "</div>"
         return html
 
     def _generate_application_metrics_section(self) -> str:
         """Generate application metrics section."""
-        app_metrics = [
-            "app.memory_mb",
-            "app.cpu_percent",
-            "app.active_tasks",
-            "app.cache_hits"
-        ]
+        app_metrics = ["app.memory_mb", "app.cpu_percent", "app.active_tasks", "app.cache_hits"]
 
         html = '<div class="grid">'
         for metric in app_metrics:
@@ -463,7 +467,7 @@ class DashboardGenerator:
                 </div>
                 """
 
-        html += '</div>'
+        html += "</div>"
         return html
 
     def _generate_performance_charts(self) -> str:
@@ -481,12 +485,12 @@ class DashboardGenerator:
         html_content = self.generate_dashboard_html()
 
         # Create temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
             f.write(html_content)
             temp_file = f.name
 
         # Open in browser
-        webbrowser.open(f'file://{temp_file}')
+        webbrowser.open(f"file://{temp_file}")
 
         # Clean up after some time
         threading.Timer(300, lambda: os.unlink(temp_file)).start()  # Delete after 5 minutes
@@ -529,7 +533,7 @@ class MonitoringDashboard:
                 condition=">",
                 threshold=90,
                 duration=60,
-                severity="warning"
+                severity="warning",
             ),
             AlertRule(
                 name="high_memory",
@@ -537,7 +541,7 @@ class MonitoringDashboard:
                 condition=">",
                 threshold=85,
                 duration=60,
-                severity="warning"
+                severity="warning",
             ),
             AlertRule(
                 name="low_disk_space",
@@ -545,7 +549,7 @@ class MonitoringDashboard:
                 condition=">",
                 threshold=90,
                 duration=300,
-                severity="error"
+                severity="error",
             ),
             AlertRule(
                 name="high_app_memory",
@@ -553,15 +557,16 @@ class MonitoringDashboard:
                 condition=">",
                 threshold=1000,  # 1GB
                 duration=60,
-                severity="warning"
-            )
+                severity="warning",
+            ),
         ]
 
         for rule in default_rules:
             self.alert_manager.add_rule(rule)
 
-    def update_metric(self, name: str, value: Union[int, float],
-                     tags: Optional[Dict[str, str]] = None) -> None:
+    def update_metric(
+        self, name: str, value: Union[int, float], tags: Optional[Dict[str, str]] = None
+    ) -> None:
         """Update a metric value."""
         self.collector.record_metric(name, value, tags)
 
@@ -594,7 +599,7 @@ class MonitoringDashboard:
                     "rule_name": alert.rule_name,
                     "severity": alert.severity,
                     "message": alert.message,
-                    "timestamp": alert.timestamp
+                    "timestamp": alert.timestamp,
                 }
                 for alert in self.alert_manager.get_active_alerts()
             ],
@@ -604,10 +609,10 @@ class MonitoringDashboard:
                     "severity": alert.severity,
                     "message": alert.message,
                     "timestamp": alert.timestamp,
-                    "resolved": alert.resolved
+                    "resolved": alert.resolved,
                 }
                 for alert in self.alert_manager.get_alert_history(50)
-            ]
+            ],
         }
 
     def open_dashboard(self) -> None:

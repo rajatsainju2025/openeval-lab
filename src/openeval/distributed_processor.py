@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     psutil = None
@@ -30,6 +31,7 @@ except ImportError:
 @dataclass
 class WorkerNode:
     """Represents a worker node in the distributed system."""
+
     node_id: str
     host: str
     port: int
@@ -37,12 +39,15 @@ class WorkerNode:
     active_tasks: int = 0
     status: str = "idle"  # idle, busy, offline
     last_heartbeat: float = field(default_factory=time.time)
-    capabilities: List[str] = field(default_factory=list)  # e.g., ["gpu", "cpu", "memory_intensive"]
+    capabilities: List[str] = field(
+        default_factory=list
+    )  # e.g., ["gpu", "cpu", "memory_intensive"]
 
 
 @dataclass
 class DistributedTask:
     """Represents a task in the distributed system."""
+
     task_id: str
     task_type: str
     payload: Dict[str, Any]
@@ -79,11 +84,14 @@ class LoadBalancer:
                 del self.nodes[node_id]
                 logger.info(f"Unregistered worker node: {node_id}")
 
-    def get_available_node(self, task_requirements: Optional[List[str]] = None) -> Optional[WorkerNode]:
+    def get_available_node(
+        self, task_requirements: Optional[List[str]] = None
+    ) -> Optional[WorkerNode]:
         """Get the best available node for a task based on current load and requirements."""
         with self._lock:
             available_nodes = [
-                node for node in self.nodes.values()
+                node
+                for node in self.nodes.values()
                 if node.status != "offline" and node.active_tasks < node.capacity
             ]
 
@@ -93,7 +101,8 @@ class LoadBalancer:
             # Filter by requirements if specified
             if task_requirements:
                 available_nodes = [
-                    node for node in available_nodes
+                    node
+                    for node in available_nodes
                     if all(req in node.capabilities for req in task_requirements)
                 ]
 
@@ -168,7 +177,9 @@ class DistributedProcessor:
         new_max_workers = int(self.max_workers * factor)
         new_max_workers = max(1, min(new_max_workers, multiprocessing.cpu_count() * 2))
 
-        logger.info(f"Worker allocation adjustment recommended: {self.max_workers} -> {new_max_workers}")
+        logger.info(
+            f"Worker allocation adjustment recommended: {self.max_workers} -> {new_max_workers}"
+        )
         # In a real implementation, you would need to shutdown and recreate the executor
 
     async def submit_task(self, task: DistributedTask) -> str:
@@ -266,7 +277,9 @@ class DistributedProcessor:
                     if task.retries > 0:
                         task.retries -= 1
                         task.status = "pending"
-                        logger.warning(f"Task {task_id} failed, retrying ({task.retries} retries left): {e}")
+                        logger.warning(
+                            f"Task {task_id} failed, retrying ({task.retries} retries left): {e}"
+                        )
                         # Re-submit task
                         asyncio.create_task(self.submit_task(task))
                     else:
@@ -305,7 +318,7 @@ class DistributedProcessor:
                 system_load = {
                     "cpu_percent": psutil.cpu_percent(),
                     "memory_percent": psutil.virtual_memory().percent,
-                    "active_processes": len(psutil.pids())
+                    "active_processes": len(psutil.pids()),
                 }
             except Exception as e:
                 logger.warning(f"Failed to get system stats: {e}")
@@ -319,8 +332,10 @@ class DistributedProcessor:
             "failed_tasks": failed_tasks,
             "running_tasks": running_tasks,
             "success_rate": (completed_tasks / total_tasks) if total_tasks > 0 else 0,
-            "active_nodes": len([n for n in self.load_balancer.nodes.values() if n.status != "offline"]),
-            "system_load": system_load
+            "active_nodes": len(
+                [n for n in self.load_balancer.nodes.values() if n.status != "offline"]
+            ),
+            "system_load": system_load,
         }
 
     def shutdown(self) -> None:
@@ -339,7 +354,7 @@ class FaultToleranceManager:
         self.recovery_strategies = {
             "retry": self._retry_failed_task,
             "reassign": self._reassign_to_healthy_node,
-            "checkpoint": self._checkpoint_and_restart
+            "checkpoint": self._checkpoint_and_restart,
         }
 
     def handle_node_failure(self, node_id: str) -> None:
@@ -355,7 +370,8 @@ class FaultToleranceManager:
 
         # Reassign running tasks from failed node
         failed_tasks = [
-            task for task in self.processor.tasks.values()
+            task
+            for task in self.processor.tasks.values()
             if task.assigned_node == node_id and task.status == "running"
         ]
 

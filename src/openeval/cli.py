@@ -1,4 +1,3 @@
-
 """
 OpenEval Lab CLI - Command Line Interface for LLM Evaluation Framework
 
@@ -35,9 +34,7 @@ from .spec import EvalSpec
 
 # Create the main app
 app = typer.Typer(
-    no_args_is_help=True,
-    add_completion=False,
-    help="OpenEval Lab - LLM Evaluation Framework"
+    no_args_is_help=True, add_completion=False, help="OpenEval Lab - LLM Evaluation Framework"
 )
 
 console = Console()
@@ -51,14 +48,7 @@ app.add_typer(run_app, name="run")
 # Import and add key commands from submodules
 
 # Base commands
-from .commands.base import (
-    registry_list,
-    registry_info,
-    tutorial,
-    docs,
-    version,
-    doctor
-)
+from .commands.base import registry_list, registry_info, tutorial, docs, version, doctor
 
 app.command()(registry_list)
 app.command()(registry_info)
@@ -68,12 +58,7 @@ app.command()(version)
 app.command()(doctor)
 
 # Evaluation commands
-from .commands.evaluation import (
-    validate_spec,
-    validate_results,
-    compare,
-    write_out
-)
+from .commands.evaluation import validate_spec, validate_results, compare, write_out
 
 app.command("validate")(validate_spec)
 app.command("validate-results")(validate_results)
@@ -82,10 +67,12 @@ app.command("write_out")(write_out)
 
 # Run command
 from .commands.run import run
+
 app.command("run")(run)
 
 # Legacy commands that were in the original CLI
 # These will be moved to appropriate modules over time
+
 
 @app.command()
 def web(
@@ -101,8 +88,11 @@ def web(
         raise typer.Exit(code=2)
     uvicorn.run("openeval.web.app:app", host=host, port=port, reload=reload)
 
+
 @app.command()
-def schema(out: Optional[typer.FileText] = typer.Option(None, "--out", help="Write JSON schema to file")):
+def schema(
+    out: Optional[typer.FileText] = typer.Option(None, "--out", help="Write JSON schema to file")
+):
     """Print the JSON schema for experiment specs."""
     sch = EvalSpec.model_json_schema()
     if out:
@@ -110,13 +100,19 @@ def schema(out: Optional[typer.FileText] = typer.Option(None, "--out", help="Wri
     else:
         console.print(sch)
 
+
 @app.command("results-schema")
-def results_schema(out: Optional[typer.FileText] = typer.Option(None, "--out", help="Write results JSON schema to file")):
+def results_schema(
+    out: Optional[typer.FileText] = typer.Option(
+        None, "--out", help="Write results JSON schema to file"
+    )
+):
     """Print the JSON schema for OpenEval results payloads."""
     if out:
         out.write(RESULTS_JSON_SCHEMA)
     else:
         console.print(RESULTS_JSON_SCHEMA)
+
 
 @app.command()
 def init(
@@ -138,10 +134,12 @@ def init(
         except Exception:  # pragma: no cover
             raise typer.Exit(code=2)
         import yaml
+
         yaml.safe_dump(ex, out, sort_keys=False)
     else:
         json.dump(ex, out, indent=2)
     console.print(f"Created starter spec: {out}")
+
 
 @app.command()
 def lock(

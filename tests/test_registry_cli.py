@@ -34,6 +34,7 @@ def test_doctor_json_output():
     assert res.exit_code == 0
     # Output should be JSON with required keys
     import json as _json
+
     payload = _json.loads(res.stdout)
     assert "python" in payload
     assert "packages" in payload

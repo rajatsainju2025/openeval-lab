@@ -22,7 +22,7 @@ def test_validate_results_happy_path(tmp_path):
         "dataset": "jsonl",
         "adapter": "echo",
         "size": 1,
-        "metrics": {"exact_match": {"value": 1.0}}
+        "metrics": {"exact_match": {"value": 1.0}},
     }
     p = tmp_path / "results.json"
     p.write_text(json.dumps(payload))
@@ -35,12 +35,7 @@ def test_validate_results_happy_path(tmp_path):
 
 def test_validate_results_strict_failure(tmp_path):
     # Missing required key 'size'
-    payload = {
-        "task": "qa",
-        "dataset": "jsonl",
-        "adapter": "echo",
-        "metrics": {}
-    }
+    payload = {"task": "qa", "dataset": "jsonl", "adapter": "echo", "metrics": {}}
     p = tmp_path / "bad.json"
     p.write_text(json.dumps(payload))
 

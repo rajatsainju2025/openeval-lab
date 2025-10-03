@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 class ExperimentStatus(Enum):
     """Status of an experiment."""
+
     CREATED = "created"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -32,6 +33,7 @@ class ExperimentStatus(Enum):
 
 class ExperimentPriority(Enum):
     """Priority levels for experiments."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -41,6 +43,7 @@ class ExperimentPriority(Enum):
 @dataclass
 class ExperimentConfig:
     """Configuration for an experiment."""
+
     task: str
     model: Dict[str, Any]
     dataset: Dict[str, Any]
@@ -58,7 +61,7 @@ class ExperimentConfig:
             "metrics": self.metrics,
             "evaluation": self.evaluation,
             "hyperparameters": self.hyperparameters,
-            "tags": self.tags
+            "tags": self.tags,
         }
 
     @classmethod
@@ -70,6 +73,7 @@ class ExperimentConfig:
 @dataclass
 class ExperimentResult:
     """Result of an experiment."""
+
     metrics: Dict[str, float] = field(default_factory=dict)
     artifacts: Dict[str, str] = field(default_factory=dict)  # filename -> path
     logs: List[str] = field(default_factory=list)
@@ -83,13 +87,14 @@ class ExperimentResult:
             "artifacts": self.artifacts,
             "logs": self.logs,
             "error_message": self.error_message,
-            "duration": self.duration
+            "duration": self.duration,
         }
 
 
 @dataclass
 class Experiment:
     """Represents an evaluation experiment."""
+
     id: str
     name: str
     description: Optional[str] = None
@@ -114,7 +119,11 @@ class Experiment:
     @property
     def is_finished(self) -> bool:
         """Check if experiment is finished."""
-        return self.status in [ExperimentStatus.COMPLETED, ExperimentStatus.FAILED, ExperimentStatus.CANCELLED]
+        return self.status in [
+            ExperimentStatus.COMPLETED,
+            ExperimentStatus.FAILED,
+            ExperimentStatus.CANCELLED,
+        ]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -131,7 +140,7 @@ class Experiment:
             "result": self.result.to_dict() if self.result else None,
             "parent_experiment_id": self.parent_experiment_id,
             "tags": self.tags,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     @classmethod
@@ -145,7 +154,9 @@ class Experiment:
         # Parse timestamps
         created_at = datetime.fromisoformat(data["created_at"])
         started_at = datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None
-        completed_at = datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None
+        completed_at = (
+            datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None
+        )
 
         # Parse result if present
         result = None
@@ -165,7 +176,7 @@ class Experiment:
             result=result,
             parent_experiment_id=data.get("parent_experiment_id"),
             tags=data.get("tags", []),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
 
@@ -196,7 +207,7 @@ class ExperimentTracker:
         description: Optional[str] = None,
         priority: ExperimentPriority = ExperimentPriority.MEDIUM,
         tags: Optional[List[str]] = None,
-        parent_experiment_id: Optional[str] = None
+        parent_experiment_id: Optional[str] = None,
     ) -> Experiment:
         """
         Create a new experiment.
@@ -221,7 +232,7 @@ class ExperimentTracker:
             config=config,
             priority=priority,
             tags=tags or [],
-            parent_experiment_id=parent_experiment_id
+            parent_experiment_id=parent_experiment_id,
         )
 
         # Save to disk
@@ -243,7 +254,7 @@ class ExperimentTracker:
         metadata_file = self.metadata_dir / f"{experiment_id}.json"
         if metadata_file.exists():
             try:
-                with open(metadata_file, 'r', encoding='utf-8') as f:
+                with open(metadata_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 experiment = Experiment.from_dict(data)
                 self._experiment_cache[experiment_id] = experiment
@@ -257,7 +268,7 @@ class ExperimentTracker:
         self,
         experiment_id: str,
         status: ExperimentStatus,
-        result: Optional[ExperimentResult] = None
+        result: Optional[ExperimentResult] = None,
     ) -> bool:
         """
         Update experiment status.
@@ -280,7 +291,11 @@ class ExperimentTracker:
         # Update timestamps
         if status == ExperimentStatus.RUNNING and not experiment.started_at:
             experiment.started_at = datetime.now()
-        elif status in [ExperimentStatus.COMPLETED, ExperimentStatus.FAILED, ExperimentStatus.CANCELLED]:
+        elif status in [
+            ExperimentStatus.COMPLETED,
+            ExperimentStatus.FAILED,
+            ExperimentStatus.CANCELLED,
+        ]:
             experiment.completed_at = datetime.now()
             if result:
                 experiment.result = result
@@ -288,7 +303,9 @@ class ExperimentTracker:
         # Save changes
         self._save_experiment(experiment)
 
-        logger.info(f"Updated experiment {experiment_id} status: {old_status.value} -> {status.value}")
+        logger.info(
+            f"Updated experiment {experiment_id} status: {old_status.value} -> {status.value}"
+        )
         return True
 
     def log_experiment_message(self, experiment_id: str, message: str, level: str = "INFO") -> None:
@@ -305,8 +322,8 @@ class ExperimentTracker:
 
         # Save to log file
         log_file = self.logs_dir / f"{experiment_id}.log"
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(log_entry + '\n')
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry + "\n")
 
         # Also add to experiment result if it exists
         experiment = self.get_experiment(experiment_id)
@@ -315,10 +332,7 @@ class ExperimentTracker:
             self._save_experiment(experiment)
 
     def add_experiment_artifact(
-        self,
-        experiment_id: str,
-        artifact_name: str,
-        artifact_path: Union[str, Path]
+        self, experiment_id: str, artifact_name: str, artifact_path: Union[str, Path]
     ) -> bool:
         """
         Add an artifact to an experiment.
@@ -354,7 +368,7 @@ class ExperimentTracker:
         self,
         status: Optional[ExperimentStatus] = None,
         tags: Optional[List[str]] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
     ) -> List[Experiment]:
         """
         List experiments with optional filtering.
@@ -372,7 +386,7 @@ class ExperimentTracker:
         # Load all experiments
         for metadata_file in self.metadata_dir.glob("*.json"):
             try:
-                with open(metadata_file, 'r', encoding='utf-8') as f:
+                with open(metadata_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 experiment = Experiment.from_dict(data)
 
@@ -396,9 +410,7 @@ class ExperimentTracker:
         return experiments
 
     def search_experiments(
-        self,
-        query: str,
-        fields: Optional[List[str]] = None
+        self, query: str, fields: Optional[List[str]] = None
     ) -> List[Experiment]:
         """
         Search experiments by text query.
@@ -423,7 +435,11 @@ class ExperimentTracker:
                 if field == "name" and query_lower in experiment.name.lower():
                     match = True
                     break
-                elif field == "description" and experiment.description and query_lower in experiment.description.lower():
+                elif (
+                    field == "description"
+                    and experiment.description
+                    and query_lower in experiment.description.lower()
+                ):
                     match = True
                     break
                 elif field == "tags" and any(query_lower in tag.lower() for tag in experiment.tags):
@@ -483,14 +499,14 @@ class ExperimentTracker:
             "has_result": experiment.result is not None,
             "metrics_count": len(experiment.result.metrics) if experiment.result else 0,
             "artifacts_count": len(experiment.result.artifacts) if experiment.result else 0,
-            "tags": experiment.tags
+            "tags": experiment.tags,
         }
 
     def export_experiments(
         self,
         experiment_ids: Optional[List[str]] = None,
         output_path: Optional[Path] = None,
-        format: str = "json"
+        format: str = "json",
     ) -> Path:
         """
         Export experiments to a file.
@@ -515,12 +531,13 @@ class ExperimentTracker:
 
         if format == "json":
             data = [exp.to_dict() for exp in experiments]
-            with open(output_path, 'w', encoding='utf-8') as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
         elif format == "csv":
             try:
                 import pandas as pd
+
                 # Convert to flat structure for CSV
                 rows = []
                 for exp in experiments:
@@ -532,7 +549,7 @@ class ExperimentTracker:
                         "priority": exp.priority.value,
                         "created_at": exp.created_at.isoformat(),
                         "duration": exp.duration,
-                        "tags": ",".join(exp.tags)
+                        "tags": ",".join(exp.tags),
                     }
 
                     # Add metrics if available
@@ -557,7 +574,7 @@ class ExperimentTracker:
     def _save_experiment(self, experiment: Experiment) -> None:
         """Save experiment to disk."""
         metadata_file = self.metadata_dir / f"{experiment.id}.json"
-        with open(metadata_file, 'w', encoding='utf-8') as f:
+        with open(metadata_file, "w", encoding="utf-8") as f:
             json.dump(experiment.to_dict(), f, indent=2, ensure_ascii=False)
 
     def get_experiment_lineage(self, experiment_id: str) -> List[Experiment]:
@@ -587,7 +604,7 @@ class ExperimentTracker:
         self,
         experiment_id: str,
         name: Optional[str] = None,
-        config_changes: Optional[Dict[str, Any]] = None
+        config_changes: Optional[Dict[str, Any]] = None,
     ) -> Optional[Experiment]:
         """
         Clone an existing experiment with optional modifications.
@@ -620,7 +637,7 @@ class ExperimentTracker:
             description=f"Clone of experiment {experiment_id}",
             priority=original.priority,
             tags=original.tags.copy(),
-            parent_experiment_id=experiment_id
+            parent_experiment_id=experiment_id,
         )
 
         logger.info(f"Cloned experiment {experiment_id} to {clone.id}")
@@ -638,7 +655,7 @@ def quick_experiment(
     model_config: Dict[str, Any],
     dataset_config: Dict[str, Any],
     metrics: List[str],
-    experiments_dir: Optional[Path] = None
+    experiments_dir: Optional[Path] = None,
 ) -> Experiment:
     """
     Create a quick experiment with minimal configuration.
@@ -655,10 +672,7 @@ def quick_experiment(
         Created experiment
     """
     config = ExperimentConfig(
-        task=task,
-        model=model_config,
-        dataset=dataset_config,
-        metrics=metrics
+        task=task, model=model_config, dataset=dataset_config, metrics=metrics
     )
 
     tracker = ExperimentTracker(experiments_dir)

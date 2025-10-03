@@ -18,7 +18,7 @@ class LocalAPIAdapter:
         model: str = "llama2",
         temperature: float = 0.7,
         max_tokens: int = 100,
-        **kwargs
+        **kwargs,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -35,13 +35,13 @@ class LocalAPIAdapter:
                 "prompt": prompt,
                 "temperature": kwargs.get("temperature", self.temperature),
                 "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-                "stream": False
+                "stream": False,
             }
 
             response = self.client.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
 
@@ -60,5 +60,5 @@ class LocalAPIAdapter:
 
     def __del__(self):
         """Clean up HTTP client."""
-        if hasattr(self, 'client'):
+        if hasattr(self, "client"):
             self.client.close()

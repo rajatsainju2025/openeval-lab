@@ -25,6 +25,7 @@ logger = get_logger(__name__)
 
 class DocumentationFormat(Enum):
     """Supported documentation formats."""
+
     MARKDOWN = "markdown"
     HTML = "html"
     RST = "rst"
@@ -35,11 +36,11 @@ class DocumentationFormat(Enum):
 class APIEndpoint:
     """
     Represents an API endpoint, function, method, or class.
-    
+
     This class serves as a container for API documentation information,
     capturing details about a code element that will be included in
     generated documentation.
-    
+
     Attributes:
         name: Name of the API element (function, class, method)
         module: Name of the module where the element is defined
@@ -53,6 +54,7 @@ class APIEndpoint:
         is_method: Whether the element is a class method
         decorators: List of decorator names applied to the element
     """
+
     name: str
     module: str
     signature: str
@@ -68,10 +70,10 @@ class APIEndpoint:
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to dictionary representation.
-        
+
         Converts the API endpoint information into a dictionary format
         suitable for serialization to JSON or other formats.
-        
+
         Returns:
             A dictionary containing all attributes of the API endpoint
         """
@@ -86,7 +88,7 @@ class APIEndpoint:
             "category": self.category,
             "is_class": self.is_class,
             "is_method": self.is_method,
-            "decorators": self.decorators
+            "decorators": self.decorators,
         }
 
 
@@ -94,10 +96,10 @@ class APIEndpoint:
 class ModuleDocumentation:
     """
     Documentation for a Python module.
-    
+
     This class holds comprehensive documentation information about a Python module,
     including its functions, classes, docstrings, and dependencies.
-    
+
     Attributes:
         name: Name of the module (e.g., 'openeval.core')
         path: File system path to the module
@@ -107,6 +109,7 @@ class ModuleDocumentation:
         submodules: List of submodule names
         dependencies: List of module dependencies
     """
+
     name: str
     path: Path
     docstring: Optional[str] = None
@@ -118,10 +121,10 @@ class ModuleDocumentation:
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to dictionary representation.
-        
+
         Converts the module documentation into a dictionary format
         suitable for serialization to JSON or other formats.
-        
+
         Returns:
             A dictionary containing all documentation details for the module
         """
@@ -132,7 +135,7 @@ class ModuleDocumentation:
             "functions": [f.to_dict() for f in self.functions],
             "classes": [c.to_dict() for c in self.classes],
             "submodules": self.submodules,
-            "dependencies": self.dependencies
+            "dependencies": self.dependencies,
         }
 
 
@@ -140,11 +143,11 @@ class ModuleDocumentation:
 class DocumentationProject:
     """
     Complete documentation project for a Python package.
-    
+
     This class represents a full documentation project, including all modules,
     metadata, and formatting preferences. It serves as the top-level container
     for generated documentation.
-    
+
     Attributes:
         title: Project title (e.g., 'OpenEval Lab API Reference')
         version: Project version string
@@ -152,6 +155,7 @@ class DocumentationProject:
         generated_at: Timestamp of documentation generation
         format: Output format (markdown, HTML, RST, etc.)
     """
+
     title: str
     version: str
     modules: List[ModuleDocumentation] = field(default_factory=list)
@@ -161,10 +165,10 @@ class DocumentationProject:
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert to dictionary representation.
-        
+
         Converts the entire documentation project into a dictionary format
         suitable for serialization to JSON or other formats.
-        
+
         Returns:
             A dictionary containing all project details and module documentation
         """
@@ -173,19 +177,19 @@ class DocumentationProject:
             "version": self.version,
             "generated_at": self.generated_at.isoformat(),
             "format": self.format.value,
-            "modules": [m.to_dict() for m in self.modules]
+            "modules": [m.to_dict() for m in self.modules],
         }
 
 
 class DocumentationGenerator:
     """
     Automated documentation generator for Python codebases.
-    
+
     This class provides comprehensive tools for generating documentation
     from Python code, including API references, usage examples, and tutorials.
     It uses introspection to extract docstrings, signatures, and type hints
     to create rich, well-structured documentation.
-    
+
     Features:
     - Automatic API reference generation
     - Usage example extraction and formatting
@@ -193,7 +197,7 @@ class DocumentationGenerator:
     - Multiple output formats (Markdown, HTML, RST, JSON)
     - Docstring parsing and formatting
     - Documentation completeness checking
-    
+
     The generator supports Google, NumPy, and reStructuredText docstring styles
     and can be extended to support custom documentation formats.
     """
@@ -201,7 +205,7 @@ class DocumentationGenerator:
     def __init__(self, project_root: Optional[Path] = None) -> None:
         """
         Initialize a new documentation generator.
-        
+
         Args:
             project_root: Path to the root of the project to document.
                          If not provided, the current working directory is used.
@@ -214,22 +218,22 @@ class DocumentationGenerator:
     def generate_api_reference(
         self,
         package_name: str = "openeval",
-        output_format: DocumentationFormat = DocumentationFormat.MARKDOWN
+        output_format: DocumentationFormat = DocumentationFormat.MARKDOWN,
     ) -> Path:
         """
         Generate comprehensive API reference documentation.
-        
+
         Creates detailed API reference documentation for the specified package,
         including modules, classes, functions, methods, and their signatures,
         docstrings, parameters, and return types.
-        
+
         Args:
             package_name: Name of the package to document
             output_format: Format for the generated documentation
-            
+
         Returns:
             Path to the generated documentation file
-            
+
         Raises:
             ImportError: If the specified package cannot be imported
             FileNotFoundError: If required source files cannot be found
@@ -250,7 +254,7 @@ class DocumentationGenerator:
         project = DocumentationProject(
             title=f"{package_name} API Reference",
             version=self._get_package_version(),
-            format=output_format
+            format=output_format,
         )
 
         for module_name in modules:
@@ -274,7 +278,7 @@ class DocumentationGenerator:
         else:
             raise ValueError(f"Unsupported format: {output_format}")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"Generated API reference: {file_path}")
@@ -283,7 +287,7 @@ class DocumentationGenerator:
     def generate_usage_examples(
         self,
         examples_dir: Optional[Path] = None,
-        output_format: DocumentationFormat = DocumentationFormat.MARKDOWN
+        output_format: DocumentationFormat = DocumentationFormat.MARKDOWN,
     ) -> Path:
         """
         Generate usage examples documentation.
@@ -320,7 +324,7 @@ class DocumentationGenerator:
         else:
             raise ValueError(f"Unsupported format for examples: {output_format}")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"Generated usage examples: {file_path}")
@@ -330,7 +334,7 @@ class DocumentationGenerator:
         self,
         tutorial_name: str,
         steps: List[Dict[str, Any]],
-        output_format: DocumentationFormat = DocumentationFormat.MARKDOWN
+        output_format: DocumentationFormat = DocumentationFormat.MARKDOWN,
     ) -> Path:
         """
         Generate a tutorial document.
@@ -352,7 +356,7 @@ class DocumentationGenerator:
         else:
             raise ValueError(f"Unsupported format for tutorial: {output_format}")
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         logger.info(f"Generated tutorial: {file_path}")
@@ -361,7 +365,7 @@ class DocumentationGenerator:
     def _discover_modules(self, package_name: str) -> List[str]:
         """
         Discover all modules in a package using optimized directory scanning.
-        
+
         Uses pathlib for faster directory traversal instead of pkgutil's
         import-based discovery, avoiding unnecessary module imports.
         """
@@ -370,11 +374,12 @@ class DocumentationGenerator:
         try:
             # Try to get package path without importing
             package = importlib.import_module(package_name)
-            package_path = getattr(package, '__path__', [])
-            
+            package_path = getattr(package, "__path__", [])
+
             if package_path:
                 # Use pathlib for faster directory scanning
                 from pathlib import Path
+
                 for path_str in package_path:
                     path = Path(path_str)
                     if path.exists():
@@ -384,12 +389,12 @@ class DocumentationGenerator:
                                 # Convert file path to module name
                                 rel_path = py_file.relative_to(path)
                                 module_parts = list(rel_path.parts)
-                                if module_parts[-1].endswith('.py'):
+                                if module_parts[-1].endswith(".py"):
                                     module_parts[-1] = module_parts[-1][:-3]  # Remove .py
-                                
+
                                 full_module_name = package_name + "." + ".".join(module_parts)
                                 modules.add(full_module_name)
-            
+
             # Add the root package
             modules.add(package_name)
 
@@ -401,18 +406,18 @@ class DocumentationGenerator:
     def _document_module(self, module_name: str) -> Optional[ModuleDocumentation]:
         """
         Generate documentation for a single module.
-        
+
         Uses introspection to analyze a module and extract its functions,
         classes, docstrings, and other documentation-related information.
-        
+
         Args:
             module_name: Fully qualified name of the module to document
                         (e.g., 'openeval.core')
-            
+
         Returns:
             ModuleDocumentation object if successful, None if the module
             cannot be imported or documented
-            
+
         Note:
             This method uses importlib to dynamically import the module,
             which means the module and its dependencies must be importable
@@ -420,23 +425,21 @@ class DocumentationGenerator:
         """
         try:
             module = importlib.import_module(module_name)
-            module_file = getattr(module, '__file__', None)
+            module_file = getattr(module, "__file__", None)
 
             if not module_file:
                 return None
 
             module_path = Path(module_file)
             doc = ModuleDocumentation(
-                name=module_name,
-                path=module_path,
-                docstring=inspect.getdoc(module)
+                name=module_name, path=module_path, docstring=inspect.getdoc(module)
             )
 
             # Get all members
             members = inspect.getmembers(module)
 
             for name, obj in members:
-                if name.startswith('_'):
+                if name.startswith("_"):
                     continue  # Skip private members
 
                 try:
@@ -458,26 +461,23 @@ class DocumentationGenerator:
             return None
 
     def _document_function(
-        self,
-        name: str,
-        func: Callable,
-        module_name: str
+        self, name: str, func: Callable, module_name: str
     ) -> Optional[APIEndpoint]:
         """
         Document a function or method.
-        
+
         Extracts documentation details from a function object including its
         signature, docstring, parameters, return type, and decorators.
-        
+
         Args:
             name: Name of the function
             func: Function object to document
             module_name: Name of the module containing the function
-            
+
         Returns:
             APIEndpoint object containing the function documentation,
             or None if documentation extraction fails
-            
+
         Note:
             This method handles both regular functions and class methods,
             though method detection is handled by the calling context.
@@ -492,17 +492,27 @@ class DocumentationGenerator:
                 param_info = {
                     "name": param_name,
                     "kind": str(param.kind),
-                    "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                    "annotation": str(param.annotation) if param.annotation != inspect.Parameter.empty else None
+                    "default": (
+                        str(param.default) if param.default != inspect.Parameter.empty else None
+                    ),
+                    "annotation": (
+                        str(param.annotation)
+                        if param.annotation != inspect.Parameter.empty
+                        else None
+                    ),
                 }
                 parameters.append(param_info)
 
             # Get return type
-            return_type = str(sig.return_annotation) if sig.return_annotation != inspect.Signature.empty else None
+            return_type = (
+                str(sig.return_annotation)
+                if sig.return_annotation != inspect.Signature.empty
+                else None
+            )
 
             # Get decorators (simplified)
             decorators = []
-            if hasattr(func, '__wrapped__'):
+            if hasattr(func, "__wrapped__"):
                 decorators.append("wrapped")
 
             return APIEndpoint(
@@ -512,7 +522,7 @@ class DocumentationGenerator:
                 docstring=docstring,
                 parameters=parameters,
                 return_type=return_type,
-                decorators=decorators
+                decorators=decorators,
             )
 
         except Exception as e:
@@ -523,7 +533,7 @@ class DocumentationGenerator:
         """Document a class."""
         try:
             sig = f"class {name}"
-            if hasattr(cls, '__init__'):
+            if hasattr(cls, "__init__"):
                 init_sig = inspect.signature(cls.__init__)
                 sig += f"{init_sig}"
 
@@ -532,8 +542,10 @@ class DocumentationGenerator:
             # Get methods
             methods = []
             for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-                if not method_name.startswith('_'):
-                    method_doc = self._document_function(method_name, method, f"{module_name}.{name}")
+                if not method_name.startswith("_"):
+                    method_doc = self._document_function(
+                        method_name, method, f"{module_name}.{name}"
+                    )
                     if method_doc:
                         method_doc.is_method = True
                         methods.append(method_doc)
@@ -544,7 +556,7 @@ class DocumentationGenerator:
                 signature=sig,
                 docstring=docstring,
                 category="class",
-                is_class=True
+                is_class=True,
             )
 
         except Exception as e:
@@ -554,12 +566,12 @@ class DocumentationGenerator:
     def _document_example(self, example_file: Path) -> Optional[Dict[str, Any]]:
         """Document a usage example."""
         try:
-            with open(example_file, 'r', encoding='utf-8') as f:
+            with open(example_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Extract docstring or title from comments
-            lines = content.split('\n')
-            title = example_file.stem.replace('_', ' ').title()
+            lines = content.split("\n")
+            title = example_file.stem.replace("_", " ").title()
             description = ""
 
             # Look for docstring at the top
@@ -570,8 +582,8 @@ class DocumentationGenerator:
                     if line.strip().endswith('"""'):
                         break
                     docstring_lines.append(line)
-                description = '\n'.join(docstring_lines).strip()
-            elif lines and lines[0].startswith('#'):
+                description = "\n".join(docstring_lines).strip()
+            elif lines and lines[0].startswith("#"):
                 # Single line comment
                 description = lines[0][1:].strip()
 
@@ -580,7 +592,7 @@ class DocumentationGenerator:
                 "filename": example_file.name,
                 "description": description,
                 "code": content,
-                "path": str(example_file)
+                "path": str(example_file),
             }
 
         except Exception as e:
@@ -594,14 +606,15 @@ class DocumentationGenerator:
             pyproject_file = self.project_root / "pyproject.toml"
             if pyproject_file.exists():
                 import tomllib
-                with open(pyproject_file, 'rb') as f:
+
+                with open(pyproject_file, "rb") as f:
                     data = tomllib.load(f)
-                return data.get('tool', {}).get('poetry', {}).get('version', 'unknown')
+                return data.get("tool", {}).get("poetry", {}).get("version", "unknown")
 
             # Try __init__.py
             init_file = self.source_dir / "openeval" / "__init__.py"
             if init_file.exists():
-                with open(init_file, 'r') as f:
+                with open(init_file, "r") as f:
                     content = f.read()
                     version_match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
                     if version_match:
@@ -616,7 +629,7 @@ class DocumentationGenerator:
         """Generate Markdown API reference."""
         md = f"""# {project.title}
 
-**Version:** {project.version}  
+**Version:** {project.version}
 **Generated:** {project.generated_at.strftime('%Y-%m-%d %H:%M:%S')}
 
 """
@@ -637,8 +650,8 @@ class DocumentationGenerator:
                     if func.parameters:
                         md += "**Parameters:**\n\n"
                         for param in func.parameters:
-                            default = f" = {param['default']}" if param['default'] else ""
-                            annotation = f": {param['annotation']}" if param['annotation'] else ""
+                            default = f" = {param['default']}" if param["default"] else ""
+                            annotation = f": {param['annotation']}" if param["annotation"] else ""
                             md += f"- `{param['name']}{annotation}{default}`\n"
                         md += "\n"
                     if func.return_type:
@@ -708,12 +721,14 @@ class DocumentationGenerator:
                     if func.parameters:
                         html += '<div class="parameters"><strong>Parameters:</strong><br>'
                         for param in func.parameters:
-                            default = f" = {param['default']}" if param['default'] else ""
-                            annotation = f": {param['annotation']}" if param['annotation'] else ""
-                            html += f'<div class="parameter">{param["name"]}{annotation}{default}</div>'
-                        html += '</div>'
+                            default = f" = {param['default']}" if param["default"] else ""
+                            annotation = f": {param['annotation']}" if param["annotation"] else ""
+                            html += (
+                                f'<div class="parameter">{param["name"]}{annotation}{default}</div>'
+                            )
+                        html += "</div>"
                     if func.return_type:
-                        html += f'<div><strong>Returns:</strong> {func.return_type}</div>'
+                        html += f"<div><strong>Returns:</strong> {func.return_type}</div>"
 
                     html += "</div>"
 
@@ -747,13 +762,13 @@ class DocumentationGenerator:
         for example in examples:
             md += f"## {example['title']}\n\n"
 
-            if example['description']:
+            if example["description"]:
                 md += f"{example['description']}\n\n"
 
             md += f"**File:** `{example['filename']}`\n\n"
 
             # Format code with syntax highlighting
-            code = textwrap.dedent(example['code']).strip()
+            code = textwrap.dedent(example["code"]).strip()
             md += f"```python\n{code}\n```\n\n"
 
             md += "---\n\n"
@@ -789,7 +804,7 @@ class DocumentationGenerator:
             <p><strong>File:</strong> {example['filename']}</p>
 """
 
-            if example['description']:
+            if example["description"]:
                 html += f"<p>{example['description']}</p>"
 
             html += f"""
@@ -811,11 +826,11 @@ class DocumentationGenerator:
         for i, step in enumerate(steps, 1):
             md += f"## Step {i}: {step['title']}\n\n"
 
-            if 'content' in step:
+            if "content" in step:
                 md += f"{step['content']}\n\n"
 
-            if 'code' in step:
-                code = textwrap.dedent(step['code']).strip()
+            if "code" in step:
+                code = textwrap.dedent(step["code"]).strip()
                 md += f"```python\n{code}\n```\n\n"
 
         return md
@@ -851,11 +866,11 @@ class DocumentationGenerator:
         <div class="content">
 """
 
-            if 'content' in step:
+            if "content" in step:
                 html += f"<p>{step['content']}</p>"
 
-            if 'code' in step:
-                code = step['code'].replace('<', '&lt;').replace('>', '&gt;')
+            if "code" in step:
+                code = step["code"].replace("<", "&lt;").replace(">", "&gt;")
                 html += f'<div class="code">{code}</div>'
 
             html += """
@@ -878,7 +893,7 @@ class DocumentationGenerator:
             content = "<!DOCTYPE html><html><head><title>Usage Examples</title></head><body><h1>Usage Examples</h1><p>No examples found.</p></body></html>"
             file_path = self.docs_dir / "usage_examples.html"
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         return file_path
@@ -887,7 +902,7 @@ class DocumentationGenerator:
 def generate_api_docs(
     package_name: str = "openeval",
     output_format: DocumentationFormat = DocumentationFormat.MARKDOWN,
-    project_root: Optional[Path] = None
+    project_root: Optional[Path] = None,
 ) -> Path:
     """
     Generate API documentation for a package.
@@ -907,7 +922,7 @@ def generate_api_docs(
 def generate_examples_docs(
     examples_dir: Optional[Path] = None,
     output_format: DocumentationFormat = DocumentationFormat.MARKDOWN,
-    project_root: Optional[Path] = None
+    project_root: Optional[Path] = None,
 ) -> Path:
     """
     Generate usage examples documentation.
@@ -928,7 +943,7 @@ def create_tutorial(
     tutorial_name: str,
     steps: List[Dict[str, Any]],
     output_format: DocumentationFormat = DocumentationFormat.MARKDOWN,
-    project_root: Optional[Path] = None
+    project_root: Optional[Path] = None,
 ) -> Path:
     """
     Create a tutorial document.

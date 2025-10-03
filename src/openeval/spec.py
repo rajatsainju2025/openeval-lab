@@ -86,7 +86,9 @@ def _read_spec_file(p: Path) -> dict[str, Any]:
     return json.loads(p.read_text())
 
 
-def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
+def load_spec(
+    path: Path | str, statistical_analysis: bool = False
+) -> Tuple[Task, Dataset, Adapter, List[Metric], str]:
     p = Path(path)
     data = _read_spec_file(p)
     # Normalize metrics to dicts if provided as strings
@@ -113,14 +115,18 @@ def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Tas
     except ValidationError as e:
         # Provide helpful hints for common fields
         hints = []
-        missing = {err['loc'][0] for err in e.errors() if err.get('type') == 'missing'} if hasattr(e, 'errors') else set()
-        if 'task' in str(e):
+        missing = (
+            {err["loc"][0] for err in e.errors() if err.get("type") == "missing"}
+            if hasattr(e, "errors")
+            else set()
+        )
+        if "task" in str(e):
             hints.append(f"Known tasks: {', '.join(sorted(list(registry.TASKS.keys())))}")
-        if 'dataset' in str(e):
+        if "dataset" in str(e):
             hints.append(f"Known datasets: {', '.join(sorted(list(registry.DATASETS.keys())))}")
-        if 'adapter' in str(e):
+        if "adapter" in str(e):
             hints.append(f"Known adapters: {', '.join(sorted(list(registry.ADAPTERS.keys())))}")
-        if 'metrics' in str(e):
+        if "metrics" in str(e):
             hints.append(f"Known metrics: {', '.join(sorted(list(registry.METRICS.keys())))}")
         msg = "Invalid spec: " + str(e)
         if hints:
@@ -134,7 +140,9 @@ def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Tas
         dataset_cls = import_class(spec.dataset)
         dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
     elif isinstance(spec.dataset, dict) and (spec.dataset.get("type") == "inline"):
-        dataset = InlineDataset(name=spec.dataset.get("name", "inline"), examples=spec.dataset.get("examples", []))
+        dataset = InlineDataset(
+            name=spec.dataset.get("name", "inline"), examples=spec.dataset.get("examples", [])
+        )
     else:
         # Unsupported dataset type provided
         raise SystemExit(
@@ -149,22 +157,30 @@ def load_spec(path: Path | str, statistical_analysis: bool = False) -> Tuple[Tas
     for m in spec.metrics:
         m_cls = import_class(m.name)
         metric_instance = m_cls(**m.kwargs)
-        
+
         # If statistical analysis is enabled, wrap basic metrics with statistical versions
         if statistical_analysis:
             from .metrics.statistical import BootstrapAccuracy
-            if hasattr(metric_instance, 'name') and metric_instance.name == "exact_match":
+
+            if hasattr(metric_instance, "name") and metric_instance.name == "exact_match":
                 # Replace with bootstrap version
                 metric_instance = BootstrapAccuracy(**m.kwargs)
-        
+
         metrics.append(metric_instance)
 
     # Validate agent tooling for ToolUseTask
-    if task.__class__.__module__ == "openeval.tasks.tooluse" and task.__class__.__name__ == "ToolUseTask":
+    if (
+        task.__class__.__module__ == "openeval.tasks.tooluse"
+        and task.__class__.__name__ == "ToolUseTask"
+    ):
         # If spec provided agent block, we already mapped it into task_kwargs
         if not getattr(task, "_agent_type", None):
-            raise SystemExit("ToolUseTask requires 'agent.type' in spec (mapped to task_kwargs.agent_type)")
+            raise SystemExit(
+                "ToolUseTask requires 'agent.type' in spec (mapped to task_kwargs.agent_type)"
+            )
         if not getattr(task, "_tool_types", None):
-            raise SystemExit("ToolUseTask requires 'agent.tools' list in spec (mapped to task_kwargs.tools)")
+            raise SystemExit(
+                "ToolUseTask requires 'agent.tools' list in spec (mapped to task_kwargs.tools)"
+            )
 
     return task, dataset, adapter, metrics, spec.output

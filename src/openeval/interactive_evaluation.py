@@ -28,6 +28,7 @@ logger = get_logger(__name__)
 @dataclass
 class EvaluationStep:
     """Represents a single evaluation step."""
+
     name: str
     description: str
     status: str = "pending"  # pending, running, completed, failed
@@ -41,6 +42,7 @@ class EvaluationStep:
 @dataclass
 class InteractiveSession:
     """Manages an interactive evaluation session."""
+
     session_id: str
     config: Dict[str, Any]
     steps: List[EvaluationStep] = field(default_factory=list)
@@ -81,9 +83,7 @@ class InteractiveEvaluator:
         self.running = False
 
     def start_interactive_session(
-        self,
-        config_path: Union[str, Path],
-        session_id: Optional[str] = None
+        self, config_path: Union[str, Path], session_id: Optional[str] = None
     ) -> str:
         """
         Start an interactive evaluation session.
@@ -102,10 +102,7 @@ class InteractiveEvaluator:
         config = self._load_config(config_path)
 
         # Create session
-        session = InteractiveSession(
-            session_id=session_id,
-            config=config
-        )
+        session = InteractiveSession(session_id=session_id, config=config)
 
         # Initialize evaluation steps
         self._initialize_steps(session)
@@ -121,10 +118,11 @@ class InteractiveEvaluator:
         if not path.exists():
             raise FileNotFoundError(f"Configuration file not found: {path}")
 
-        with open(path, 'r', encoding='utf-8') as f:
-            if path.suffix in ['.yaml', '.yml']:
+        with open(path, "r", encoding="utf-8") as f:
+            if path.suffix in [".yaml", ".yml"]:
                 try:
                     import yaml
+
                     return yaml.safe_load(f)
                 except ImportError:
                     raise ImportError("PyYAML required for YAML configuration files")
@@ -145,19 +143,17 @@ class InteractiveEvaluator:
         session.add_step("report_generation", "Generating evaluation report")
 
         # Add task-specific steps
-        task = config.get('task', 'qa')
-        if task == 'code':
+        task = config.get("task", "qa")
+        if task == "code":
             session.add_step("syntax_check", "Checking code syntax")
             session.add_step("execution_test", "Testing code execution")
-        elif task == 'summarization':
+        elif task == "summarization":
             session.add_step("readability_check", "Checking summary readability")
-        elif task == 'generation':
+        elif task == "generation":
             session.add_step("diversity_analysis", "Analyzing text diversity")
 
     async def run_interactive_evaluation(
-        self,
-        session_id: str,
-        user_interface: bool = True
+        self, session_id: str, user_interface: bool = True
     ) -> Dict[str, Any]:
         """
         Run interactive evaluation with real-time feedback.
@@ -245,11 +241,7 @@ class InteractiveEvaluator:
 
         return self._compile_results(session)
 
-    async def _execute_step(
-        self,
-        session: InteractiveSession,
-        step: EvaluationStep
-    ) -> Any:
+    async def _execute_step(self, session: InteractiveSession, step: EvaluationStep) -> Any:
         """Execute a single evaluation step."""
         # Simulate step execution with progress updates
         import random
@@ -269,13 +261,7 @@ class InteractiveEvaluator:
         elif step.name == "baseline_evaluation":
             return {"accuracy": 0.85, "f1_score": 0.82}
         elif step.name == "metric_calculation":
-            return {
-                "accuracy": 0.85,
-                "precision": 0.87,
-                "recall": 0.83,
-                "f1": 0.82,
-                "bleu": 0.75
-            }
+            return {"accuracy": 0.85, "precision": 0.87, "recall": 0.83, "f1": 0.82, "bleu": 0.75}
         else:
             return {"status": "completed"}
 
@@ -288,14 +274,13 @@ class InteractiveEvaluator:
         table.add_column("Time", style="blue")
 
         for step in session.steps:
-            status_icon = {
-                "pending": "⏳",
-                "running": "🔄",
-                "completed": "✅",
-                "failed": "❌"
-            }.get(step.status, "?")
+            status_icon = {"pending": "⏳", "running": "🔄", "completed": "✅", "failed": "❌"}.get(
+                step.status, "?"
+            )
 
-            progress_bar = f"[{'█' * int(step.progress * 10)}{'░' * (10 - int(step.progress * 10))}]"
+            progress_bar = (
+                f"[{'█' * int(step.progress * 10)}{'░' * (10 - int(step.progress * 10))}]"
+            )
 
             duration = ""
             if step.start_time and step.end_time:
@@ -303,12 +288,7 @@ class InteractiveEvaluator:
             elif step.start_time:
                 duration = ".1f"
 
-            table.add_row(
-                step.name,
-                f"{status_icon} {step.status}",
-                progress_bar,
-                duration
-            )
+            table.add_row(step.name, f"{status_icon} {step.status}", progress_bar, duration)
 
         # Add current step details
         current_step = session.get_current_step()
@@ -320,18 +300,13 @@ class InteractiveEvaluator:
             details = "Evaluation completed"
 
         panel = Panel.fit(
-            f"{table}\n\n{details}",
-            title="📊 Evaluation Progress",
-            border_style="blue"
+            f"{table}\n\n{details}", title="📊 Evaluation Progress", border_style="blue"
         )
 
         live.update(panel)
 
     async def _handle_error_interactively(
-        self,
-        session: InteractiveSession,
-        step: EvaluationStep,
-        live: Live
+        self, session: InteractiveSession, step: EvaluationStep, live: Live
     ) -> bool:
         """Handle errors interactively."""
         # In a real implementation, this would prompt the user
@@ -340,10 +315,7 @@ class InteractiveEvaluator:
         return False  # Don't retry
 
     async def _step_transition_interactive(
-        self,
-        session: InteractiveSession,
-        step: EvaluationStep,
-        live: Live
+        self, session: InteractiveSession, step: EvaluationStep, live: Live
     ) -> bool:
         """Handle transitions between steps interactively."""
         # In a real implementation, this would allow user to modify config
@@ -358,7 +330,7 @@ class InteractiveEvaluator:
             "total_steps": len(session.steps),
             "completed_steps": sum(1 for s in session.steps if s.status == "completed"),
             "failed_steps": sum(1 for s in session.steps if s.status == "failed"),
-            "step_results": {}
+            "step_results": {},
         }
 
         total_time = 0.0
@@ -370,7 +342,7 @@ class InteractiveEvaluator:
                     "status": step.status,
                     "duration": step_time,
                     "result": step.result,
-                    "error": step.error
+                    "error": step.error,
                 }
 
         results["total_duration"] = total_time
@@ -387,7 +359,7 @@ class InteractiveEvaluator:
             "status": session.status,
             "current_step": session.current_step,
             "total_steps": len(session.steps),
-            "progress": session.current_step / len(session.steps) if session.steps else 0
+            "progress": session.current_step / len(session.steps) if session.steps else 0,
         }
 
     def pause_session(self, session_id: str) -> bool:
@@ -418,9 +390,7 @@ def create_interactive_evaluator() -> InteractiveEvaluator:
 
 
 async def run_interactive_evaluation(
-    config_path: Union[str, Path],
-    session_id: Optional[str] = None,
-    headless: bool = False
+    config_path: Union[str, Path], session_id: Optional[str] = None, headless: bool = False
 ) -> Dict[str, Any]:
     """
     Convenience function to run interactive evaluation.

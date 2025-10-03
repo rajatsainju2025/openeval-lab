@@ -17,7 +17,7 @@ Examples:
     ```python
     spec = {
         "task": "qa",              # Uses QATask
-        "dataset": "jsonl",        # Uses JSONLinesDataset 
+        "dataset": "jsonl",        # Uses JSONLinesDataset
         "adapter": "echo",         # Uses EchoAdapter
         "metrics": ["exact_match"] # Uses ExactMatchMetric
     }
@@ -29,11 +29,11 @@ Note:
 """
 
 # Type variables for improved type safety
-T = TypeVar('T')
-TaskType = TypeVar('TaskType', bound=Task)
-DatasetType = TypeVar('DatasetType', bound=Dataset)
-AdapterType = TypeVar('AdapterType', bound=Adapter)
-MetricType = TypeVar('MetricType', bound=Metric)
+T = TypeVar("T")
+TaskType = TypeVar("TaskType", bound=Task)
+DatasetType = TypeVar("DatasetType", bound=Dataset)
+AdapterType = TypeVar("AdapterType", bound=Adapter)
+MetricType = TypeVar("MetricType", bound=Metric)
 
 # Registry of evaluation tasks and their import paths
 TASKS: Dict[str, str] = {
@@ -193,16 +193,11 @@ def info(kind: str, name: str) -> Optional[Dict[str, str]]:
     if path is None:
         return None
     desc = _get_desc_map(kind).get(name, "")
-    return {
-        "name": name,
-        "path": path,
-        "description": desc
-    }
+    return {"name": name, "path": path, "description": desc}
 
 
 def load_component(
-    kind: str,
-    name: str
+    kind: str, name: str
 ) -> Optional[Union[Type[Task], Type[Dataset], Type[Adapter], Type[Metric]]]:
     """
     Dynamically load and return a component class from the registry.
@@ -237,12 +232,11 @@ def load_component(
 
 @functools.lru_cache(maxsize=128)
 def _load_component_cached(
-    kind: str,
-    name: str
+    kind: str, name: str
 ) -> Optional[Union[Type[Task], Type[Dataset], Type[Adapter], Type[Metric]]]:
     """
     Cached version of load_component to avoid repeated dynamic imports.
-    
+
     This function is cached to prevent repeated imports of the same components,
     which can be expensive for large libraries or when called frequently.
     """
@@ -253,11 +247,12 @@ def _load_component_cached(
         return None
 
     try:
-        module_path, class_name = path.rsplit('.', 1)
+        module_path, class_name = path.rsplit(".", 1)
         module = importlib.import_module(module_path)
         return getattr(module, class_name)
     except (ImportError, AttributeError) as e:
         import logging
+
         logging.error(f"Failed to load {kind} '{name}' from {path}: {e}")
         return None
     return {"name": name, "path": path, "description": desc}

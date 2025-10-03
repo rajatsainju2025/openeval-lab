@@ -1,6 +1,5 @@
 """Tests for code execution metric."""
 
-
 from openeval.metrics.code_execution import (
     CodeExecutionMetric,
     HumanEvalMetric,

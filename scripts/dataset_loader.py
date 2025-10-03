@@ -7,10 +7,9 @@ including JSON, CSV, Parquet, Hugging Face datasets, and custom formats.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Iterator
+from typing import Any, Dict, List, Optional, Union
 from abc import ABC, abstractmethod
 import gzip
 import bz2
@@ -18,6 +17,7 @@ import lzma
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     pd = None  # type: ignore
@@ -26,6 +26,7 @@ except ImportError:
 try:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     HAS_PYARROW = True
 except ImportError:
     pa = None  # type: ignore
@@ -34,6 +35,7 @@ except ImportError:
 
 try:
     from datasets import load_dataset
+
     HAS_DATASETS = True
 except ImportError:
     load_dataset = None  # type: ignore
@@ -63,29 +65,29 @@ class JSONLoader(DatasetLoader):
 
     def supports_format(self, path: Union[str, Path]) -> bool:
         path_str = str(path).lower()
-        return path_str.endswith(('.json', '.json.gz', '.json.bz2', '.json.xz'))
+        return path_str.endswith((".json", ".json.gz", ".json.bz2", ".json.xz"))
 
     def load(self, path: Union[str, Path], **kwargs) -> List[Dict[str, Any]]:
         """Load JSON dataset."""
         path = Path(path)
 
         # Open file with appropriate compression
-        if path.suffix == '.gz':
+        if path.suffix == ".gz":
             opener = gzip.open
-        elif path.suffix == '.bz2':
+        elif path.suffix == ".bz2":
             opener = bz2.open
-        elif path.suffix == '.xz':
+        elif path.suffix == ".xz":
             opener = lzma.open
         else:
             opener = open
 
-        with opener(path, 'rt', encoding='utf-8') as f:
+        with opener(path, "rt", encoding="utf-8") as f:
             data = json.load(f)
 
         if isinstance(data, list):
             return data
-        elif isinstance(data, dict) and 'data' in data:
-            return data['data']
+        elif isinstance(data, dict) and "data" in data:
+            return data["data"]
         else:
             return [data]
 
@@ -94,16 +96,16 @@ class JSONLoader(DatasetLoader):
         path = Path(path)
 
         # Determine compression
-        if path.suffix == '.gz':
+        if path.suffix == ".gz":
             opener = gzip.open
-        elif path.suffix == '.bz2':
+        elif path.suffix == ".bz2":
             opener = bz2.open
-        elif path.suffix == '.xz':
+        elif path.suffix == ".xz":
             opener = lzma.open
         else:
             opener = open
 
-        with opener(path, 'wt', encoding='utf-8') as f:
+        with opener(path, "wt", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
 
@@ -112,14 +114,14 @@ class JSONLinesLoader(DatasetLoader):
 
     def supports_format(self, path: Union[str, Path]) -> bool:
         path_str = str(path).lower()
-        return path_str.endswith(('.jsonl', '.jsonlines', '.jl'))
+        return path_str.endswith((".jsonl", ".jsonlines", ".jl"))
 
     def load(self, path: Union[str, Path], **kwargs) -> List[Dict[str, Any]]:
         """Load JSON Lines dataset."""
         path = Path(path)
         data = []
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if line:
@@ -135,9 +137,9 @@ class JSONLinesLoader(DatasetLoader):
         """Save data as JSON Lines."""
         path = Path(path)
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             for item in data:
-                f.write(json.dumps(item, ensure_ascii=False) + '\n')
+                f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
 
 class CSVLoader(DatasetLoader):
@@ -147,7 +149,7 @@ class CSVLoader(DatasetLoader):
         if not HAS_PANDAS:
             return False
         path_str = str(path).lower()
-        return path_str.endswith(('.csv', '.tsv', '.txt'))
+        return path_str.endswith((".csv", ".tsv", ".txt"))
 
     def load(self, path: Union[str, Path], **kwargs) -> List[Dict[str, Any]]:
         """Load CSV dataset."""
@@ -157,13 +159,13 @@ class CSVLoader(DatasetLoader):
         path = Path(path)
 
         # Determine separator
-        if path.suffix == '.tsv':
-            sep = '\t'
+        if path.suffix == ".tsv":
+            sep = "\t"
         else:
-            sep = kwargs.get('sep', ',')
+            sep = kwargs.get("sep", ",")
 
         df = pd.read_csv(path, sep=sep, **kwargs)
-        return df.to_dict('records')
+        return df.to_dict("records")
 
     def save(self, data: List[Dict[str, Any]], path: Union[str, Path], **kwargs) -> None:
         """Save data as CSV."""
@@ -174,10 +176,10 @@ class CSVLoader(DatasetLoader):
         path = Path(path)
 
         # Determine separator
-        if path.suffix == '.tsv':
-            sep = '\t'
+        if path.suffix == ".tsv":
+            sep = "\t"
         else:
-            sep = kwargs.get('sep', ',')
+            sep = kwargs.get("sep", ",")
 
         df.to_csv(path, sep=sep, index=False, **kwargs)
 
@@ -189,7 +191,7 @@ class ParquetLoader(DatasetLoader):
         if not HAS_PYARROW:
             return False
         path_str = str(path).lower()
-        return path_str.endswith('.parquet')
+        return path_str.endswith(".parquet")
 
     def load(self, path: Union[str, Path], **kwargs) -> List[Dict[str, Any]]:
         """Load Parquet dataset."""
@@ -198,7 +200,7 @@ class ParquetLoader(DatasetLoader):
 
         table = pq.read_table(path, **kwargs)
         df = table.to_pandas()
-        return df.to_dict('records')
+        return df.to_dict("records")
 
     def save(self, data: List[Dict[str, Any]], path: Union[str, Path], **kwargs) -> None:
         """Save data as Parquet."""
@@ -218,7 +220,7 @@ class HuggingFaceLoader(DatasetLoader):
             return False
         path_str = str(path)
         # Support dataset names like "glue", "squad", etc.
-        return '/' not in path_str and '.' not in path_str
+        return "/" not in path_str and "." not in path_str
 
     def load(self, path: Union[str, Path], **kwargs) -> List[Dict[str, Any]]:
         """Load Hugging Face dataset."""
@@ -226,7 +228,7 @@ class HuggingFaceLoader(DatasetLoader):
             raise ImportError("datasets library required for Hugging Face dataset loading")
 
         dataset_name = str(path)
-        split = kwargs.get('split', 'train')
+        split = kwargs.get("split", "train")
 
         dataset = load_dataset(dataset_name, **kwargs)
         if isinstance(dataset, dict):
@@ -259,10 +261,7 @@ class DatasetLoaderRegistry:
         return None
 
     def load_dataset(
-        self,
-        path: Union[str, Path],
-        loader_type: Optional[str] = None,
-        **kwargs
+        self, path: Union[str, Path], loader_type: Optional[str] = None, **kwargs
     ) -> List[Dict[str, Any]]:
         """
         Load dataset using appropriate loader.
@@ -278,11 +277,11 @@ class DatasetLoaderRegistry:
         if loader_type:
             # Find loader by type
             loader_map = {
-                'json': JSONLoader(),
-                'jsonl': JSONLinesLoader(),
-                'csv': CSVLoader(),
-                'parquet': ParquetLoader(),
-                'huggingface': HuggingFaceLoader(),
+                "json": JSONLoader(),
+                "jsonl": JSONLinesLoader(),
+                "csv": CSVLoader(),
+                "parquet": ParquetLoader(),
+                "huggingface": HuggingFaceLoader(),
             }
             loader = loader_map.get(loader_type.lower())
             if not loader:
@@ -300,7 +299,7 @@ class DatasetLoaderRegistry:
         data: List[Dict[str, Any]],
         path: Union[str, Path],
         format: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Save dataset using appropriate loader.
@@ -313,10 +312,10 @@ class DatasetLoaderRegistry:
         """
         if format:
             loader_map = {
-                'json': JSONLoader(),
-                'jsonl': JSONLinesLoader(),
-                'csv': CSVLoader(),
-                'parquet': ParquetLoader(),
+                "json": JSONLoader(),
+                "jsonl": JSONLinesLoader(),
+                "csv": CSVLoader(),
+                "parquet": ParquetLoader(),
             }
             loader = loader_map.get(format.lower())
             if not loader:
@@ -331,10 +330,7 @@ class DatasetLoaderRegistry:
         loader.save(data, path, **kwargs)
 
 
-def load_dataset_auto(
-    path: Union[str, Path],
-    **kwargs
-) -> List[Dict[str, Any]]:
+def load_dataset_auto(path: Union[str, Path], **kwargs) -> List[Dict[str, Any]]:
     """
     Automatically load dataset with format detection.
 
@@ -349,11 +345,7 @@ def load_dataset_auto(
     return registry.load_dataset(path, **kwargs)
 
 
-def save_dataset_auto(
-    data: List[Dict[str, Any]],
-    path: Union[str, Path],
-    **kwargs
-) -> None:
+def save_dataset_auto(data: List[Dict[str, Any]], path: Union[str, Path], **kwargs) -> None:
     """
     Automatically save dataset with format detection.
 

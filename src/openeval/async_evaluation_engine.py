@@ -26,6 +26,7 @@ import heapq
 
 try:
     import aiofiles
+
     HAS_AIOFILES = True
 except ImportError:
     aiofiles = None  # type: ignore
@@ -41,6 +42,7 @@ logger = get_logger(__name__)
 @dataclass
 class AsyncTaskConfig:
     """Configuration for async task execution."""
+
     max_concurrent_requests: int = 10
     request_timeout: Optional[float] = 30.0
     max_retries: int = 3
@@ -59,6 +61,7 @@ class AsyncTaskConfig:
 @dataclass
 class CircuitBreakerState:
     """State for circuit breaker pattern."""
+
     failures: int = 0
     last_failure_time: float = 0.0
     state: str = "closed"  # closed, open, half-open
@@ -67,6 +70,7 @@ class CircuitBreakerState:
 @dataclass
 class AsyncEvaluationResult:
     """Result of an async evaluation."""
+
     index: int
     prediction: Any
     latency: float
@@ -79,6 +83,7 @@ class AsyncEvaluationResult:
 @dataclass(order=True)
 class PrioritizedTask:
     """Priority queue item for task scheduling."""
+
     priority: int
     index: int
     coro: asyncio.Task = field(compare=False)
@@ -136,26 +141,28 @@ class AsyncAdapterWrapper:
 
     async def agenerate(self, prompt: str, **kwargs: Any) -> str:
         """Async generate method with automatic fallback."""
-        if hasattr(self.adapter, 'agenerate') and asyncio.iscoroutinefunction(self.adapter.agenerate):
+        if hasattr(self.adapter, "agenerate") and asyncio.iscoroutinefunction(
+            self.adapter.agenerate
+        ):
             return await self.adapter.agenerate(prompt, **kwargs)
 
         # Fallback to sync method in thread pool
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
-            self.thread_pool,
-            lambda: self.adapter.generate(prompt, **kwargs)
+            self.thread_pool, lambda: self.adapter.generate(prompt, **kwargs)
         )
 
     async def agenerate_with_logprobs(self, prompt: str, **kwargs: Any) -> Dict[str, Any]:
         """Async generate with logprobs method."""
-        if hasattr(self.adapter, 'agenerate_with_logprobs') and asyncio.iscoroutinefunction(self.adapter.agenerate_with_logprobs):
+        if hasattr(self.adapter, "agenerate_with_logprobs") and asyncio.iscoroutinefunction(
+            self.adapter.agenerate_with_logprobs
+        ):
             return await self.adapter.agenerate_with_logprobs(prompt, **kwargs)
 
         # Fallback to sync method
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
-            self.thread_pool,
-            lambda: self.adapter.generate_with_logprobs(prompt, **kwargs)
+            self.thread_pool, lambda: self.adapter.generate_with_logprobs(prompt, **kwargs)
         )
 
 
@@ -166,7 +173,9 @@ class AsyncEvaluationEngine:
 
     def __init__(self, config: Optional[AsyncTaskConfig] = None):
         self.config = config or AsyncTaskConfig()
-        self.semaphore = asyncio.Semaphore(self.config.semaphore_limit or self.config.max_concurrent_requests)
+        self.semaphore = asyncio.Semaphore(
+            self.config.semaphore_limit or self.config.max_concurrent_requests
+        )
         self.cache: Optional[PredictionCache] = None
         self.cache_stats = CacheStats()
         self._thread_pool = ThreadPoolExecutor(max_workers=self.config.max_concurrent_requests)
@@ -189,16 +198,23 @@ class AsyncEvaluationEngine:
 
         avg_latency = statistics.mean(self.latency_history)
         if avg_latency < 1.0:  # Fast responses, can increase batch size
-            self._adaptive_batch_size = min(self._adaptive_batch_size + 5, self.config.max_batch_size)
+            self._adaptive_batch_size = min(
+                self._adaptive_batch_size + 5, self.config.max_batch_size
+            )
         elif avg_latency > 5.0:  # Slow responses, reduce batch size
-            self._adaptive_batch_size = max(self._adaptive_batch_size - 2, self.config.min_batch_size)
+            self._adaptive_batch_size = max(
+                self._adaptive_batch_size - 2, self.config.min_batch_size
+            )
 
     def _check_circuit_breaker(self) -> bool:
         """Check if circuit breaker should allow requests."""
         current_time = time.time()
 
         if self.circuit_breaker.state == "open":
-            if current_time - self.circuit_breaker.last_failure_time > self.config.circuit_breaker_timeout:
+            if (
+                current_time - self.circuit_breaker.last_failure_time
+                > self.config.circuit_breaker_timeout
+            ):
                 self.circuit_breaker.state = "half-open"
                 return True
             return False
@@ -222,10 +238,7 @@ class AsyncEvaluationEngine:
             logger.info("Circuit breaker closed - service recovered")
 
     async def _execute_with_retry(
-        self,
-        func: Callable[[], Any],
-        max_retries: int,
-        retry_delay: float
+        self, func: Callable[[], Any], max_retries: int, retry_delay: float
     ) -> Any:
         """Execute a function with retry logic."""
         last_exception = None
@@ -236,7 +249,7 @@ class AsyncEvaluationEngine:
             except Exception as e:
                 last_exception = e
                 if attempt < max_retries:
-                    await asyncio.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
+                    await asyncio.sleep(retry_delay * (2**attempt))  # Exponential backoff
                     logger.warning(f"Attempt {attempt + 1} failed, retrying: {e}")
 
         if last_exception:
@@ -245,11 +258,7 @@ class AsyncEvaluationEngine:
             raise RuntimeError("Function failed after all retries")
 
     async def _cached_generate(
-        self,
-        adapter: AsyncAdapterWrapper,
-        prompt: str,
-        cache_key: str,
-        **kwargs: Any
+        self, adapter: AsyncAdapterWrapper, prompt: str, cache_key: str, **kwargs: Any
     ) -> Tuple[str, bool]:
         """Generate with caching support."""
         loop = asyncio.get_running_loop()
@@ -258,8 +267,7 @@ class AsyncEvaluationEngine:
         if self.cache is not None:
             try:
                 cached_result = await loop.run_in_executor(
-                    self._thread_pool,
-                    lambda: self.cache.get(cache_key)  # type: ignore
+                    self._thread_pool, lambda: self.cache.get(cache_key)  # type: ignore
                 )
                 if cached_result is not None:
                     self.cache_stats.hits += 1
@@ -276,8 +284,7 @@ class AsyncEvaluationEngine:
         if self.cache is not None:
             try:
                 await loop.run_in_executor(
-                    self._thread_pool,
-                    lambda: self.cache.set(cache_key, result)  # type: ignore
+                    self._thread_pool, lambda: self.cache.set(cache_key, result)  # type: ignore
                 )
             except Exception as e:
                 logger.debug(f"Cache write error: {e}")
@@ -290,7 +297,7 @@ class AsyncEvaluationEngine:
         prompts: List[str],
         cache_keys: Optional[List[str]] = None,
         priorities: Optional[List[int]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> List[AsyncEvaluationResult]:
         """
         Evaluate a batch of prompts asynchronously with priority scheduling.
@@ -349,11 +356,7 @@ class AsyncEvaluationEngine:
 
                 # Create error result
                 error_result = AsyncEvaluationResult(
-                    index=index,
-                    prediction="",
-                    latency=0.0,
-                    error=str(e),
-                    cached=False
+                    index=index, prediction="", latency=0.0, error=str(e), cached=False
                 )
                 results.append(error_result)
                 completed_tasks.add(index)
@@ -373,7 +376,7 @@ class AsyncEvaluationEngine:
         cache_key: str,
         index: int,
         priority: int = 1,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncEvaluationResult:
         """Evaluate a single prompt."""
         start_time = time.perf_counter()
@@ -388,19 +391,13 @@ class AsyncEvaluationEngine:
                 return await self._cached_generate(adapter, prompt, cache_key, **kwargs)
 
             result, cached = await self._execute_with_retry(
-                _generate,
-                self.config.max_retries,
-                self.config.retry_delay
+                _generate, self.config.max_retries, self.config.retry_delay
             )
 
             latency = time.perf_counter() - start_time
 
             return AsyncEvaluationResult(
-                index=index,
-                prediction=result,
-                latency=latency,
-                cached=cached,
-                priority=priority
+                index=index, prediction=result, latency=latency, cached=cached, priority=priority
             )
 
         except Exception as e:
@@ -411,7 +408,7 @@ class AsyncEvaluationEngine:
                 latency=latency,
                 error=str(e),
                 cached=False,
-                priority=priority
+                priority=priority,
             )
 
     async def evaluate_streaming(
@@ -420,7 +417,7 @@ class AsyncEvaluationEngine:
         prompt_iterator: AsyncIterator[str],
         cache_key_iterator: Optional[AsyncIterator[str]] = None,
         batch_size: int = 10,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> AsyncIterator[AsyncEvaluationResult]:
         """
         Evaluate prompts from async iterators in streaming fashion.
@@ -473,11 +470,7 @@ class AsyncEvaluationEngine:
                 yield result
 
     async def _process_batch_streaming(
-        self,
-        adapter: AsyncAdapterWrapper,
-        prompts: List[str],
-        cache_keys: List[str],
-        **kwargs: Any
+        self, adapter: AsyncAdapterWrapper, prompts: List[str], cache_keys: List[str], **kwargs: Any
     ) -> AsyncIterator[AsyncEvaluationResult]:
         """Process a batch and yield results as they complete."""
         # Create tasks for the batch
@@ -507,7 +500,7 @@ class AsyncEvaluationEngine:
             "cache_misses": self.cache_stats.misses,
             "cache_hit_rate": self.cache_stats.hit_rate,
             "max_concurrent_requests": self.config.max_concurrent_requests,
-            "thread_pool_workers": self._thread_pool._max_workers
+            "thread_pool_workers": self._thread_pool._max_workers,
         }
 
 
@@ -516,7 +509,7 @@ async def evaluate_with_async_engine(
     adapter: Any,
     prompts: List[str],
     config: Optional[AsyncTaskConfig] = None,
-    cache: Optional[PredictionCache] = None
+    cache: Optional[PredictionCache] = None,
 ) -> List[AsyncEvaluationResult]:
     """
     Convenience function for async evaluation.
@@ -540,7 +533,9 @@ async def evaluate_with_async_engine(
 
 def create_async_iterator_from_list(items: List[Any]) -> AsyncIterator[Any]:
     """Create an async iterator from a list."""
+
     async def _aiter():
         for item in items:
             yield item
+
     return _aiter()

@@ -29,7 +29,10 @@ class OpenAIChatAdapter:
         # Costs as of September 2025 (approximate)
         costs = {
             "gpt-4o": {"prompt": 5e-6, "completion": 15e-6},  # $5/$15 per million tokens
-            "gpt-4o-mini": {"prompt": 0.15e-6, "completion": 0.6e-6},  # $0.15/$0.60 per million tokens
+            "gpt-4o-mini": {
+                "prompt": 0.15e-6,
+                "completion": 0.6e-6,
+            },  # $0.15/$0.60 per million tokens
             "gpt-4-turbo": {"prompt": 10e-6, "completion": 30e-6},
             "gpt-4": {"prompt": 30e-6, "completion": 60e-6},
             "gpt-3.5-turbo": {"prompt": 0.5e-6, "completion": 1.5e-6},
@@ -48,7 +51,7 @@ class OpenAIChatAdapter:
             "total_completion_tokens": self.total_completion_tokens,
             "total_tokens": self.total_prompt_tokens + self.total_completion_tokens,
             "total_cost_usd": self.total_cost,
-            "model": self.model
+            "model": self.model,
         }
 
     def generate(self, prompt: str, **kwargs: Any) -> str:  # pragma: no cover - network
@@ -59,15 +62,15 @@ class OpenAIChatAdapter:
             temperature=kwargs.get("temperature", 0.0),
             max_tokens=kwargs.get("max_tokens", 256),
         )
-        
+
         # Track token usage and costs
-        if hasattr(resp, 'usage') and resp.usage:
+        if hasattr(resp, "usage") and resp.usage:
             prompt_tokens = resp.usage.prompt_tokens
             completion_tokens = resp.usage.completion_tokens or 0
             self.total_prompt_tokens += prompt_tokens
             self.total_completion_tokens += completion_tokens
             self.total_cost += self._calculate_cost(prompt_tokens, completion_tokens)
-        
+
         return resp.choices[0].message.content or ""
 
     def loglikelihood(self, context: str, continuation: str) -> float:  # pragma: no cover - network

@@ -20,7 +20,7 @@
     <div class="card">
       <h1>{{ title }}</h1>
       <div class="muted" style="margin-bottom:8px"><a href="/">Dashboard</a> | <a href="/leaderboard">Leaderboard</a></div>
-      
+
       {% if error_msg %}
         <div class="alert">
           <strong>Error:</strong> {{ error_msg }}
@@ -29,7 +29,7 @@
         <div class="success">
           <strong>Analysis completed on:</strong> {{ data.timestamp or "Unknown" }}
         </div>
-        
+
         <h2>Bias Detection Results</h2>
         <div class="grid">
           <div class="kv">
@@ -45,7 +45,7 @@
             {{ "%.4f"|format(data.prompt_sensitivity_score) }}
           </div>
         </div>
-        
+
         <h3>Recommendations</h3>
         <ul>
           {% for rec in data.recommendations %}

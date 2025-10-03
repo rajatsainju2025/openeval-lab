@@ -34,7 +34,7 @@ class CodeEvaluationTask:
         check_syntax: bool = True,
         check_style: bool = True,
         run_tests: bool = False,
-        test_framework: Optional[str] = None
+        test_framework: Optional[str] = None,
     ):
         """
         Initialize code evaluation task.
@@ -67,7 +67,7 @@ class CodeEvaluationTask:
         self,
         predictions: List[str],
         references: Optional[List[str]] = None,
-        test_cases: Optional[List[Dict[str, Any]]] = None
+        test_cases: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Evaluate code predictions.
@@ -92,7 +92,7 @@ class CodeEvaluationTask:
                 "test_passed": False,
                 "quality_score": 0.0,
                 "issues": [],
-                "metrics": {}
+                "metrics": {},
             }
 
             # Syntax checking
@@ -147,22 +147,16 @@ class CodeEvaluationTask:
             ast.parse(code)
             return {"valid": True, "errors": []}
         except SyntaxError as e:
-            return {
-                "valid": False,
-                "errors": [f"Syntax error at line {e.lineno}: {e.msg}"]
-            }
+            return {"valid": False, "errors": [f"Syntax error at line {e.lineno}: {e.msg}"]}
         except Exception as e:
-            return {
-                "valid": False,
-                "errors": [f"Parse error: {str(e)}"]
-            }
+            return {"valid": False, "errors": [f"Parse error: {str(e)}"]}
 
     def _check_javascript_syntax(self, code: str) -> Dict[str, Any]:
         """Check JavaScript code syntax."""
         # Basic syntax check - could be enhanced with a JS parser
         try:
             # Simple bracket matching
-            brackets = {'(': ')', '[': ']', '{': '}'}
+            brackets = {"(": ")", "[": "]", "{": "}"}
             stack = []
             for char in code:
                 if char in brackets:
@@ -197,7 +191,7 @@ class CodeEvaluationTask:
         issues = []
         score = 1.0
 
-        lines = code.split('\n')
+        lines = code.split("\n")
 
         for i, line in enumerate(lines, 1):
             # Check line length
@@ -206,17 +200,17 @@ class CodeEvaluationTask:
                 score -= 0.1
 
             # Check for print statements (prefer logging)
-            if re.search(r'\bprint\s*\(', line):
+            if re.search(r"\bprint\s*\(", line):
                 issues.append(f"Line {i}: Consider using logging instead of print")
                 score -= 0.05
 
             # Check for TODO comments
-            if 'TODO' in line.upper():
+            if "TODO" in line.upper():
                 issues.append(f"Line {i}: TODO comment found")
                 score -= 0.05
 
         # Check for docstrings
-        if 'def ' in code and '"""' not in code:
+        if "def " in code and '"""' not in code:
             issues.append("Function lacks docstring")
             score -= 0.1
 
@@ -228,20 +222,18 @@ class CodeEvaluationTask:
         score = 1.0
 
         # Basic style checks
-        if 'var ' in code:
+        if "var " in code:
             issues.append("Consider using 'let' or 'const' instead of 'var'")
             score -= 0.1
 
-        if 'console.log' in code:
+        if "console.log" in code:
             issues.append("Consider removing debug console.log statements")
             score -= 0.05
 
         return {"score": max(0.0, score), "issues": issues}
 
     def _execute_code(
-        self,
-        code: str,
-        test_input: Optional[Dict[str, Any]] = None
+        self, code: str, test_input: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Execute code and return results."""
         if self.language == "python":
@@ -250,18 +242,16 @@ class CodeEvaluationTask:
             return {
                 "success": False,
                 "output": "",
-                "error": f"Execution not supported for {self.language}"
+                "error": f"Execution not supported for {self.language}",
             }
 
     def _execute_python_code(
-        self,
-        code: str,
-        test_input: Optional[Dict[str, Any]] = None
+        self, code: str, test_input: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Execute Python code."""
         try:
             # Create a temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
                 f.write(code)
                 temp_file = f.name
 
@@ -276,7 +266,7 @@ class CodeEvaluationTask:
                 capture_output=True,
                 text=True,
                 timeout=self.execution_timeout,
-                env={**os.environ, **{k: str(v) for k, v in env.items()}}
+                env={**os.environ, **{k: str(v) for k, v in env.items()}},
             )
 
             # Clean up
@@ -285,21 +275,17 @@ class CodeEvaluationTask:
             return {
                 "success": result.returncode == 0,
                 "output": result.stdout,
-                "error": result.stderr
+                "error": result.stderr,
             }
 
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
                 "output": "",
-                "error": f"Execution timed out after {self.execution_timeout}s"
+                "error": f"Execution timed out after {self.execution_timeout}s",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "output": "",
-                "error": str(e)
-            }
+            return {"success": False, "output": "", "error": str(e)}
 
     def _run_tests(self, code: str, test_case: Dict[str, Any]) -> Dict[str, Any]:
         """Run tests for the code."""
@@ -309,7 +295,7 @@ class CodeEvaluationTask:
             return {
                 "passed": False,
                 "output": "",
-                "error": f"Test framework {self.test_framework} not supported"
+                "error": f"Test framework {self.test_framework} not supported",
             }
 
     def _run_pytest(self, code: str, test_case: Dict[str, Any]) -> Dict[str, Any]:
@@ -317,17 +303,9 @@ class CodeEvaluationTask:
         try:
             # This is a simplified implementation
             # In practice, you'd need to create proper test files
-            return {
-                "passed": True,  # Placeholder
-                "output": "Tests passed",
-                "coverage": 0.85
-            }
+            return {"passed": True, "output": "Tests passed", "coverage": 0.85}  # Placeholder
         except Exception as e:
-            return {
-                "passed": False,
-                "output": "",
-                "error": str(e)
-            }
+            return {"passed": False, "output": "", "error": str(e)}
 
     def _calculate_quality_score(self, result: Dict[str, Any]) -> float:
         """Calculate overall quality score."""
@@ -358,25 +336,23 @@ class CodeEvaluationTask:
     def _extract_metrics(self, code: str) -> Dict[str, Any]:
         """Extract code metrics."""
         metrics = {
-            "lines_of_code": len(code.split('\n')),
+            "lines_of_code": len(code.split("\n")),
             "characters": len(code),
-            "functions": len(re.findall(r'\bdef\s+', code)),
-            "classes": len(re.findall(r'\bclass\s+', code)),
-            "imports": len(re.findall(r'\bimport\s+|\bfrom\s+', code))
+            "functions": len(re.findall(r"\bdef\s+", code)),
+            "classes": len(re.findall(r"\bclass\s+", code)),
+            "imports": len(re.findall(r"\bimport\s+|\bfrom\s+", code)),
         }
 
         if self.language == "python":
             # Count Python-specific constructs
-            metrics["list_comprehensions"] = len(re.findall(r'\[.*\s+for\s+.*\s+in\s+.*\]', code))
-            metrics["dict_comprehensions"] = len(re.findall(r'\{.*\s+for\s+.*\s+in\s+.*\}', code))
+            metrics["list_comprehensions"] = len(re.findall(r"\[.*\s+for\s+.*\s+in\s+.*\]", code))
+            metrics["dict_comprehensions"] = len(re.findall(r"\{.*\s+for\s+.*\s+in\s+.*\}", code))
 
         return metrics
 
 
 def evaluate_code_task(
-    predictions: List[str],
-    language: str = "python",
-    **kwargs: Any
+    predictions: List[str], language: str = "python", **kwargs: Any
 ) -> List[Dict[str, Any]]:
     """
     Convenience function for code evaluation.

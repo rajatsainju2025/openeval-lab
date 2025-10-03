@@ -2,27 +2,33 @@
 
 from typing import Any, Dict, List, Optional, Union
 
+
 # Stub for rich library
 class Console:
     def print(self, *args: Any, **kwargs: Any) -> None: ...
+
 
 class Table:
     def __init__(self, title: Optional[str] = None) -> None: ...
     def add_column(self, header: str, **kwargs: Any) -> None: ...
     def add_row(self, *args: Any) -> None: ...
 
+
 # Stub for typer
 def Typer() -> Any: ...
+
 
 # Stub for pydantic
 class BaseModel:
     def dict(self) -> Dict[str, Any]: ...
     def json(self) -> str: ...
 
+
 # Stub for httpx
 class Client:
     def get(self, url: str, **kwargs: Any) -> Any: ...
     def post(self, url: str, **kwargs: Any) -> Any: ...
+
 
 # Stub for fastapi
 class FastAPI:
@@ -30,10 +36,12 @@ class FastAPI:
     def get(self, path: str) -> Any: ...
     def post(self, path: str) -> Any: ...
 
+
 # Stub for numpy (simplified)
 def array(data: Any) -> Any: ...
 def mean(data: Any) -> float: ...
 def std(data: Any) -> float: ...
+
 
 # Stub for pandas
 class DataFrame:

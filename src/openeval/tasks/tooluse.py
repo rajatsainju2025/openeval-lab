@@ -88,9 +88,11 @@ class ToolUseTask(Task):
         for m in metrics:
             # If metric can accept agent results, it should set attribute
             accepts_agent = getattr(m, "accepts_agent", False)
-            preds_for_metric = predictions if accepts_agent else [
-                (p.final_answer if hasattr(p, "final_answer") else p) for p in predictions
-            ]
+            preds_for_metric = (
+                predictions
+                if accepts_agent
+                else [(p.final_answer if hasattr(p, "final_answer") else p) for p in predictions]
+            )
             results[m.name] = m.compute(preds_for_metric, references)
 
         # Build manifest (subset)

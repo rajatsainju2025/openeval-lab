@@ -19,11 +19,17 @@ def test_tool_use_task_with_agent_loop():
     # Assemble agentic components directly
     adapter = EchoAdapter()
     agent = ReActAgent(adapter, [Calculator()])
-    task = ToolUseTask(agent_type="openeval.agents.react.ReActAgent", tools=["openeval.tools.calculator.Calculator"])  # agent created inside
-    ds = InlineDataset(name="toy", examples=[
-        {"id": "1", "input": "2+3", "reference": "5"},
-        {"id": "2", "input": "10-7", "reference": "3"}
-    ])
+    task = ToolUseTask(
+        agent_type="openeval.agents.react.ReActAgent",
+        tools=["openeval.tools.calculator.Calculator"],
+    )  # agent created inside
+    ds = InlineDataset(
+        name="toy",
+        examples=[
+            {"id": "1", "input": "2+3", "reference": "5"},
+            {"id": "2", "input": "10-7", "reference": "3"},
+        ],
+    )
 
     # Because EchoAdapter doesn't actually plan, ReActAgent will fallback to direct answer; predictions will be arbitrary.
     # This test ensures evaluate executes and returns a payload with expected fields.

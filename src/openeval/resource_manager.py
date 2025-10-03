@@ -26,6 +26,7 @@ from contextlib import contextmanager
 
 try:
     import GPUtil
+
     HAS_GPU = True
 except ImportError:
     GPUtil = None
@@ -33,6 +34,7 @@ except ImportError:
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
@@ -46,6 +48,7 @@ logger = get_logger(__name__)
 @dataclass
 class ResourceMetrics:
     """Real-time resource metrics."""
+
     cpu_percent: float = 0.0
     memory_percent: float = 0.0
     memory_used_gb: float = 0.0
@@ -65,13 +68,14 @@ class ResourceMetrics:
             "disk_usage_percent": self.disk_usage_percent,
             "network_io": self.network_io,
             "gpu_metrics": self.gpu_metrics,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
         }
 
 
 @dataclass
 class ResourceLimits:
     """Resource limits and thresholds."""
+
     max_cpu_percent: float = 80.0
     max_memory_percent: float = 85.0
     max_gpu_memory_percent: float = 90.0
@@ -153,11 +157,11 @@ class IntelligentResourceManager:
             # Memory metrics
             memory = psutil.virtual_memory()
             metrics.memory_percent = memory.percent
-            metrics.memory_used_gb = memory.used / (1024 ** 3)
-            metrics.memory_available_gb = memory.available / (1024 ** 3)
+            metrics.memory_used_gb = memory.used / (1024**3)
+            metrics.memory_available_gb = memory.available / (1024**3)
 
             # Disk metrics
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             metrics.disk_usage_percent = disk.percent
 
             # Network I/O (simplified)
@@ -167,7 +171,7 @@ class IntelligentResourceManager:
                     "bytes_sent": network.bytes_sent,
                     "bytes_recv": network.bytes_recv,
                     "packets_sent": network.packets_sent,
-                    "packets_recv": network.packets_recv
+                    "packets_recv": network.packets_recv,
                 }
 
             # GPU metrics
@@ -181,7 +185,7 @@ class IntelligentResourceManager:
                             "gpu_memory_percent": gpu.memoryUtil * 100,
                             "gpu_memory_used_mb": gpu.memoryUsed,
                             "gpu_memory_total_mb": gpu.memoryTotal,
-                            "gpu_temperature": gpu.temperature
+                            "gpu_temperature": gpu.temperature,
                         }
                 except Exception as e:
                     logger.debug(f"GPU metrics collection failed: {e}")
@@ -305,7 +309,9 @@ class IntelligentResourceManager:
 
                 # Calculate resource efficiency score
                 cpu_efficiency = 1.0 - (end_metrics.cpu_percent - start_metrics.cpu_percent) / 100.0
-                memory_efficiency = 1.0 - (end_metrics.memory_percent - start_metrics.memory_percent) / 100.0
+                memory_efficiency = (
+                    1.0 - (end_metrics.memory_percent - start_metrics.memory_percent) / 100.0
+                )
                 efficiency_score = (cpu_efficiency + memory_efficiency) / 2.0
 
                 self.resource_efficiency_scores.append(efficiency_score)
@@ -316,7 +322,9 @@ class IntelligentResourceManager:
                 if len(self.resource_efficiency_scores) > 50:
                     self.resource_efficiency_scores = self.resource_efficiency_scores[-50:]
 
-            logger.debug(f"Task '{task_name}' completed in {execution_time:.3f}s with efficiency {efficiency_score:.3f}")
+            logger.debug(
+                f"Task '{task_name}' completed in {execution_time:.3f}s with efficiency {efficiency_score:.3f}"
+            )
 
     def get_resource_summary(self) -> Dict[str, Any]:
         """Get comprehensive resource usage summary."""
@@ -330,12 +338,12 @@ class IntelligentResourceManager:
                 "current": latest.to_dict(),
                 "scaling_factors": {
                     "cpu": self.cpu_scaling_factor,
-                    "memory": self.memory_scaling_factor
+                    "memory": self.memory_scaling_factor,
                 },
                 "optimal_settings": {
                     "thread_count": self.get_optimal_thread_count(),
-                    "batch_size": self.get_optimal_batch_size()
-                }
+                    "batch_size": self.get_optimal_batch_size(),
+                },
             }
 
             # Performance statistics
@@ -343,14 +351,19 @@ class IntelligentResourceManager:
                 summary["performance"] = {
                     "avg_task_time": statistics.mean(self.task_completion_times),
                     "median_task_time": statistics.median(self.task_completion_times),
-                    "task_count": len(self.task_completion_times)
+                    "task_count": len(self.task_completion_times),
                 }
 
             if self.resource_efficiency_scores:
                 summary["efficiency"] = {
                     "avg_efficiency": statistics.mean(self.resource_efficiency_scores),
-                    "efficiency_trend": "improving" if len(self.resource_efficiency_scores) > 5 and
-                                      self.resource_efficiency_scores[-1] > self.resource_efficiency_scores[-5] else "stable"
+                    "efficiency_trend": (
+                        "improving"
+                        if len(self.resource_efficiency_scores) > 5
+                        and self.resource_efficiency_scores[-1]
+                        > self.resource_efficiency_scores[-5]
+                        else "stable"
+                    ),
                 }
 
             return summary
@@ -379,7 +392,7 @@ class IntelligentResourceManager:
                     "predicted_cpu_percent": predicted_cpu_percent,
                     "predicted_memory_gb": predicted_memory_gb,
                     "recommended_threads": max(1, int(4.0 / (1.0 + predicted_time))),
-                    "confidence": "medium" if len(self.task_completion_times) > 10 else "low"
+                    "confidence": "medium" if len(self.task_completion_times) > 10 else "low",
                 }
             else:
                 # Fallback prediction
@@ -389,7 +402,7 @@ class IntelligentResourceManager:
                     "predicted_cpu_percent": 50.0,
                     "predicted_memory_gb": 1.0,
                     "recommended_threads": 2,
-                    "confidence": "low"
+                    "confidence": "low",
                 }
 
 
@@ -408,10 +421,12 @@ def get_resource_manager() -> IntelligentResourceManager:
 
 def resource_aware_task(func: Callable) -> Callable:
     """Decorator for resource-aware task execution."""
+
     def wrapper(*args, **kwargs):
         manager = get_resource_manager()
         with manager.resource_aware_execution(func.__name__):
             return func(*args, **kwargs)
+
     return wrapper
 
 

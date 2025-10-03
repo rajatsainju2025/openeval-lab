@@ -11,7 +11,9 @@ class F1Score:
     name: str = "f1_score"
     average: str = "macro"  # macro, micro, weighted
 
-    def compute(self, predictions: Iterable[str], references: Iterable[str], **kwargs) -> Mapping[str, float]:
+    def compute(
+        self, predictions: Iterable[str], references: Iterable[str], **kwargs
+    ) -> Mapping[str, float]:
         """Compute F1 score for predictions vs references."""
         preds = list(predictions)
         refs = list(references)
@@ -56,8 +58,4 @@ class F1Score:
         avg_precision = total_precision / count if count > 0 else 0.0
         avg_recall = total_recall / count if count > 0 else 0.0
 
-        return {
-            "f1": avg_f1,
-            "precision": avg_precision,
-            "recall": avg_recall
-        }
+        return {"f1": avg_f1, "precision": avg_precision, "recall": avg_recall}

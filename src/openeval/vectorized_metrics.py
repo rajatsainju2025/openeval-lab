@@ -53,6 +53,7 @@ import time
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
@@ -60,6 +61,7 @@ except ImportError:
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
@@ -68,6 +70,7 @@ except ImportError:
 try:
     import scipy.stats
     import scipy.sparse
+
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -76,6 +79,7 @@ except ImportError:
 try:
     import numba
     from numba import jit, prange
+
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
@@ -85,6 +89,7 @@ except ImportError:
 
 try:
     import torch
+
     HAS_TORCH = True
 except ImportError:
     HAS_TORCH = False
@@ -98,6 +103,7 @@ logger = get_logger(__name__)
 @dataclass
 class VectorizedMetricResult:
     """Result of a vectorized metric computation."""
+
     name: str
     value: float
     details: Optional[Dict[str, Any]] = None
@@ -106,10 +112,7 @@ class VectorizedMetricResult:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
-        result = {
-            "name": self.name,
-            "value": self.value
-        }
+        result = {"name": self.name, "value": self.value}
         if self.details:
             result["details"] = self.details
         if self.confidence_interval:
@@ -130,7 +133,9 @@ class AdvancedVectorizedMetrics:
         self.use_gpu = use_gpu and HAS_TORCH
         self._thread_pool = ThreadPoolExecutor(max_workers=mp.cpu_count()) if use_parallel else None
 
-    def exact_match(self, predictions: Iterable[Any], references: Iterable[Any]) -> VectorizedMetricResult:
+    def exact_match(
+        self, predictions: Iterable[Any], references: Iterable[Any]
+    ) -> VectorizedMetricResult:
         """Advanced exact match with SIMD and parallel processing."""
         if self.use_simd and HAS_NUMBA and HAS_NUMPY and np is not None:
             # SIMD-optimized version
@@ -142,7 +147,7 @@ class AdvancedVectorizedMetrics:
                 name="exact_match_simd",
                 value=float(accuracy),
                 details={"matches": matches, "total": len(pred_array)},
-                sample_size=len(pred_array)
+                sample_size=len(pred_array),
             )
         elif self.use_parallel and self._thread_pool:
             # Parallel version
@@ -151,10 +156,18 @@ class AdvancedVectorizedMetrics:
             # Standard vectorized version
             return self._fallback_exact_match(predictions, references)
 
-    def _fallback_exact_match(self, predictions: Iterable[Any], references: Iterable[Any]) -> VectorizedMetricResult:
+    def _fallback_exact_match(
+        self, predictions: Iterable[Any], references: Iterable[Any]
+    ) -> VectorizedMetricResult:
         """Fallback exact match implementation."""
-        pred_array = np.array([str(p).strip() for p in predictions]) if HAS_NUMPY and np is not None else None
-        ref_array = np.array([str(r).strip() for r in references]) if HAS_NUMPY and np is not None else None
+        pred_array = (
+            np.array([str(p).strip() for p in predictions])
+            if HAS_NUMPY and np is not None
+            else None
+        )
+        ref_array = (
+            np.array([str(r).strip() for r in references]) if HAS_NUMPY and np is not None else None
+        )
 
         if pred_array is not None and ref_array is not None:
             matches = np.sum(pred_array == ref_array)
@@ -162,7 +175,9 @@ class AdvancedVectorizedMetrics:
             accuracy = matches / total if total > 0 else 0.0
         else:
             # Pure Python fallback
-            matches = sum(1 for p, r in zip(predictions, references) if str(p).strip() == str(r).strip())
+            matches = sum(
+                1 for p, r in zip(predictions, references) if str(p).strip() == str(r).strip()
+            )
             total = sum(1 for _ in predictions)
             accuracy = matches / total if total > 0 else 0.0
 
@@ -170,7 +185,7 @@ class AdvancedVectorizedMetrics:
             name="exact_match",
             value=float(accuracy),
             details={"matches": matches, "total": total},
-            sample_size=total
+            sample_size=total,
         )
 
     @staticmethod
@@ -193,7 +208,9 @@ class AdvancedVectorizedMetrics:
                 ngram_counts[i] = len(tokens) - n + 1
         return ngram_counts
 
-    def parallel_exact_match(self, predictions: Iterable[Any], references: Iterable[Any]) -> VectorizedMetricResult:
+    def parallel_exact_match(
+        self, predictions: Iterable[Any], references: Iterable[Any]
+    ) -> VectorizedMetricResult:
         """Parallel exact match computation."""
         if not self.use_parallel or not self._thread_pool:
             return self.exact_match(predictions, references)
@@ -203,11 +220,14 @@ class AdvancedVectorizedMetrics:
 
         # Split into chunks for parallel processing
         chunk_size = max(1, len(pred_list) // mp.cpu_count())
-        chunks = [(pred_list[i:i + chunk_size], ref_list[i:i + chunk_size])
-                 for i in range(0, len(pred_list), chunk_size)]
+        chunks = [
+            (pred_list[i : i + chunk_size], ref_list[i : i + chunk_size])
+            for i in range(0, len(pred_list), chunk_size)
+        ]
 
-        futures = [self._thread_pool.submit(self._compute_chunk_exact_match, chunk)
-                  for chunk in chunks]
+        futures = [
+            self._thread_pool.submit(self._compute_chunk_exact_match, chunk) for chunk in chunks
+        ]
 
         total_matches = 0
         total_count = 0
@@ -223,7 +243,7 @@ class AdvancedVectorizedMetrics:
             name="exact_match_parallel",
             value=float(accuracy),
             details={"matches": total_matches, "total": total_count},
-            sample_size=total_count
+            sample_size=total_count,
         )
 
     @staticmethod
@@ -233,12 +253,14 @@ class AdvancedVectorizedMetrics:
         matches = sum(1 for p, r in zip(preds, refs) if str(p).strip() == str(r).strip())
         return matches, len(preds)
 
-    def gpu_accelerated_metrics(self, predictions: Iterable[str], references: Iterable[str]) -> Dict[str, VectorizedMetricResult]:
+    def gpu_accelerated_metrics(
+        self, predictions: Iterable[str], references: Iterable[str]
+    ) -> Dict[str, VectorizedMetricResult]:
         """GPU-accelerated metric computation using PyTorch."""
         if not self.use_gpu or not HAS_TORCH or torch is None:
             return {
                 "exact_match": self.exact_match(predictions, references),
-                "f1": self.f1_score(predictions, references)
+                "f1": self.f1_score(predictions, references),
             }
 
         # Convert to tensors for GPU processing
@@ -264,13 +286,18 @@ class AdvancedVectorizedMetrics:
             name="exact_match_gpu",
             value=float(accuracy),
             details={"matches": matches, "total": len(pred_strs), "device": str(device)},
-            sample_size=len(pred_strs)
+            sample_size=len(pred_strs),
         )
 
         return results
 
-    def adaptive_batch_processing(self, predictions: Iterable[Any], references: Iterable[Any],
-                                metric_func: Callable, batch_size: int = 1000) -> VectorizedMetricResult:
+    def adaptive_batch_processing(
+        self,
+        predictions: Iterable[Any],
+        references: Iterable[Any],
+        metric_func: Callable,
+        batch_size: int = 1000,
+    ) -> VectorizedMetricResult:
         """Adaptive batch processing with dynamic batch size optimization."""
         pred_list = list(predictions)
         ref_list = list(references)
@@ -281,15 +308,16 @@ class AdvancedVectorizedMetrics:
         # Adaptive batching based on available memory
         try:
             import psutil
-            available_memory = psutil.virtual_memory().available / (1024 ** 3)  # GB
+
+            available_memory = psutil.virtual_memory().available / (1024**3)  # GB
             optimal_batch_size = min(batch_size, max(100, int(available_memory * 100000)))
         except ImportError:
             optimal_batch_size = batch_size
 
         results = []
         for i in range(0, len(pred_list), optimal_batch_size):
-            batch_pred = pred_list[i:i + optimal_batch_size]
-            batch_ref = ref_list[i:i + optimal_batch_size]
+            batch_pred = pred_list[i : i + optimal_batch_size]
+            batch_ref = ref_list[i : i + optimal_batch_size]
             batch_result = metric_func(batch_pred, batch_ref)
             results.append(batch_result)
 
@@ -306,15 +334,19 @@ class AdvancedVectorizedMetrics:
             name=f"{results[0].name}_adaptive",
             value=aggregated_value,
             details={"batch_results": [r.to_dict() for r in results]},
-            sample_size=sum(r.sample_size or 1 for r in results)
+            sample_size=sum(r.sample_size or 1 for r in results),
         )
 
     @staticmethod
-    def exact_match(predictions: Iterable[Any], references: Iterable[Any]) -> VectorizedMetricResult:
+    def exact_match(
+        predictions: Iterable[Any], references: Iterable[Any]
+    ) -> VectorizedMetricResult:
         """Compute exact match accuracy using vectorized operations."""
         if not HAS_NUMPY or np is None:
             # Fallback to non-vectorized
-            matches = sum(1 for p, r in zip(predictions, references) if str(p).strip() == str(r).strip())
+            matches = sum(
+                1 for p, r in zip(predictions, references) if str(p).strip() == str(r).strip()
+            )
             total = sum(1 for _ in predictions)
             return VectorizedMetricResult("exact_match", matches / total if total > 0 else 0.0)
 
@@ -330,7 +362,7 @@ class AdvancedVectorizedMetrics:
             name="exact_match",
             value=float(accuracy),
             details={"matches": int(matches), "total": total},
-            sample_size=total
+            sample_size=total,
         )
 
     @staticmethod
@@ -350,7 +382,11 @@ class AdvancedVectorizedMetrics:
                 intersection = pred_tokens & ref_tokens
                 precision = len(intersection) / len(pred_tokens) if pred_tokens else 0.0
                 recall = len(intersection) / len(ref_tokens) if ref_tokens else 0.0
-                f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+                f1 = (
+                    2 * precision * recall / (precision + recall)
+                    if (precision + recall) > 0
+                    else 0.0
+                )
                 total_f1 += f1
                 count += 1
 
@@ -386,9 +422,9 @@ class AdvancedVectorizedMetrics:
                     "mean": mean_f1,
                     "std": float(np.std(f1_array)),
                     "min": float(np.min(f1_array)),
-                    "max": float(np.max(f1_array))
+                    "max": float(np.max(f1_array)),
                 },
-                sample_size=len(f1_scores)
+                sample_size=len(f1_scores),
             )
         else:
             # Fallback without numpy
@@ -396,15 +432,14 @@ class AdvancedVectorizedMetrics:
             return VectorizedMetricResult(
                 name="f1",
                 value=mean_f1,
-                details={
-                    "mean": mean_f1,
-                    "count": len(f1_scores)
-                },
-                sample_size=len(f1_scores)
+                details={"mean": mean_f1, "count": len(f1_scores)},
+                sample_size=len(f1_scores),
             )
 
     @staticmethod
-    def bleu_score(predictions: Iterable[str], references: Iterable[str], n_gram: int = 4) -> VectorizedMetricResult:
+    def bleu_score(
+        predictions: Iterable[str], references: Iterable[str], n_gram: int = 4
+    ) -> VectorizedMetricResult:
         """Compute BLEU score using vectorized n-gram operations."""
         if not HAS_NUMPY:
             # Simplified fallback BLEU
@@ -429,7 +464,7 @@ class AdvancedVectorizedMetrics:
 
         def _get_ngrams(tokens: List[str], n: int) -> List[Tuple[str, ...]]:
             """Get n-grams from tokens."""
-            return [tuple(tokens[i:i+n]) for i in range(len(tokens) - n + 1)]
+            return [tuple(tokens[i : i + n]) for i in range(len(tokens) - n + 1)]
 
         bleu_scores = []
 
@@ -455,8 +490,10 @@ class AdvancedVectorizedMetrics:
                 ref_counts = Counter(ref_ngrams)
 
                 # Clipped counts
-                clipped_counts = {ngram: min(count, ref_counts.get(ngram, 0))
-                                for ngram, count in pred_counts.items()}
+                clipped_counts = {
+                    ngram: min(count, ref_counts.get(ngram, 0))
+                    for ngram, count in pred_counts.items()
+                }
 
                 precision = sum(clipped_counts.values()) / len(pred_ngrams)
                 precisions.append(precision)
@@ -493,9 +530,9 @@ class AdvancedVectorizedMetrics:
                     "mean": mean_bleu,
                     "std": float(np.std(bleu_array)),
                     "min": float(np.min(bleu_array)),
-                    "max": float(np.max(bleu_array))
+                    "max": float(np.max(bleu_array)),
                 },
-                sample_size=len(bleu_scores)
+                sample_size=len(bleu_scores),
             )
         else:
             # Fallback without numpy
@@ -503,15 +540,14 @@ class AdvancedVectorizedMetrics:
             return VectorizedMetricResult(
                 name="bleu",
                 value=mean_bleu,
-                details={
-                    "mean": mean_bleu,
-                    "count": len(bleu_scores)
-                },
-                sample_size=len(bleu_scores)
+                details={"mean": mean_bleu, "count": len(bleu_scores)},
+                sample_size=len(bleu_scores),
             )
 
     @staticmethod
-    def rouge_score(predictions: Iterable[str], references: Iterable[str]) -> VectorizedMetricResult:
+    def rouge_score(
+        predictions: Iterable[str], references: Iterable[str]
+    ) -> VectorizedMetricResult:
         """Compute ROUGE score using vectorized operations."""
         if not HAS_NUMPY:
             # Fallback implementation
@@ -557,13 +593,15 @@ class AdvancedVectorizedMetrics:
                 "mean": mean_rouge,
                 "std": np.std(rouge_array),
                 "min": np.min(rouge_array),
-                "max": np.max(rouge_array)
+                "max": np.max(rouge_array),
             },
-            sample_size=len(rouge_scores)
+            sample_size=len(rouge_scores),
         )
 
     @staticmethod
-    def semantic_similarity(predictions: Iterable[str], references: Iterable[str]) -> VectorizedMetricResult:
+    def semantic_similarity(
+        predictions: Iterable[str], references: Iterable[str]
+    ) -> VectorizedMetricResult:
         """Compute semantic similarity using vectorized operations (placeholder for advanced models)."""
         # This is a simplified implementation - in practice, you'd use sentence transformers
         if not HAS_NUMPY:
@@ -585,7 +623,7 @@ class AdvancedVectorizedMetrics:
 
             return VectorizedMetricResult(
                 "semantic_similarity",
-                sum(similarities) / len(similarities) if similarities else 0.0
+                sum(similarities) / len(similarities) if similarities else 0.0,
             )
 
         # Vectorized Jaccard similarity
@@ -619,9 +657,9 @@ class AdvancedVectorizedMetrics:
                     "mean": mean_sim,
                     "std": float(np.std(sim_array)),
                     "min": float(np.min(sim_array)),
-                    "max": float(np.max(sim_array))
+                    "max": float(np.max(sim_array)),
                 },
-                sample_size=len(similarities)
+                sample_size=len(similarities),
             )
         else:
             # Fallback without numpy
@@ -629,11 +667,8 @@ class AdvancedVectorizedMetrics:
             return VectorizedMetricResult(
                 name="semantic_similarity",
                 value=mean_sim,
-                details={
-                    "mean": mean_sim,
-                    "count": len(similarities)
-                },
-                sample_size=len(similarities)
+                details={"mean": mean_sim, "count": len(similarities)},
+                sample_size=len(similarities),
             )
 
 
@@ -647,10 +682,7 @@ class BatchMetricsProcessor:
         self.use_pandas = use_pandas and HAS_PANDAS
 
     def compute_metrics_batch(
-        self,
-        predictions: Iterable[Any],
-        references: Iterable[Any],
-        metrics: List[str]
+        self, predictions: Iterable[Any], references: Iterable[Any], metrics: List[str]
     ) -> Dict[str, VectorizedMetricResult]:
         """
         Compute multiple metrics in batches for better performance.
@@ -669,19 +701,16 @@ class BatchMetricsProcessor:
 
         if self.use_pandas and HAS_PANDAS and pd is not None:
             # Use pandas for efficient data handling
-            df = pd.DataFrame({
-                'prediction': pred_list,
-                'reference': ref_list
-            })
-            pred_list = df['prediction'].tolist()
-            ref_list = df['reference'].tolist()
+            df = pd.DataFrame({"prediction": pred_list, "reference": ref_list})
+            pred_list = df["prediction"].tolist()
+            ref_list = df["reference"].tolist()
 
         results = {}
 
         # Process in batches
         for i in range(0, len(pred_list), self.batch_size):
-            batch_pred = pred_list[i:i + self.batch_size]
-            batch_ref = ref_list[i:i + self.batch_size]
+            batch_pred = pred_list[i : i + self.batch_size]
+            batch_ref = ref_list[i : i + self.batch_size]
 
             for metric_name in metrics:
                 if metric_name not in results:
@@ -729,24 +758,30 @@ class BatchMetricsProcessor:
                     name=metric_name,
                     value=weighted_avg,
                     details={"batch_results": [r.to_dict() for r in batch_results]},
-                    sample_size=sum(weights)
+                    sample_size=sum(weights),
                 )
 
         return final_results
 
-    def _compute_exact_match(self, predictions: List[Any], references: List[Any]) -> VectorizedMetricResult:
+    def _compute_exact_match(
+        self, predictions: List[Any], references: List[Any]
+    ) -> VectorizedMetricResult:
         """Compute exact match for a batch."""
-        matches = sum(1 for p, r in zip(predictions, references) if str(p).strip() == str(r).strip())
+        matches = sum(
+            1 for p, r in zip(predictions, references) if str(p).strip() == str(r).strip()
+        )
         total = len(predictions)
         accuracy = matches / total if total > 0 else 0.0
         return VectorizedMetricResult(
             name="exact_match",
             value=float(accuracy),
             details={"matches": matches, "total": total},
-            sample_size=total
+            sample_size=total,
         )
 
-    def _compute_f1_score(self, predictions: List[str], references: List[str]) -> VectorizedMetricResult:
+    def _compute_f1_score(
+        self, predictions: List[str], references: List[str]
+    ) -> VectorizedMetricResult:
         """Compute F1 score for a batch."""
         total_f1 = 0.0
         count = 0
@@ -766,7 +801,9 @@ class BatchMetricsProcessor:
 
         return VectorizedMetricResult("f1", total_f1 / count if count > 0 else 0.0)
 
-    def _compute_bleu_score(self, predictions: List[str], references: List[str]) -> VectorizedMetricResult:
+    def _compute_bleu_score(
+        self, predictions: List[str], references: List[str]
+    ) -> VectorizedMetricResult:
         """Compute BLEU score for a batch."""
         total_bleu = 0.0
         count = 0
@@ -787,7 +824,9 @@ class BatchMetricsProcessor:
 
         return VectorizedMetricResult("bleu", total_bleu / count if count > 0 else 0.0)
 
-    def _compute_rouge_score(self, predictions: List[str], references: List[str]) -> VectorizedMetricResult:
+    def _compute_rouge_score(
+        self, predictions: List[str], references: List[str]
+    ) -> VectorizedMetricResult:
         """Compute ROUGE score for a batch."""
         total_rouge = 0.0
         count = 0
@@ -807,7 +846,9 @@ class BatchMetricsProcessor:
 
         return VectorizedMetricResult("rouge_l", total_rouge / count if count > 0 else 0.0)
 
-    def _compute_semantic_similarity(self, predictions: List[str], references: List[str]) -> VectorizedMetricResult:
+    def _compute_semantic_similarity(
+        self, predictions: List[str], references: List[str]
+    ) -> VectorizedMetricResult:
         """Compute semantic similarity for a batch."""
         # Simplified semantic similarity based on token overlap
         similarities = []
@@ -838,9 +879,9 @@ class BatchMetricsProcessor:
                     "mean": mean_sim,
                     "std": float(np.std(sim_array)),
                     "min": float(np.min(sim_array)),
-                    "max": float(np.max(sim_array))
+                    "max": float(np.max(sim_array)),
                 },
-                sample_size=len(similarities)
+                sample_size=len(similarities),
             )
         else:
             mean_sim = sum(similarities) / len(similarities)
@@ -848,13 +889,11 @@ class BatchMetricsProcessor:
                 name="semantic_similarity",
                 value=mean_sim,
                 details={"mean": mean_sim, "count": len(similarities)},
-                sample_size=len(similarities)
+                sample_size=len(similarities),
             )
 
     def compute_confidence_intervals(
-        self,
-        results: Dict[str, VectorizedMetricResult],
-        confidence_level: float = 0.95
+        self, results: Dict[str, VectorizedMetricResult], confidence_level: float = 0.95
     ) -> Dict[str, VectorizedMetricResult]:
         """
         Compute confidence intervals for metric results.
@@ -878,15 +917,19 @@ class BatchMetricsProcessor:
                 try:
                     # This is a simplified approach - in practice you'd need the raw data
                     # For now, we'll use the standard error from the batch results
-                    if hasattr(result, 'details') and result.details and 'batch_results' in result.details:
-                        batch_values = [br['value'] for br in result.details['batch_results']]
+                    if (
+                        hasattr(result, "details")
+                        and result.details
+                        and "batch_results" in result.details
+                    ):
+                        batch_values = [br["value"] for br in result.details["batch_results"]]
                         if len(batch_values) > 1 and HAS_NUMPY and np is not None:
                             mean_val = float(np.mean(batch_values))
                             std_val = float(np.std(batch_values, ddof=1))
                             n = len(batch_values)
 
                             # t-distribution critical value
-                            if HAS_SCIPY and scipy is not None and hasattr(scipy, 'stats'):
+                            if HAS_SCIPY and scipy is not None and hasattr(scipy, "stats"):
                                 t_crit = scipy.stats.t.ppf((1 + confidence_level) / 2, n - 1)
                                 margin = t_crit * (std_val / np.sqrt(n))
                                 result.confidence_interval = (mean_val - margin, mean_val + margin)
@@ -904,7 +947,7 @@ def compute_vectorized_metrics(
     predictions: Iterable[Any],
     references: Iterable[Any],
     metrics: List[str],
-    batch_size: int = 1000
+    batch_size: int = 1000,
 ) -> Dict[str, VectorizedMetricResult]:
     """
     Compute multiple metrics using vectorized operations.
@@ -923,10 +966,7 @@ def compute_vectorized_metrics(
 
 
 def benchmark_metrics_performance(
-    predictions: Iterable[Any],
-    references: Iterable[Any],
-    metrics: List[str],
-    iterations: int = 10
+    predictions: Iterable[Any], references: Iterable[Any], metrics: List[str], iterations: int = 10
 ) -> Dict[str, Any]:
     """
     Benchmark the performance of vectorized vs non-vectorized metrics.
@@ -970,14 +1010,21 @@ def benchmark_metrics_performance(
                         intersection = pred_tokens & ref_tokens
                         precision = len(intersection) / len(pred_tokens) if pred_tokens else 0.0
                         recall = len(intersection) / len(ref_tokens)
-                        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+                        f1 = (
+                            2 * precision * recall / (precision + recall)
+                            if (precision + recall) > 0
+                            else 0.0
+                        )
         non_vectorized_times.append(time.time() - start_time)
 
     return {
         "vectorized_avg_time": sum(vectorized_times) / len(vectorized_times),
-        "vectorized_std_time": float(np.std(vectorized_times)) if HAS_NUMPY and np is not None else 0,
+        "vectorized_std_time": (
+            float(np.std(vectorized_times)) if HAS_NUMPY and np is not None else 0
+        ),
         "non_vectorized_avg_time": sum(non_vectorized_times) / len(non_vectorized_times),
-        "speedup_factor": (sum(non_vectorized_times) / len(non_vectorized_times)) / (sum(vectorized_times) / len(vectorized_times)),
+        "speedup_factor": (sum(non_vectorized_times) / len(non_vectorized_times))
+        / (sum(vectorized_times) / len(vectorized_times)),
         "iterations": iterations,
-        "sample_size": len(pred_list)
+        "sample_size": len(pred_list),
     }

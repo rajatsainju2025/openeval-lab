@@ -22,6 +22,7 @@ import pickle
 
 try:
     import lru_cache
+
     HAS_LRU_CACHE = True
 except ImportError:
     HAS_LRU_CACHE = False
@@ -33,6 +34,7 @@ logger = get_logger(__name__)
 
 class CompressionAlgorithm:
     """Supported compression algorithms."""
+
     NONE = "none"
     ZLIB = "zlib"
     LZMA = "lzma"
@@ -43,6 +45,7 @@ class CompressionAlgorithm:
 @dataclass
 class CacheEntry:
     """A cache entry with metadata."""
+
     key: str
     value: Any
     created_at: float
@@ -68,6 +71,7 @@ class CacheEntry:
 @dataclass
 class CacheStats:
     """Enhanced cache statistics."""
+
     hits: int = 0
     misses: int = 0
     evictions: int = 0
@@ -94,7 +98,7 @@ class CacheStats:
             "sets": self.sets,
             "hit_rate": self.hit_rate,
             "compression_savings_mb": self.compression_savings / (1024 * 1024),
-            "avg_access_time_ms": self.avg_access_time * 1000
+            "avg_access_time_ms": self.avg_access_time * 1000,
         }
 
 
@@ -108,7 +112,7 @@ class LRUCache:
         max_size: int = 1000,
         max_memory_mb: int = 100,
         compression: str = CompressionAlgorithm.ZLIB,
-        compression_threshold: int = 1024
+        compression_threshold: int = 1024,
     ):
         self.max_size = max_size
         self.max_memory_bytes = max_memory_mb * 1024 * 1024
@@ -143,7 +147,7 @@ class LRUCache:
 
             # Only use compression if it saves space
             if len(compressed) < len(data):
-                self.stats.compression_savings += (len(data) - len(compressed))
+                self.stats.compression_savings += len(data) - len(compressed)
                 return compressed, True
             else:
                 return data, False
@@ -174,8 +178,9 @@ class LRUCache:
 
     def _evict_lru(self) -> None:
         """Evict least recently used items to free memory."""
-        while (len(self._cache) >= self.max_size or
-               self._memory_usage >= self.max_memory_bytes) and self._cache:
+        while (
+            len(self._cache) >= self.max_size or self._memory_usage >= self.max_memory_bytes
+        ) and self._cache:
             _, entry = self._cache.popitem(last=False)  # Remove oldest
             self._memory_usage -= entry.size_bytes
             self.stats.evictions += 1
@@ -187,7 +192,7 @@ class LRUCache:
         with self._lock:
             if key not in self._cache:
                 self.stats.misses += 1
-                self.stats.total_access_time += (time.time() - start_time)
+                self.stats.total_access_time += time.time() - start_time
                 return None
 
             entry = self._cache[key]
@@ -197,7 +202,7 @@ class LRUCache:
                 del self._cache[key]
                 self._memory_usage -= entry.size_bytes
                 self.stats.misses += 1
-                self.stats.total_access_time += (time.time() - start_time)
+                self.stats.total_access_time += time.time() - start_time
                 return None
 
             # Move to end (most recently used)
@@ -208,14 +213,14 @@ class LRUCache:
             try:
                 value = self._decompress_value(entry.value, entry.compressed)
                 self.stats.hits += 1
-                self.stats.total_access_time += (time.time() - start_time)
+                self.stats.total_access_time += time.time() - start_time
                 return value
             except Exception as e:
                 logger.warning(f"Failed to retrieve cached value for key {key}: {e}")
                 del self._cache[key]
                 self._memory_usage -= entry.size_bytes
                 self.stats.misses += 1
-                self.stats.total_access_time += (time.time() - start_time)
+                self.stats.total_access_time += time.time() - start_time
                 return None
 
     def set(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
@@ -242,7 +247,7 @@ class LRUCache:
                 accessed_at=time.time(),
                 size_bytes=size_bytes,
                 compressed=is_compressed,
-                ttl=ttl
+                ttl=ttl,
             )
 
             self._cache[key] = entry
@@ -275,7 +280,7 @@ class LRUCache:
                 "max_size": self.max_size,
                 "memory_usage_mb": self._memory_usage / (1024 * 1024),
                 "max_memory_mb": self._memory_usage / (1024 * 1024),
-                "compression_enabled": self.compression != CompressionAlgorithm.NONE
+                "compression_enabled": self.compression != CompressionAlgorithm.NONE,
             }
 
 
@@ -291,7 +296,7 @@ class OptimizedPredictionCache:
         memory_cache_size: int = 5000,
         memory_cache_mb: int = 200,
         compression: str = CompressionAlgorithm.ZLIB,
-        sync_interval: int = 100  # Sync to disk every N operations
+        sync_interval: int = 100,  # Sync to disk every N operations
     ):
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -300,9 +305,7 @@ class OptimizedPredictionCache:
 
         # Initialize caches
         self.memory_cache = LRUCache(
-            max_size=memory_cache_size,
-            max_memory_mb=memory_cache_mb,
-            compression=compression
+            max_size=memory_cache_size, max_memory_mb=memory_cache_mb, compression=compression
         )
 
         # Database connection
@@ -311,7 +314,8 @@ class OptimizedPredictionCache:
         self._operation_count = 0
 
         with self._conn:
-            self._conn.execute("""
+            self._conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS cache (
                     key TEXT PRIMARY KEY,
                     value BLOB NOT NULL,
@@ -322,7 +326,8 @@ class OptimizedPredictionCache:
                     compressed INTEGER DEFAULT 0,
                     ttl REAL
                 )
-            """)
+            """
+            )
 
             # Create indexes for better performance
             self._conn.execute("CREATE INDEX IF NOT EXISTS idx_accessed_at ON cache(accessed_at)")
@@ -359,8 +364,7 @@ class OptimizedPredictionCache:
         # Try persistent storage
         with self._lock:
             cur = self._conn.execute(
-                "SELECT value, created_at, compressed FROM cache WHERE key = ?",
-                (key,)
+                "SELECT value, created_at, compressed FROM cache WHERE key = ?", (key,)
             )
             row = cur.fetchone()
 
@@ -381,7 +385,7 @@ class OptimizedPredictionCache:
             if compressed:
                 value_blob = zlib.decompress(value_blob)
 
-            obj = json.loads(value_blob.decode('utf-8'))
+            obj = json.loads(value_blob.decode("utf-8"))
             if isinstance(obj, dict) and "output" in obj:
                 result = str(obj["output"])
             else:
@@ -394,7 +398,7 @@ class OptimizedPredictionCache:
             with self._lock:
                 self._conn.execute(
                     "UPDATE cache SET accessed_at = ?, access_count = access_count + 1 WHERE key = ?",
-                    (time.time(), key)
+                    (time.time(), key),
                 )
 
             return result
@@ -409,7 +413,7 @@ class OptimizedPredictionCache:
         self.memory_cache.set(key, output, ttl)
 
         # Prepare data for persistent storage
-        payload = json.dumps({"output": output}).encode('utf-8')
+        payload = json.dumps({"output": output}).encode("utf-8")
         compressed = 0
 
         # Compress if beneficial
@@ -424,14 +428,14 @@ class OptimizedPredictionCache:
 
         # Store in database
         with self._lock:
-            self._conn.execute("""
+            self._conn.execute(
+                """
                 INSERT OR REPLACE INTO cache
                 (key, value, created_at, accessed_at, size_bytes, compressed, ttl)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                key, payload, time.time(), time.time(),
-                len(payload), compressed, ttl
-            ))
+            """,
+                (key, payload, time.time(), time.time(), len(payload), compressed, ttl),
+            )
 
         if self._should_sync():
             self._sync_to_disk()
@@ -454,10 +458,12 @@ class OptimizedPredictionCache:
         memory_stats = self.memory_cache.get_stats()
 
         with self._lock:
-            cur = self._conn.execute("""
+            cur = self._conn.execute(
+                """
                 SELECT COUNT(*), SUM(size_bytes), AVG(created_at), AVG(accessed_at)
                 FROM cache
-            """)
+            """
+            )
             count, total_size, avg_created, avg_accessed = cur.fetchone()
 
         return {
@@ -466,8 +472,8 @@ class OptimizedPredictionCache:
                 "entries": count or 0,
                 "total_size_bytes": total_size or 0,
                 "average_age_seconds": time.time() - (avg_created or time.time()),
-                "average_last_access_seconds": time.time() - (avg_accessed or time.time())
-            }
+                "average_last_access_seconds": time.time() - (avg_accessed or time.time()),
+            },
         }
 
     def optimize(self) -> None:
@@ -525,9 +531,7 @@ class CacheManager:
 
 # Utility functions
 def create_optimized_cache(
-    cache_dir: Union[str, Path],
-    name: str = "default",
-    **kwargs
+    cache_dir: Union[str, Path], name: str = "default", **kwargs
 ) -> OptimizedPredictionCache:
     """Create an optimized cache instance."""
     manager = CacheManager(Path(cache_dir))
@@ -538,7 +542,7 @@ def benchmark_cache_performance(
     cache: OptimizedPredictionCache,
     test_keys: List[str],
     test_values: List[str],
-    iterations: int = 1000
+    iterations: int = 1000,
 ) -> Dict[str, Any]:
     """Benchmark cache performance."""
     import time
@@ -571,5 +575,5 @@ def benchmark_cache_performance(
         "sets_per_second": iterations / set_time,
         "gets_per_second": iterations / get_time,
         "hit_rate": hits / iterations,
-        "stats": cache.get_stats()
+        "stats": cache.get_stats(),
     }

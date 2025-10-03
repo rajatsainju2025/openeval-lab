@@ -23,7 +23,7 @@ class VLLMAdapter(Adapter):
     ):
         """
         Initialize vLLM adapter.
-        
+
         Args:
             model_name: Model name/path
             tensor_parallel_size: Number of GPUs for tensor parallelism
@@ -46,7 +46,7 @@ class VLLMAdapter(Adapter):
         self.temperature = temperature
         self.top_p = top_p
         self.top_k = top_k
-        
+
         self._llm = None
         self._sampling_params = None
 
@@ -56,10 +56,8 @@ class VLLMAdapter(Adapter):
             try:
                 from vllm import LLM, SamplingParams
             except ImportError as e:
-                raise ImportError(
-                    "vllm required. Install with: pip install vllm"
-                ) from e
-            
+                raise ImportError("vllm required. Install with: pip install vllm") from e
+
             # Model arguments
             model_kwargs = {
                 "model": self.model_name,
@@ -68,12 +66,12 @@ class VLLMAdapter(Adapter):
                 "trust_remote_code": self.trust_remote_code,
                 "dtype": self.dtype,
             }
-            
+
             if self.max_model_len is not None:
                 model_kwargs["max_model_len"] = self.max_model_len
-            
+
             self._llm = LLM(**model_kwargs)
-            
+
             # Sampling parameters
             self._sampling_params = SamplingParams(
                 max_tokens=self.max_new_tokens,
@@ -85,7 +83,7 @@ class VLLMAdapter(Adapter):
     def generate(self, prompt: str, **kwargs) -> str:
         """Generate text using vLLM."""
         self._load_model()
-        
+
         # Override sampling parameters if provided
         sampling_params = self._sampling_params
         if any(k in kwargs for k in ["max_new_tokens", "temperature", "top_p", "top_k"]):
@@ -93,22 +91,24 @@ class VLLMAdapter(Adapter):
                 max_tokens=kwargs.get("max_new_tokens", self.max_new_tokens),
                 temperature=kwargs.get("temperature", self.temperature),
                 top_p=kwargs.get("top_p", self.top_p),
-                top_k=kwargs.get("top_k", self.top_k) if kwargs.get("top_k", self.top_k) > 0 else None,
+                top_k=(
+                    kwargs.get("top_k", self.top_k) if kwargs.get("top_k", self.top_k) > 0 else None
+                ),
             )
-        
+
         # Generate
         outputs = self._llm.generate([prompt], sampling_params)
-        
+
         # Extract generated text
         generated_text = outputs[0].outputs[0].text
-        
+
         return generated_text.strip()
 
     def set_runtime_options(
-        self, 
-        concurrency: Optional[int] = None, 
+        self,
+        concurrency: Optional[int] = None,
         max_retries: Optional[int] = None,
-        request_timeout: Optional[float] = None
+        request_timeout: Optional[float] = None,
     ):
         """Set runtime options."""
         self._concurrency = concurrency
@@ -118,11 +118,11 @@ class VLLMAdapter(Adapter):
 
 class VLLMCodeLlamaAdapter(VLLMAdapter):
     """Convenience adapter for Code Llama models with vLLM."""
-    
+
     def __init__(self, size: str = "7b", **kwargs):
         """
         Initialize Code Llama vLLM adapter.
-        
+
         Args:
             size: Model size ("7b", "13b", "34b")
             **kwargs: Additional arguments for VLLMAdapter
@@ -133,11 +133,11 @@ class VLLMCodeLlamaAdapter(VLLMAdapter):
 
 class VLLMLlamaAdapter(VLLMAdapter):
     """Convenience adapter for Llama models with vLLM."""
-    
+
     def __init__(self, size: str = "7b", **kwargs):
         """
         Initialize Llama vLLM adapter.
-        
+
         Args:
             size: Model size ("7b", "13b", "70b")
             **kwargs: Additional arguments for VLLMAdapter

@@ -30,6 +30,7 @@ import statistics
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
@@ -78,7 +79,7 @@ class BloomFilter:
 
     def _hashes(self, key: str) -> List[int]:
         """Generate hash values for a key."""
-        key_bytes = key.encode('utf-8')
+        key_bytes = key.encode("utf-8")
         hashes = []
 
         # Use different hash functions
@@ -109,6 +110,7 @@ class BloomFilter:
 @dataclass(order=True)
 class CacheEntry:
     """Cache entry with priority for LRU eviction."""
+
     key: str
     access_count: int
     last_accessed: float
@@ -266,7 +268,7 @@ class PredictionCache:
         memory_cache_size: int = 1000,
         enable_bloom_filter: bool = True,
         enable_prefetching: bool = True,
-        enable_adaptive_sizing: bool = True
+        enable_adaptive_sizing: bool = True,
     ) -> None:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -374,10 +376,7 @@ class PredictionCache:
             entry.size = len(str(data))
         else:
             entry = CacheEntry(
-                key=key,
-                access_count=1,
-                last_accessed=time.time(),
-                size=len(str(data))
+                key=key, access_count=1, last_accessed=time.time(), size=len(str(data))
             )
             self._cache_entries[key] = entry
 
@@ -396,7 +395,9 @@ class PredictionCache:
         entries_by_priority = sorted(self._cache_entries.values(), key=lambda e: e.priority)
 
         # Evict lowest priority entries
-        entries_to_evict = entries_by_priority[:max(1, len(entries_by_priority) // 10)]  # Evict 10%
+        entries_to_evict = entries_by_priority[
+            : max(1, len(entries_by_priority) // 10)
+        ]  # Evict 10%
 
         for entry in entries_to_evict:
             cache_key = self._get_memory_cache_key(entry.key)
@@ -420,9 +421,7 @@ class PredictionCache:
 
             # Prefetch in background (don't block current operation)
             threading.Thread(
-                target=self._background_prefetch,
-                args=(candidate,),
-                daemon=True
+                target=self._background_prefetch, args=(candidate,), daemon=True
             ).start()
 
     def _background_prefetch(self, key: str) -> None:
@@ -436,7 +435,7 @@ class PredictionCache:
             with self._lock:
                 cur = self._conn.execute(
                     "SELECT value, created_at, compressed, metadata, access_count FROM kv WHERE key = ?",
-                    (key,)
+                    (key,),
                 )
                 row = cur.fetchone()
 
@@ -447,7 +446,7 @@ class PredictionCache:
                 # Decompress if needed
                 if compressed:
                     try:
-                        value = zlib.decompress(value.encode('latin-1')).decode('utf-8')
+                        value = zlib.decompress(value.encode("latin-1")).decode("utf-8")
                     except Exception:
                         return  # Corrupted data
 
@@ -461,13 +460,16 @@ class PredictionCache:
                     final_value = str(value)
 
                 # Cache in memory
-                self._memory_cache_set(key, {
-                    "value": final_value,
-                    "created_at": created_at,
-                    "compressed": compressed,
-                    "metadata": metadata,
-                    "access_count": access_count + 1
-                })
+                self._memory_cache_set(
+                    key,
+                    {
+                        "value": final_value,
+                        "created_at": created_at,
+                        "compressed": compressed,
+                        "metadata": metadata,
+                        "access_count": access_count + 1,
+                    },
+                )
 
                 self.cache_stats.prefetch_hits += 1
 
@@ -492,7 +494,7 @@ class PredictionCache:
 
     def get(self, key: str, *, ttl: Optional[float] = None) -> Optional[str]:
         now = time.time()
-        
+
         # Check memory cache first
         mem_entry = self._memory_cache_get(key)
         if mem_entry:
@@ -511,20 +513,20 @@ class PredictionCache:
                         return mem_entry["value"]
             else:
                 return mem_entry["value"]
-        
+
         # Check database
         with self._lock:
             cur = self._conn.execute(
-                "SELECT value, created_at, compressed, metadata, access_count FROM kv WHERE key = ?", 
-                (key,)
+                "SELECT value, created_at, compressed, metadata, access_count FROM kv WHERE key = ?",
+                (key,),
             )
             row = cur.fetchone()
-        
+
         if not row:
             return None
-        
+
         value, created_at, compressed, metadata, access_count = row
-        
+
         # Expiry logic
         if ttl is not None:
             try:
@@ -536,14 +538,14 @@ class PredictionCache:
                     return None
                 if (now - float(created_at)) >= ttl_f:
                     return None
-        
+
         # Decompress if needed
         if compressed:
             try:
-                value = zlib.decompress(value.encode('latin-1')).decode('utf-8')
+                value = zlib.decompress(value.encode("latin-1")).decode("utf-8")
             except Exception:
                 return None  # Corrupted compressed data
-        
+
         try:
             # value might be JSON string containing {"output": ...}
             obj = json.loads(value)
@@ -553,67 +555,73 @@ class PredictionCache:
                 final_value = str(value)
         except Exception:
             final_value = str(value)
-        
+
         # Update access statistics in database
         with self._lock, self._conn:
             self._conn.execute(
                 "UPDATE kv SET access_count = access_count + 1, last_accessed = ? WHERE key = ?",
-                (now, key)
+                (now, key),
             )
-        
+
         # Cache in memory for future use
-        self._memory_cache_set(key, {
-            "value": final_value,
-            "created_at": created_at,
-            "compressed": compressed,
-            "metadata": metadata,
-            "access_count": access_count + 1
-        })
-        
+        self._memory_cache_set(
+            key,
+            {
+                "value": final_value,
+                "created_at": created_at,
+                "compressed": compressed,
+                "metadata": metadata,
+                "access_count": access_count + 1,
+            },
+        )
+
         # Record access pattern for predictive prefetching
         self._record_access_pattern(key)
-        
+
         # Perform predictive prefetching
         self._predictive_prefetch(key)
-        
+
         return final_value
 
     def set(self, key: str, output: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         payload = json.dumps({"output": output})
         now = time.time()
-        
+
         # Compress if enabled and payload is large enough
         compressed = 0
         if self.compress and len(payload) > 1024:  # Compress payloads > 1KB
             try:
-                compressed_payload = zlib.compress(payload.encode('utf-8'))
+                compressed_payload = zlib.compress(payload.encode("utf-8"))
                 if len(compressed_payload) < len(payload):  # Only use if smaller
-                    payload = compressed_payload.decode('latin-1')
+                    payload = compressed_payload.decode("latin-1")
                     compressed = 1
             except Exception:
                 pass  # Fall back to uncompressed
-        
+
         metadata_str = json.dumps(metadata) if metadata else None
-        
+
         with self._lock, self._conn:
             self._conn.execute(
                 "INSERT OR REPLACE INTO kv(key, value, created_at, compressed, metadata, access_count, last_accessed) VALUES(?,?,?,?,?,?,?)",
                 (key, payload, now, compressed, metadata_str, 0, now),
             )
-        
+
         # Update memory cache
-        self._memory_cache_set(key, {
-            "value": output,
-            "created_at": now,
-            "compressed": compressed,
-            "metadata": metadata,
-            "access_count": 0
-        })
-        
+        self._memory_cache_set(
+            key,
+            {
+                "value": output,
+                "created_at": now,
+                "compressed": compressed,
+                "metadata": metadata,
+                "access_count": 0,
+            },
+        )
+
         # Update bloom filter
         if self.bloom_filter:
             self.bloom_filter.add(key)
-        
+
         # Record access pattern
         self._record_access_pattern(key)
 
@@ -634,13 +642,15 @@ class PredictionCache:
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
         with self._lock:
-            cur = self._conn.execute("""
-                SELECT COUNT(*), SUM(LENGTH(value)), AVG(created_at), 
+            cur = self._conn.execute(
+                """
+                SELECT COUNT(*), SUM(LENGTH(value)), AVG(created_at),
                        AVG(access_count), MAX(last_accessed)
                 FROM kv
-            """)
+            """
+            )
             count, total_size, avg_age, avg_access, max_access = cur.fetchone()
-        
+
         now = time.time()
         return {
             "entries": count or 0,
@@ -659,5 +669,5 @@ class PredictionCache:
             "prefetch_hits": self.cache_stats.prefetch_hits,
             "prefetch_misses": self.cache_stats.prefetch_misses,
             "hit_rate": self.cache_stats.hit_rate,
-            "prefetch_hit_rate": self.cache_stats.prefetch_hit_rate
+            "prefetch_hit_rate": self.cache_stats.prefetch_hit_rate,
         }

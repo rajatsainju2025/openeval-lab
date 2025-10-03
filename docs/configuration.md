@@ -87,19 +87,19 @@ evaluation:
   default_concurrency: 4
   default_max_retries: 3
   default_timeout: 60.0
-  
+
   # Resources
   max_memory_mb: 8192
   max_cpu_percent: 80.0
-  
+
   # Output
   default_output_format: "json"
   include_records_by_default: false
-  
+
   # Caching
   default_cache_mode: "rw"
   cache_compression: true
-  
+
   # Error handling
   enable_robust_mode: true
   max_retry_attempts: 5
@@ -111,15 +111,15 @@ adapters:
   # API configuration
   api_base_urls:
     openai: "https://api.openai.com/v1"
-  
+
   api_keys:
     openai: "${OPENAI_API_KEY}"
-  
+
   # Request defaults
   default_temperature: 0.0
   default_max_tokens: 2048
   request_timeout: 30.0
-  
+
   # Rate limiting
   rate_limit_rpm: 60
   rate_limit_tpm: 150000
@@ -205,7 +205,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 ### Environment-Specific Secrets
 Create separate files for each environment:
 - `.secrets.development.yaml`
-- `.secrets.testing.yaml`  
+- `.secrets.testing.yaml`
 - `.secrets.production.yaml`
 
 ```yaml

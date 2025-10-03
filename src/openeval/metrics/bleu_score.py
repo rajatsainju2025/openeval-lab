@@ -29,7 +29,7 @@ class BLEUScore:
         n_gram: int = 4,
         weights: Optional[List[float]] = None,
         smoothing: bool = True,
-        case_sensitive: bool = False
+        case_sensitive: bool = False,
     ):
         """
         Initialize BLEU scorer.
@@ -46,15 +46,15 @@ class BLEUScore:
         self.case_sensitive = case_sensitive
 
         if len(self.weights) != n_gram:
-            raise ValueError(f"Number of weights ({len(self.weights)}) must match n_gram ({n_gram})")
+            raise ValueError(
+                f"Number of weights ({len(self.weights)}) must match n_gram ({n_gram})"
+            )
 
         if abs(sum(self.weights) - 1.0) > 1e-6:
             raise ValueError("Weights must sum to 1.0")
 
     def compute(
-        self,
-        predictions: Iterable[str],
-        references: Iterable[Union[str, List[str]]]
+        self, predictions: Iterable[str], references: Iterable[Union[str, List[str]]]
     ) -> Mapping[str, float]:
         """
         Compute BLEU score for predictions against references.
@@ -135,13 +135,12 @@ class BLEUScore:
             text = text.lower()
         # Simple tokenization - split on whitespace and punctuation
         import re
-        tokens = re.findall(r'\w+', text)
+
+        tokens = re.findall(r"\w+", text)
         return tokens
 
     def _compute_bleu_single(
-        self,
-        pred_tokens: List[str],
-        ref_tokens_list: List[List[str]]
+        self, pred_tokens: List[str], ref_tokens_list: List[List[str]]
     ) -> tuple[float, float, List[float]]:
         """
         Compute BLEU score for a single prediction-reference pair.
@@ -182,10 +181,7 @@ class BLEUScore:
         return bleu, bp, precisions
 
     def _ngram_precision(
-        self,
-        pred_tokens: List[str],
-        ref_tokens_list: List[List[str]],
-        n: int
+        self, pred_tokens: List[str], ref_tokens_list: List[List[str]], n: int
     ) -> float:
         """Calculate n-gram precision."""
         if len(pred_tokens) < n:
@@ -219,7 +215,7 @@ class BLEUScore:
 
     def _get_ngrams(self, tokens: List[str], n: int) -> List[tuple]:
         """Extract n-grams from token list."""
-        return [tuple(tokens[i:i+n]) for i in range(len(tokens) - n + 1)]
+        return [tuple(tokens[i : i + n]) for i in range(len(tokens) - n + 1)]
 
     def _brevity_penalty(self, pred_len: int, ref_len: int) -> float:
         """Calculate brevity penalty."""
@@ -248,9 +244,7 @@ class BLEUScore:
 
 
 def compute_bleu_score(
-    predictions: Iterable[str],
-    references: Iterable[Union[str, List[str]]],
-    **kwargs: Any
+    predictions: Iterable[str], references: Iterable[Union[str, List[str]]], **kwargs: Any
 ) -> Mapping[str, float]:
     """
     Convenience function to compute BLEU score.

@@ -10,12 +10,13 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List
 from dataclasses import dataclass
 import re
 
 try:
     import jsonschema
+
     HAS_JSONSCHEMA = True
 except ImportError:
     HAS_JSONSCHEMA = False
@@ -24,6 +25,7 @@ except ImportError:
 @dataclass
 class ValidationResult:
     """Result of configuration validation."""
+
     is_valid: bool
     errors: List[str]
     warnings: List[str]
@@ -41,22 +43,25 @@ class ConfigValidator:
         schemas = {}
 
         # Basic evaluation spec schema
-        schemas['evaluation_spec'] = {
+        schemas["evaluation_spec"] = {
             "type": "object",
             "required": ["task", "dataset", "model"],
             "properties": {
-                "task": {"type": "string", "enum": ["qa", "summarization", "generation", "classification", "translation"]},
+                "task": {
+                    "type": "string",
+                    "enum": ["qa", "summarization", "generation", "classification", "translation"],
+                },
                 "dataset": {"type": "object", "required": ["path"]},
                 "model": {"type": "object", "required": ["name"]},
                 "metrics": {"type": "array", "items": {"type": "string"}},
                 "adapter": {"type": "object"},
                 "evaluation": {"type": "object"},
-                "output": {"type": "object"}
-            }
+                "output": {"type": "object"},
+            },
         }
 
         # Dataset schema
-        schemas['dataset'] = {
+        schemas["dataset"] = {
             "type": "object",
             "required": ["path"],
             "properties": {
@@ -64,21 +69,24 @@ class ConfigValidator:
                 "format": {"type": "string", "enum": ["json", "jsonl", "csv", "parquet"]},
                 "split": {"type": "string"},
                 "subset": {"type": "string"},
-                "validation": {"type": "object"}
-            }
+                "validation": {"type": "object"},
+            },
         }
 
         # Model schema
-        schemas['model'] = {
+        schemas["model"] = {
             "type": "object",
             "required": ["name"],
             "properties": {
                 "name": {"type": "string"},
-                "type": {"type": "string", "enum": ["api", "local", "huggingface", "openai", "anthropic"]},
+                "type": {
+                    "type": "string",
+                    "enum": ["api", "local", "huggingface", "openai", "anthropic"],
+                },
                 "parameters": {"type": "object"},
                 "api_key": {"type": "string"},
-                "endpoint": {"type": "string"}
-            }
+                "endpoint": {"type": "string"},
+            },
         }
 
         return schemas
@@ -91,10 +99,11 @@ class ConfigValidator:
 
         try:
             # Load configuration
-            with open(config_path, 'r', encoding='utf-8') as f:
-                if config_path.suffix == '.yaml' or config_path.suffix == '.yml':
+            with open(config_path, "r", encoding="utf-8") as f:
+                if config_path.suffix == ".yaml" or config_path.suffix == ".yml":
                     try:
                         import yaml
+
                         config = yaml.safe_load(f)
                     except ImportError:
                         errors.append("PyYAML required for YAML validation")
@@ -132,15 +141,15 @@ class ConfigValidator:
 
         try:
             # Validate top-level structure
-            if 'task' in config and HAS_JSONSCHEMA:
-                jsonschema.validate(config, self.schemas['evaluation_spec'])
+            if "task" in config and HAS_JSONSCHEMA:
+                jsonschema.validate(config, self.schemas["evaluation_spec"])
 
             # Validate nested objects
-            if 'dataset' in config and HAS_JSONSCHEMA:
-                jsonschema.validate(config['dataset'], self.schemas['dataset'])
+            if "dataset" in config and HAS_JSONSCHEMA:
+                jsonschema.validate(config["dataset"], self.schemas["dataset"])
 
-            if 'model' in config and HAS_JSONSCHEMA:
-                jsonschema.validate(config['model'], self.schemas['model'])
+            if "model" in config and HAS_JSONSCHEMA:
+                jsonschema.validate(config["model"], self.schemas["model"])
 
         except jsonschema.ValidationError as e:
             errors.append(f"Schema validation error: {e.message}")
@@ -150,74 +159,76 @@ class ConfigValidator:
         return errors
 
     def _check_common_issues(
-        self,
-        config: Dict[str, Any],
-        errors: List[str],
-        warnings: List[str],
-        suggestions: List[str]
+        self, config: Dict[str, Any], errors: List[str], warnings: List[str], suggestions: List[str]
     ) -> None:
         """Check for common configuration issues."""
 
         # Check required fields
-        required_fields = ['task', 'dataset', 'model']
+        required_fields = ["task", "dataset", "model"]
         for field in required_fields:
             if field not in config:
                 errors.append(f"Missing required field: {field}")
 
         # Check dataset configuration
-        if 'dataset' in config:
-            dataset = config['dataset']
-            if 'path' not in dataset:
+        if "dataset" in config:
+            dataset = config["dataset"]
+            if "path" not in dataset:
                 errors.append("Dataset missing 'path' field")
-            elif not isinstance(dataset['path'], str):
+            elif not isinstance(dataset["path"], str):
                 errors.append("Dataset 'path' must be a string")
 
         # Check model configuration
-        if 'model' in config:
-            model = config['model']
-            if 'name' not in model:
+        if "model" in config:
+            model = config["model"]
+            if "name" not in model:
                 errors.append("Model missing 'name' field")
 
             # Check for API key requirements
-            model_name = model.get('name', '').lower()
-            if any(api_provider in model_name for api_provider in ['openai', 'anthropic', 'claude', 'gpt']):
-                if 'api_key' not in model and 'api_key' not in os.environ:
+            model_name = model.get("name", "").lower()
+            if any(
+                api_provider in model_name
+                for api_provider in ["openai", "anthropic", "claude", "gpt"]
+            ):
+                if "api_key" not in model and "api_key" not in os.environ:
                     warnings.append("API key not found in config or environment variables")
 
         # Check metrics configuration
-        if 'metrics' in config:
-            metrics = config['metrics']
+        if "metrics" in config:
+            metrics = config["metrics"]
             if not isinstance(metrics, list):
                 errors.append("'metrics' must be a list")
             else:
                 valid_metrics = [
-                    'accuracy', 'f1', 'precision', 'recall', 'bleu', 'rouge',
-                    'meteor', 'bert_score', 'semantic_similarity'
+                    "accuracy",
+                    "f1",
+                    "precision",
+                    "recall",
+                    "bleu",
+                    "rouge",
+                    "meteor",
+                    "bert_score",
+                    "semantic_similarity",
                 ]
                 for metric in metrics:
                     if metric not in valid_metrics:
                         warnings.append(f"Unknown metric: {metric}")
 
         # Check evaluation parameters
-        if 'evaluation' in config:
-            eval_config = config['evaluation']
-            if 'concurrency' in eval_config:
-                concurrency = eval_config['concurrency']
+        if "evaluation" in config:
+            eval_config = config["evaluation"]
+            if "concurrency" in eval_config:
+                concurrency = eval_config["concurrency"]
                 if not isinstance(concurrency, int) or concurrency < 1:
                     errors.append("'concurrency' must be a positive integer")
                 elif concurrency > 100:
                     warnings.append("High concurrency may cause rate limiting")
 
     def _check_file_references(
-        self,
-        config: Dict[str, Any],
-        base_path: Path,
-        errors: List[str],
-        warnings: List[str]
+        self, config: Dict[str, Any], base_path: Path, errors: List[str], warnings: List[str]
     ) -> None:
         """Check file references in configuration."""
-        if 'dataset' in config and 'path' in config['dataset']:
-            dataset_path = config['dataset']['path']
+        if "dataset" in config and "path" in config["dataset"]:
+            dataset_path = config["dataset"]["path"]
             if not os.path.isabs(dataset_path):
                 full_path = base_path / dataset_path
             else:
@@ -227,15 +238,10 @@ class ConfigValidator:
                 warnings.append(f"Dataset file not found: {full_path}")
 
     def _check_sensitive_data(
-        self,
-        config: Dict[str, Any],
-        warnings: List[str],
-        suggestions: List[str]
+        self, config: Dict[str, Any], warnings: List[str], suggestions: List[str]
     ) -> None:
         """Check for sensitive data in configuration."""
-        sensitive_patterns = [
-            r'api_key', r'password', r'secret', r'token', r'key'
-        ]
+        sensitive_patterns = [r"api_key", r"password", r"secret", r"token", r"key"]
 
         def check_dict(d: Dict[str, Any], path: str = "") -> None:
             for key, value in d.items():
@@ -243,45 +249,47 @@ class ConfigValidator:
                 if any(re.search(pattern, key, re.IGNORECASE) for pattern in sensitive_patterns):
                     if isinstance(value, str) and len(value) > 10:
                         warnings.append(f"Potential sensitive data in {current_path}")
-                        suggestions.append(f"Consider moving {current_path} to environment variables")
+                        suggestions.append(
+                            f"Consider moving {current_path} to environment variables"
+                        )
                 elif isinstance(value, dict):
                     check_dict(value, current_path)
 
         check_dict(config)
 
-    def _generate_suggestions(
-        self,
-        config: Dict[str, Any],
-        suggestions: List[str]
-    ) -> None:
+    def _generate_suggestions(self, config: Dict[str, Any], suggestions: List[str]) -> None:
         """Generate configuration improvement suggestions."""
         # Suggest adding missing optional fields
-        if 'evaluation' not in config:
+        if "evaluation" not in config:
             suggestions.append("Consider adding 'evaluation' section for performance tuning")
 
-        if 'output' not in config:
+        if "output" not in config:
             suggestions.append("Consider adding 'output' section for result formatting")
 
-        if 'metrics' in config and len(config['metrics']) == 0:
+        if "metrics" in config and len(config["metrics"]) == 0:
             suggestions.append("Add evaluation metrics to assess model performance")
 
         # Suggest optimization based on task type
-        task = config.get('task', '')
-        if task == 'qa':
-            if 'metrics' not in config or 'f1' not in config['metrics']:
+        task = config.get("task", "")
+        if task == "qa":
+            if "metrics" not in config or "f1" not in config["metrics"]:
                 suggestions.append("For QA tasks, consider adding F1 score metric")
-        elif task == 'summarization':
-            if 'metrics' not in config or 'rouge' not in config['metrics']:
+        elif task == "summarization":
+            if "metrics" not in config or "rouge" not in config["metrics"]:
                 suggestions.append("For summarization, consider adding ROUGE metrics")
-        elif task == 'generation':
-            if 'metrics' not in config or 'bleu' not in config['metrics']:
+        elif task == "generation":
+            if "metrics" not in config or "bleu" not in config["metrics"]:
                 suggestions.append("For generation, consider adding BLEU score")
 
     def validate_directory(self, config_dir: Path) -> Dict[str, ValidationResult]:
         """Validate all configuration files in a directory."""
         results = {}
 
-        config_files = list(config_dir.glob("*.json")) + list(config_dir.glob("*.yaml")) + list(config_dir.glob("*.yml"))
+        config_files = (
+            list(config_dir.glob("*.json"))
+            + list(config_dir.glob("*.yaml"))
+            + list(config_dir.glob("*.yml"))
+        )
 
         for config_file in config_files:
             print(f"🔍 Validating {config_file.name}...")

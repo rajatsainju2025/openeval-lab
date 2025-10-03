@@ -19,12 +19,14 @@ from collections import Counter, defaultdict
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
 
 try:
     import numpy as np
+
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
@@ -37,6 +39,7 @@ logger = get_logger(__name__)
 @dataclass
 class DatasetMetadata:
     """Metadata for a dataset."""
+
     name: str
     path: Path
     format: str  # json, jsonl, csv, tsv, etc.
@@ -62,13 +65,14 @@ class DatasetMetadata:
             "created_at": self.created_at.isoformat(),
             "last_modified": self.last_modified.isoformat(),
             "statistics": self.statistics,
-            "validation_results": self.validation_results
+            "validation_results": self.validation_results,
         }
 
 
 @dataclass
 class DatasetValidationResult:
     """Result of dataset validation."""
+
     is_valid: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -118,7 +122,7 @@ class DatasetValidator:
         self,
         dataset_path: Union[str, Path],
         task_type: Optional[str] = None,
-        expected_columns: Optional[List[str]] = None
+        expected_columns: Optional[List[str]] = None,
     ) -> DatasetValidationResult:
         """
         Validate a dataset file.
@@ -169,23 +173,23 @@ class DatasetValidator:
         """Load dataset from file."""
         suffix = path.suffix.lower()
 
-        if suffix == '.json':
-            with open(path, 'r', encoding='utf-8') as f:
+        if suffix == ".json":
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, list) else [data]
 
-        elif suffix == '.jsonl':
+        elif suffix == ".jsonl":
             data = []
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         data.append(json.loads(line))
             return data
 
-        elif suffix in ['.csv', '.tsv'] and HAS_PANDAS:
-            sep = '\t' if suffix == '.tsv' else ','
+        elif suffix in [".csv", ".tsv"] and HAS_PANDAS:
+            sep = "\t" if suffix == ".tsv" else ","
             df = pd.read_csv(path, sep=sep)
-            return [dict(row) for row in df.to_dict('records')]
+            return [dict(row) for row in df.to_dict("records")]
 
         else:
             raise ValueError(f"Unsupported dataset format: {suffix}")
@@ -194,7 +198,7 @@ class DatasetValidator:
         self,
         data: List[Dict[str, Any]],
         result: DatasetValidationResult,
-        expected_columns: Optional[List[str]] = None
+        expected_columns: Optional[List[str]] = None,
     ) -> None:
         """Validate basic dataset structure."""
         if not data:
@@ -232,17 +236,14 @@ class DatasetValidator:
             result.statistics["column_distribution"] = dict(column_counts)
 
     def _validate_task_specific(
-        self,
-        data: List[Dict[str, Any]],
-        task_type: str,
-        result: DatasetValidationResult
+        self, data: List[Dict[str, Any]], task_type: str, result: DatasetValidationResult
     ) -> None:
         """Validate task-specific requirements."""
         task_validators = {
             "qa": self._validate_qa_dataset,
             "code_eval": self._validate_code_eval_dataset,
             "classification": self._validate_classification_dataset,
-            "generation": self._validate_generation_dataset
+            "generation": self._validate_generation_dataset,
         }
 
         validator = task_validators.get(task_type)
@@ -251,7 +252,9 @@ class DatasetValidator:
         else:
             result.add_warning(f"Unknown task type: {task_type}")
 
-    def _validate_qa_dataset(self, data: List[Dict[str, Any]], result: DatasetValidationResult) -> None:
+    def _validate_qa_dataset(
+        self, data: List[Dict[str, Any]], result: DatasetValidationResult
+    ) -> None:
         """Validate question-answering dataset."""
         required_fields = ["question", "answer"]
         suggested_fields = ["context", "explanation"]
@@ -267,7 +270,9 @@ class DatasetValidator:
                 if field not in item:
                     result.add_warning(f"Sample {i}: Missing suggested field '{field}'")
 
-    def _validate_code_eval_dataset(self, data: List[Dict[str, Any]], result: DatasetValidationResult) -> None:
+    def _validate_code_eval_dataset(
+        self, data: List[Dict[str, Any]], result: DatasetValidationResult
+    ) -> None:
         """Validate code evaluation dataset."""
         required_fields = ["code", "test_cases"]
         suggested_fields = ["language", "description", "expected_output"]
@@ -283,7 +288,9 @@ class DatasetValidator:
             if "test_cases" in item and not isinstance(item["test_cases"], list):
                 result.add_error(f"Sample {i}: 'test_cases' field must be a list")
 
-    def _validate_classification_dataset(self, data: List[Dict[str, Any]], result: DatasetValidationResult) -> None:
+    def _validate_classification_dataset(
+        self, data: List[Dict[str, Any]], result: DatasetValidationResult
+    ) -> None:
         """Validate classification dataset."""
         required_fields = ["text", "label"]
 
@@ -292,7 +299,9 @@ class DatasetValidator:
                 if field not in item:
                     result.add_error(f"Sample {i}: Missing required field '{field}'")
 
-    def _validate_generation_dataset(self, data: List[Dict[str, Any]], result: DatasetValidationResult) -> None:
+    def _validate_generation_dataset(
+        self, data: List[Dict[str, Any]], result: DatasetValidationResult
+    ) -> None:
         """Validate text generation dataset."""
         required_fields = ["input", "output"]
 
@@ -301,7 +310,9 @@ class DatasetValidator:
                 if field not in item:
                     result.add_error(f"Sample {i}: Missing required field '{field}'")
 
-    def _validate_data_quality(self, data: List[Dict[str, Any]], result: DatasetValidationResult) -> None:
+    def _validate_data_quality(
+        self, data: List[Dict[str, Any]], result: DatasetValidationResult
+    ) -> None:
         """Validate data quality aspects."""
         # Check for empty or null values
         empty_counts = defaultdict(int)
@@ -343,9 +354,13 @@ class DatasetValidator:
                         result.add_warning(f"Very short text in field '{field}': '{text}'")
                     # Check for excessive whitespace
                     if text != text.strip():
-                        result.add_warning(f"Text in field '{field}' has leading/trailing whitespace")
+                        result.add_warning(
+                            f"Text in field '{field}' has leading/trailing whitespace"
+                        )
 
-    def _compute_statistics(self, data: List[Dict[str, Any]], result: DatasetValidationResult) -> None:
+    def _compute_statistics(
+        self, data: List[Dict[str, Any]], result: DatasetValidationResult
+    ) -> None:
         """Compute dataset statistics."""
         stats = {}
 
@@ -365,7 +380,7 @@ class DatasetValidator:
                     "min": min(lengths),
                     "max": max(lengths),
                     "mean": statistics.mean(lengths),
-                    "median": statistics.median(lengths)
+                    "median": statistics.median(lengths),
                 }
 
         # Categorical field distributions
@@ -400,7 +415,7 @@ class DatasetManager:
         name: str,
         path: Union[str, Path],
         task_type: Optional[str] = None,
-        validate: bool = True
+        validate: bool = True,
     ) -> DatasetMetadata:
         """
         Register a dataset with the manager.
@@ -438,7 +453,7 @@ class DatasetManager:
             data_types={},
             checksum=checksum,
             created_at=datetime.now(),
-            last_modified=datetime.fromtimestamp(path.stat().st_mtime)
+            last_modified=datetime.fromtimestamp(path.stat().st_mtime),
         )
 
         # Load and analyze dataset for metadata
@@ -454,7 +469,7 @@ class DatasetManager:
                     "is_valid": validation_result.is_valid,
                     "errors": validation_result.errors,
                     "warnings": validation_result.warnings,
-                    "recommendations": validation_result.recommendations
+                    "recommendations": validation_result.recommendations,
                 }
 
         except Exception as e:
@@ -470,10 +485,7 @@ class DatasetManager:
         return metadata
 
     def load_dataset(
-        self,
-        name: str,
-        cache: bool = True,
-        validate: bool = False
+        self, name: str, cache: bool = True, validate: bool = False
     ) -> List[Dict[str, Any]]:
         """
         Load a registered dataset.
@@ -514,7 +526,7 @@ class DatasetManager:
         metadata_file = self.metadata_dir / f"{name}.json"
         if metadata_file.exists():
             try:
-                with open(metadata_file, 'r', encoding='utf-8') as f:
+                with open(metadata_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 metadata = DatasetMetadata(**data)
                 self._metadata_cache[name] = metadata
@@ -532,9 +544,7 @@ class DatasetManager:
         return sorted(datasets)
 
     def validate_dataset(
-        self,
-        name: str,
-        task_type: Optional[str] = None
+        self, name: str, task_type: Optional[str] = None
     ) -> DatasetValidationResult:
         """Validate a registered dataset."""
         metadata = self.get_metadata(name)
@@ -551,7 +561,7 @@ class DatasetManager:
         train_ratio: float = 0.8,
         val_ratio: float = 0.1,
         test_ratio: float = 0.1,
-        seed: int = 42
+        seed: int = 42,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Split a dataset into train/validation/test sets.
@@ -578,18 +588,15 @@ class DatasetManager:
         n_val = int(n_total * val_ratio)
 
         train_data = data[:n_train]
-        val_data = data[n_train:n_train + n_val]
-        test_data = data[n_train + n_val:]
+        val_data = data[n_train : n_train + n_val]
+        test_data = data[n_train + n_val :]
 
-        logger.info(f"Split dataset '{name}': {len(train_data)} train, {len(val_data)} val, {len(test_data)} test")
+        logger.info(
+            f"Split dataset '{name}': {len(train_data)} train, {len(val_data)} val, {len(test_data)} test"
+        )
         return train_data, val_data, test_data
 
-    def sample_dataset(
-        self,
-        name: str,
-        n_samples: int,
-        seed: int = 42
-    ) -> List[Dict[str, Any]]:
+    def sample_dataset(self, name: str, n_samples: int, seed: int = 42) -> List[Dict[str, Any]]:
         """
         Sample a subset of the dataset.
 
@@ -616,21 +623,21 @@ class DatasetManager:
         """Get dataset size without loading all data."""
         suffix = path.suffix.lower()
 
-        if suffix == '.json':
-            with open(path, 'r', encoding='utf-8') as f:
+        if suffix == ".json":
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return len(data) if isinstance(data, list) else 1
 
-        elif suffix == '.jsonl':
+        elif suffix == ".jsonl":
             count = 0
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         count += 1
             return count
 
-        elif suffix in ['.csv', '.tsv'] and HAS_PANDAS:
-            sep = '\t' if suffix == '.tsv' else ','
+        elif suffix in [".csv", ".tsv"] and HAS_PANDAS:
+            sep = "\t" if suffix == ".tsv" else ","
             df = pd.read_csv(path, sep=sep)
             return len(df)
 
@@ -693,7 +700,7 @@ class DatasetManager:
     def _save_metadata(self, metadata: DatasetMetadata) -> None:
         """Save metadata to file."""
         metadata_file = self.metadata_dir / f"{metadata.name}.json"
-        with open(metadata_file, 'w', encoding='utf-8') as f:
+        with open(metadata_file, "w", encoding="utf-8") as f:
             json.dump(metadata.to_dict(), f, indent=2, ensure_ascii=False)
 
 
@@ -705,7 +712,7 @@ def create_dataset_manager(datasets_dir: Optional[Path] = None) -> DatasetManage
 def validate_dataset_file(
     dataset_path: Union[str, Path],
     task_type: Optional[str] = None,
-    expected_columns: Optional[List[str]] = None
+    expected_columns: Optional[List[str]] = None,
 ) -> DatasetValidationResult:
     """
     Convenience function to validate a dataset file.

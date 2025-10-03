@@ -46,7 +46,7 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 
 ## Week 1: Foundation & Quick Wins
 
-**Owner**: @rajatsainju2025  
+**Owner**: @rajatsainju2025
 **Milestone**: [Foundation](https://github.com/rajatsainju2025/openeval-lab/milestone/1)
 
 ### Deliverables
@@ -62,14 +62,14 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 - [ ] CI/CD badges show green status
 - [ ] Performance baseline established
 
-**Dependencies**: None  
-**Risk**: Low  
+**Dependencies**: None
+**Risk**: Low
 
 ---
 
 ## Week 2: Evaluation Operations (EvalOps)
 
-**Owner**: @rajatsainju2025  
+**Owner**: @rajatsainju2025
 **Milestone**: [EvalOps](https://github.com/rajatsainju2025/openeval-lab/milestone/2)
 
 ### Deliverables
@@ -85,14 +85,14 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 - [ ] Results schema validates 100% of outputs
 - [ ] Benchmark reproducibility < 1% variance across runs
 
-**Dependencies**: Week 1 foundation  
+**Dependencies**: Week 1 foundation
 **Risk**: Medium (schema breaking changes)
 
 ---
 
 ## Week 3: Developer Experience
 
-**Owner**: @rajatsainju2025  
+**Owner**: @rajatsainju2025
 **Milestone**: [DevEx](https://github.com/rajatsainju2025/openeval-lab/milestone/3)
 
 ### Deliverables
@@ -109,14 +109,14 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 - [ ] 100% public API documented
 - [ ] First external contribution merged
 
-**Dependencies**: Week 2 EvalOps  
+**Dependencies**: Week 2 EvalOps
 **Risk**: Medium (config migration complexity)
 
 ---
 
 ## Week 4: Performance & Scaling
 
-**Owner**: @rajatsainju2025  
+**Owner**: @rajatsainju2025
 **Milestone**: [Performance](https://github.com/rajatsainju2025/openeval-lab/milestone/4)
 
 ### Deliverables
@@ -133,14 +133,14 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 - [ ] Performance parity or better vs. reference implementations
 - [ ] Detailed performance analysis published
 
-**Dependencies**: Week 3 DevEx  
+**Dependencies**: Week 3 DevEx
 **Risk**: High (performance optimization complexity)
 
 ---
 
 ## Week 5: Advanced Features & Research
 
-**Owner**: @rajatsainju2025  
+**Owner**: @rajatsainju2025
 **Milestone**: [Research](https://github.com/rajatsainju2025/openeval-lab/milestone/5)
 
 ### Deliverables
@@ -167,14 +167,14 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 - [ ] Federated evaluation protocol implemented
 - [ ] Energy consumption monitoring operational
 
-**Dependencies**: Week 4 Performance  
+**Dependencies**: Week 4 Performance
 **Risk**: Medium (research complexity)
 
 ---
 
 ## Week 6: Community & Launch
 
-**Owner**: @rajatsainju2025  
+**Owner**: @rajatsainju2025
 **Milestone**: [Launch](https://github.com/rajatsainju2025/openeval-lab/milestone/6)
 
 ### Deliverables
@@ -191,7 +191,7 @@ Based on latest publications from ICML 2025, NeurIPS 2025, and arXiv preprints:
 - [ ] Integration with major model providers
 - [ ] Positive community feedback and adoption
 
-**Dependencies**: Week 5 Advanced Features  
+**Dependencies**: Week 5 Advanced Features
 **Risk**: Low (polish and outreach)
 
 ---

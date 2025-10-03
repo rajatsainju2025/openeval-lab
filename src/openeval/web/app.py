@@ -90,7 +90,7 @@ def run_detail(file: str, offset: int = 0, limit: int = 50):
             error_msg = f"Error loading run file: {e}"
     else:
         error_msg = f"Run file '{file}' not found in runs/ directory"
-    
+
     tpl = jinja.get_template("run_detail.html")
     # slice records for pagination without mutating original
     records = list(data.get("records", []))
@@ -122,7 +122,7 @@ def bias_analysis(file: str):
             error_msg = f"Error loading bias analysis file: {e}"
     else:
         error_msg = f"Bias analysis file '{file}' not found in bias_analysis/ directory"
-    
+
     tpl = jinja.get_template("bias_analysis.html")
     return tpl.render(
         title=f"Bias Analysis {file}",
@@ -130,51 +130,61 @@ def bias_analysis(file: str):
         data=data,
         error_msg=error_msg,
     )
+
+
 @app.get("/export/{file}")
 def export_run(file: str, format: str = "json"):
     """Export a run file in various formats."""
     # security: only allow basenames under runs/
     file = Path(file).name
     p = Path("runs") / file
-    
+
     if not p.exists():
         from fastapi import HTTPException
+
         raise HTTPException(404, f"Run file '{file}' not found")
-    
+
     try:
         data = json.loads(p.read_text())
     except Exception as e:
         from fastapi import HTTPException
+
         raise HTTPException(500, f"Error loading run file: {e}")
-    
+
     if format.lower() == "csv":
         # Export records as CSV if available
         records = data.get("records", [])
         if not records:
             from fastapi import HTTPException
+
             raise HTTPException(400, "No records available for CSV export")
-        
+
         import io
         import csv
+
         output = io.StringIO()
         if records:
             writer = csv.DictWriter(output, fieldnames=records[0].keys())
             writer.writeheader()
             writer.writerows(records)
-        
+
         from fastapi.responses import Response
+
         return Response(
             content=output.getvalue(),
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={file.replace('.json', '.csv')}"}
+            headers={
+                "Content-Disposition": f"attachment; filename={file.replace('.json', '.csv')}"
+            },
         )
     else:
         # Default: JSON export
         from fastapi.responses import Response
+
         return Response(
             content=json.dumps(data, indent=2),
             media_type="application/json",
-            headers={"Content-Disposition": f"attachment; filename={file}"}
+            headers={"Content-Disposition": f"attachment; filename={file}"},
         )
 
 
@@ -194,7 +204,7 @@ def health_check():
 
     try:
         memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage("/")
         cpu_percent = psutil.cpu_percent(interval=1)
 
         return {
@@ -204,19 +214,12 @@ def health_check():
                 "platform": platform.system(),
                 "cpu_percent": cpu_percent,
                 "memory_percent": memory.percent,
-                "disk_percent": disk.percent
+                "disk_percent": disk.percent,
             },
-            "openeval": {
-                "version": "0.1.0",
-                "status": "running"
-            }
+            "openeval": {"version": "0.1.0", "status": "running"},
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        return {"status": "error", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.get("/api/runs/recent")

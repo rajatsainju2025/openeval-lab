@@ -22,8 +22,9 @@ class UncertaintyMetrics:
     """Collection of uncertainty quantification metrics for LLM evaluation."""
 
     @staticmethod
-    def expected_calibration_error(predictions: List[str], references: List[str],
-                                 confidences: List[float], num_bins: int = 10) -> float:
+    def expected_calibration_error(
+        predictions: List[str], references: List[str], confidences: List[float], num_bins: int = 10
+    ) -> float:
         """
         Calculate Expected Calibration Error (ECE).
 
@@ -54,8 +55,12 @@ class UncertaintyMetrics:
             bin_confidences = [c for c, m in zip(confidences, bin_mask) if m]
 
             # Simple accuracy calculation (exact match)
-            accuracy = np.mean([p.strip().lower() == r.strip().lower()
-                              for p, r in zip(bin_predictions, bin_references)])
+            accuracy = np.mean(
+                [
+                    p.strip().lower() == r.strip().lower()
+                    for p, r in zip(bin_predictions, bin_references)
+                ]
+            )
 
             # Average confidence in this bin
             avg_confidence = np.mean(bin_confidences)
@@ -66,8 +71,9 @@ class UncertaintyMetrics:
         return ece
 
     @staticmethod
-    def brier_score(predictions: List[str], references: List[str],
-                   probabilities: List[Dict[str, float]]) -> float:
+    def brier_score(
+        predictions: List[str], references: List[str], probabilities: List[Dict[str, float]]
+    ) -> float:
         """
         Calculate Brier Score for probabilistic predictions.
 
@@ -86,7 +92,7 @@ class UncertaintyMetrics:
             correct = 1.0 if pred.strip().lower() == ref.strip().lower() else 0.0
 
             # Use confidence as probability of being correct
-            confidence = probs.get('confidence', 0.5)
+            confidence = probs.get("confidence", 0.5)
             predicted_prob = confidence
 
             # Brier score for binary case: (predicted_prob - actual)^2
@@ -111,8 +117,9 @@ class UncertaintyMetrics:
         return float(np.mean(confidences))
 
     @staticmethod
-    def uncertainty_correlation(predictions: List[str], references: List[str],
-                              uncertainties: List[float]) -> float:
+    def uncertainty_correlation(
+        predictions: List[str], references: List[str], uncertainties: List[float]
+    ) -> float:
         """
         Calculate correlation between uncertainty and error likelihood.
 
@@ -122,8 +129,10 @@ class UncertaintyMetrics:
             raise ValueError("All inputs must have same length")
 
         # Calculate errors (1 for incorrect, 0 for correct)
-        errors = [1.0 if p.strip().lower() != r.strip().lower() else 0.0
-                 for p, r in zip(predictions, references)]
+        errors = [
+            1.0 if p.strip().lower() != r.strip().lower() else 0.0
+            for p, r in zip(predictions, references)
+        ]
 
         # Calculate Pearson correlation
         if len(set(errors)) <= 1 or len(set(uncertainties)) <= 1:
@@ -150,8 +159,11 @@ class UncertaintyMetrics:
         return float(np.mean(uncertainties))
 
     @staticmethod
-    def entropy_uncertainty(predictions: List[str], references: List[str],
-                          logits: Optional[List[Dict[str, float]]] = None) -> float:
+    def entropy_uncertainty(
+        predictions: List[str],
+        references: List[str],
+        logits: Optional[List[Dict[str, float]]] = None,
+    ) -> float:
         """
         Calculate entropy-based uncertainty.
 
@@ -179,7 +191,7 @@ class UncertaintyMetrics:
     def aleatoric_epistemic_decomposition(
         predictions: List[str],
         references: List[str],
-        ensemble_predictions: Optional[List[List[str]]] = None
+        ensemble_predictions: Optional[List[List[str]]] = None,
     ) -> Tuple[float, float]:
         """
         Decompose uncertainty into aleatoric (data) and epistemic (model) components.
@@ -218,53 +230,56 @@ class UncertaintyQuantificationMetric(Metric):
     name: str = "uncertainty_quantification"
     num_bins: int = 10
 
-    def compute(self, predictions: Iterable[Any], references: Iterable[Any],
-               **kwargs) -> Dict[str, float]:
+    def compute(
+        self, predictions: Iterable[Any], references: Iterable[Any], **kwargs
+    ) -> Dict[str, float]:
         """Compute comprehensive uncertainty metrics."""
         # Convert to lists for processing
         pred_list = list(predictions)
         ref_list = list(references)
 
         # Extract uncertainty information from kwargs or predictions
-        confidences = kwargs.get('confidences', [0.5] * len(pred_list))
-        probabilities = kwargs.get('probabilities', [{}] * len(pred_list))
-        logits = kwargs.get('logits', None)
-        ensemble_predictions = kwargs.get('ensemble_predictions', None)
+        confidences = kwargs.get("confidences", [0.5] * len(pred_list))
+        probabilities = kwargs.get("probabilities", [{}] * len(pred_list))
+        logits = kwargs.get("logits", None)
+        ensemble_predictions = kwargs.get("ensemble_predictions", None)
 
         results = {}
 
         # Expected Calibration Error
         try:
-            results['ece'] = UncertaintyMetrics.expected_calibration_error(
+            results["ece"] = UncertaintyMetrics.expected_calibration_error(
                 pred_list, ref_list, confidences, self.num_bins
             )
         except Exception:
-            results['ece'] = 0.0
+            results["ece"] = 0.0
 
         # Brier Score
         try:
-            results['brier_score'] = UncertaintyMetrics.brier_score(
+            results["brier_score"] = UncertaintyMetrics.brier_score(
                 pred_list, ref_list, probabilities
             )
         except Exception:
-            results['brier_score'] = 0.0
+            results["brier_score"] = 0.0
 
         # Confidence Interval Width
-        results['confidence_interval_width'] = UncertaintyMetrics.confidence_interval_width(confidences)
+        results["confidence_interval_width"] = UncertaintyMetrics.confidence_interval_width(
+            confidences
+        )
 
         # Uncertainty-Error Correlation
         try:
-            results['uncertainty_error_correlation'] = UncertaintyMetrics.uncertainty_correlation(
+            results["uncertainty_error_correlation"] = UncertaintyMetrics.uncertainty_correlation(
                 pred_list, ref_list, confidences
             )
         except Exception:
-            results['uncertainty_error_correlation'] = 0.0
+            results["uncertainty_error_correlation"] = 0.0
 
         # Sharpness
-        results['sharpness'] = UncertaintyMetrics.sharpness(confidences)
+        results["sharpness"] = UncertaintyMetrics.sharpness(confidences)
 
         # Entropy-based Uncertainty
-        results['predictive_entropy'] = UncertaintyMetrics.entropy_uncertainty(
+        results["predictive_entropy"] = UncertaintyMetrics.entropy_uncertainty(
             pred_list, ref_list, logits
         )
 
@@ -272,7 +287,7 @@ class UncertaintyQuantificationMetric(Metric):
         aleatoric, epistemic = UncertaintyMetrics.aleatoric_epistemic_decomposition(
             pred_list, ref_list, ensemble_predictions
         )
-        results['aleatoric_uncertainty'] = aleatoric
-        results['epistemic_uncertainty'] = epistemic
+        results["aleatoric_uncertainty"] = aleatoric
+        results["epistemic_uncertainty"] = epistemic
 
         return results

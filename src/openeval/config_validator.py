@@ -15,12 +15,15 @@ from enum import Enum
 
 try:
     from pydantic import BaseModel, ValidationError, Field, validator
+
     HAS_PYDANTIC = True
 except ImportError:
     HAS_PYDANTIC = False
+
     # Fallback for when pydantic is not available
     class BaseModel:
         pass
+
     ValidationError = Exception
 
 from .enhanced_logging import get_logger
@@ -30,6 +33,7 @@ logger = get_logger(__name__)
 
 class ValidationSeverity(Enum):
     """Severity levels for validation issues."""
+
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
@@ -37,6 +41,7 @@ class ValidationSeverity(Enum):
 
 class ValidationCategory(Enum):
     """Categories of validation issues."""
+
     STRUCTURE = "structure"
     TYPE = "type"
     VALUE = "value"
@@ -48,6 +53,7 @@ class ValidationCategory(Enum):
 @dataclass
 class ValidationIssue:
     """Represents a single validation issue."""
+
     severity: ValidationSeverity
     category: ValidationCategory
     field_path: str
@@ -63,13 +69,14 @@ class ValidationIssue:
             "field_path": self.field_path,
             "message": self.message,
             "suggestion": self.suggestion,
-            "context": self.context
+            "context": self.context,
         }
 
 
 @dataclass
 class ValidationResult:
     """Result of configuration validation."""
+
     is_valid: bool
     issues: List[ValidationIssue] = field(default_factory=list)
     warnings: List[ValidationIssue] = field(default_factory=list)
@@ -135,18 +142,22 @@ class ConfigurationValidator:
             # Load from project structure
             tasks_dir = Path(__file__).parent / "tasks"
             if tasks_dir.exists():
-                self.known_tasks = {f.stem for f in tasks_dir.glob("*.py") if not f.stem.startswith("_")}
+                self.known_tasks = {
+                    f.stem for f in tasks_dir.glob("*.py") if not f.stem.startswith("_")
+                }
 
             metrics_dir = Path(__file__).parent / "metrics"
             if metrics_dir.exists():
-                self.known_metrics = {f.stem for f in metrics_dir.glob("*.py") if not f.stem.startswith("_")}
+                self.known_metrics = {
+                    f.stem for f in metrics_dir.glob("*.py") if not f.stem.startswith("_")
+                }
 
             # Load from examples
             examples_dir = Path(__file__).parent.parent / "examples"
             if examples_dir.exists():
                 for example_file in examples_dir.glob("*.json"):
                     try:
-                        with open(example_file, 'r', encoding='utf-8') as f:
+                        with open(example_file, "r", encoding="utf-8") as f:
                             data = json.load(f)
                             if "task" in data:
                                 self.known_tasks.add(data["task"])
@@ -158,10 +169,7 @@ class ConfigurationValidator:
         except Exception as e:
             logger.warning(f"Failed to load known components: {e}")
 
-    def validate_configuration(
-        self,
-        config: Union[Dict[str, Any], str, Path]
-    ) -> ValidationResult:
+    def validate_configuration(self, config: Union[Dict[str, Any], str, Path]) -> ValidationResult:
         """
         Validate an evaluation configuration.
 
@@ -179,13 +187,15 @@ class ConfigurationValidator:
                 config = json.loads(config)
             except json.JSONDecodeError as e:
                 result = ValidationResult(is_valid=False)
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.STRUCTURE,
-                    field_path="root",
-                    message=f"Invalid JSON format: {e}",
-                    suggestion="Ensure the configuration is valid JSON"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.STRUCTURE,
+                        field_path="root",
+                        message=f"Invalid JSON format: {e}",
+                        suggestion="Ensure the configuration is valid JSON",
+                    )
+                )
                 return result
 
         # At this point config should be a dict
@@ -227,7 +237,7 @@ class ConfigurationValidator:
             raise FileNotFoundError(f"Configuration file not found: {path}")
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in configuration file: {e}")
@@ -240,148 +250,181 @@ class ConfigurationValidator:
         # Check required fields
         for field in required_fields:
             if field not in config:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.STRUCTURE,
-                    field_path=field,
-                    message=f"Required field '{field}' is missing",
-                    suggestion=f"Add the '{field}' field to your configuration"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.STRUCTURE,
+                        field_path=field,
+                        message=f"Required field '{field}' is missing",
+                        suggestion=f"Add the '{field}' field to your configuration",
+                    )
+                )
 
         # Check recommended fields
         for field in recommended_fields:
             if field not in config:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.WARNING,
-                    category=ValidationCategory.STRUCTURE,
-                    field_path=field,
-                    message=f"Recommended field '{field}' is missing",
-                    suggestion=f"Consider adding the '{field}' field for better evaluation control"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.WARNING,
+                        category=ValidationCategory.STRUCTURE,
+                        field_path=field,
+                        message=f"Recommended field '{field}' is missing",
+                        suggestion=f"Consider adding the '{field}' field for better evaluation control",
+                    )
+                )
 
         # Check for unknown top-level fields
         known_fields = {
-            "task", "model", "dataset", "metrics", "evaluation",
-            "output", "logging", "version", "metadata"
+            "task",
+            "model",
+            "dataset",
+            "metrics",
+            "evaluation",
+            "output",
+            "logging",
+            "version",
+            "metadata",
         }
         for field in config.keys():
             if field not in known_fields:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.WARNING,
-                    category=ValidationCategory.STRUCTURE,
-                    field_path=field,
-                    message=f"Unknown configuration field '{field}'",
-                    suggestion="Check the documentation for supported configuration fields"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.WARNING,
+                        category=ValidationCategory.STRUCTURE,
+                        field_path=field,
+                        message=f"Unknown configuration field '{field}'",
+                        suggestion="Check the documentation for supported configuration fields",
+                    )
+                )
 
     def _validate_task_config(self, task_config: Any, result: ValidationResult) -> None:
         """Validate task configuration."""
         if not isinstance(task_config, str):
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.TYPE,
-                field_path="task",
-                message="Task must be a string",
-                suggestion="Provide the task name as a string (e.g., 'qa', 'code_eval')"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.TYPE,
+                    field_path="task",
+                    message="Task must be a string",
+                    suggestion="Provide the task name as a string (e.g., 'qa', 'code_eval')",
+                )
+            )
             return
 
         # Check if task is known
         if task_config not in self.known_tasks:
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.WARNING,
-                category=ValidationCategory.VALUE,
-                field_path="task",
-                message=f"Unknown task '{task_config}'",
-                suggestion=f"Known tasks include: {', '.join(sorted(self.known_tasks))}"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.WARNING,
+                    category=ValidationCategory.VALUE,
+                    field_path="task",
+                    message=f"Unknown task '{task_config}'",
+                    suggestion=f"Known tasks include: {', '.join(sorted(self.known_tasks))}",
+                )
+            )
 
     def _validate_model_config(self, model_config: Any, result: ValidationResult) -> None:
         """Validate model configuration."""
         if not isinstance(model_config, dict):
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.TYPE,
-                field_path="model",
-                message="Model configuration must be an object",
-                suggestion="Provide model configuration as an object with 'name' and other properties"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.TYPE,
+                    field_path="model",
+                    message="Model configuration must be an object",
+                    suggestion="Provide model configuration as an object with 'name' and other properties",
+                )
+            )
             return
 
         # Check required model fields
         if "name" not in model_config:
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.STRUCTURE,
-                field_path="model.name",
-                message="Model name is required",
-                suggestion="Add 'name' field to model configuration"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.STRUCTURE,
+                    field_path="model.name",
+                    message="Model name is required",
+                    suggestion="Add 'name' field to model configuration",
+                )
+            )
 
         # Validate model parameters
         if "parameters" in model_config:
             params = model_config["parameters"]
             if not isinstance(params, dict):
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.TYPE,
-                    field_path="model.parameters",
-                    message="Model parameters must be an object",
-                    suggestion="Provide model parameters as key-value pairs"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.TYPE,
+                        field_path="model.parameters",
+                        message="Model parameters must be an object",
+                        suggestion="Provide model parameters as key-value pairs",
+                    )
+                )
 
     def _validate_dataset_config(self, dataset_config: Any, result: ValidationResult) -> None:
         """Validate dataset configuration."""
         if not isinstance(dataset_config, dict):
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.TYPE,
-                field_path="dataset",
-                message="Dataset configuration must be an object",
-                suggestion="Provide dataset configuration as an object"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.TYPE,
+                    field_path="dataset",
+                    message="Dataset configuration must be an object",
+                    suggestion="Provide dataset configuration as an object",
+                )
+            )
             return
 
         # Check for path or name
         if "path" not in dataset_config and "name" not in dataset_config:
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.WARNING,
-                category=ValidationCategory.STRUCTURE,
-                field_path="dataset",
-                message="Dataset should have 'path' or 'name' field",
-                suggestion="Add 'path' field pointing to dataset file or 'name' for built-in datasets"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.WARNING,
+                    category=ValidationCategory.STRUCTURE,
+                    field_path="dataset",
+                    message="Dataset should have 'path' or 'name' field",
+                    suggestion="Add 'path' field pointing to dataset file or 'name' for built-in datasets",
+                )
+            )
 
         # Validate path if provided
         if "path" in dataset_config:
             path = dataset_config["path"]
             if not isinstance(path, str):
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.TYPE,
-                    field_path="dataset.path",
-                    message="Dataset path must be a string",
-                    suggestion="Provide dataset path as a string"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.TYPE,
+                        field_path="dataset.path",
+                        message="Dataset path must be a string",
+                        suggestion="Provide dataset path as a string",
+                    )
+                )
             elif not Path(path).exists():
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.WARNING,
-                    category=ValidationCategory.VALUE,
-                    field_path="dataset.path",
-                    message=f"Dataset path does not exist: {path}",
-                    suggestion="Ensure the dataset file exists at the specified path"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.WARNING,
+                        category=ValidationCategory.VALUE,
+                        field_path="dataset.path",
+                        message=f"Dataset path does not exist: {path}",
+                        suggestion="Ensure the dataset file exists at the specified path",
+                    )
+                )
 
     def _validate_metrics_config(self, metrics_config: Any, result: ValidationResult) -> None:
         """Validate metrics configuration."""
         if not isinstance(metrics_config, list):
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.TYPE,
-                field_path="metrics",
-                message="Metrics must be a list",
-                suggestion="Provide metrics as a list of metric names or configuration objects"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.TYPE,
+                    field_path="metrics",
+                    message="Metrics must be a list",
+                    suggestion="Provide metrics as a list of metric names or configuration objects",
+                )
+            )
             return
 
         for i, metric in enumerate(metrics_config):
@@ -390,75 +433,89 @@ class ConfigurationValidator:
             if isinstance(metric, str):
                 # Simple metric name
                 if metric not in self.known_metrics:
-                    result.add_issue(ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        category=ValidationCategory.VALUE,
-                        field_path=field_path,
-                        message=f"Unknown metric '{metric}'",
-                        suggestion=f"Known metrics include: {', '.join(sorted(self.known_metrics))}"
-                    ))
+                    result.add_issue(
+                        ValidationIssue(
+                            severity=ValidationSeverity.WARNING,
+                            category=ValidationCategory.VALUE,
+                            field_path=field_path,
+                            message=f"Unknown metric '{metric}'",
+                            suggestion=f"Known metrics include: {', '.join(sorted(self.known_metrics))}",
+                        )
+                    )
             elif isinstance(metric, dict):
                 # Metric configuration object
                 if "name" not in metric:
-                    result.add_issue(ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        category=ValidationCategory.STRUCTURE,
-                        field_path=f"{field_path}.name",
-                        message="Metric configuration must have 'name' field",
-                        suggestion="Add 'name' field to metric configuration"
-                    ))
+                    result.add_issue(
+                        ValidationIssue(
+                            severity=ValidationSeverity.ERROR,
+                            category=ValidationCategory.STRUCTURE,
+                            field_path=f"{field_path}.name",
+                            message="Metric configuration must have 'name' field",
+                            suggestion="Add 'name' field to metric configuration",
+                        )
+                    )
                 elif metric["name"] not in self.known_metrics:
-                    result.add_issue(ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        category=ValidationCategory.VALUE,
-                        field_path=f"{field_path}.name",
-                        message=f"Unknown metric '{metric['name']}'",
-                        suggestion=f"Known metrics include: {', '.join(sorted(self.known_metrics))}"
-                    ))
+                    result.add_issue(
+                        ValidationIssue(
+                            severity=ValidationSeverity.WARNING,
+                            category=ValidationCategory.VALUE,
+                            field_path=f"{field_path}.name",
+                            message=f"Unknown metric '{metric['name']}'",
+                            suggestion=f"Known metrics include: {', '.join(sorted(self.known_metrics))}",
+                        )
+                    )
             else:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.TYPE,
-                    field_path=field_path,
-                    message="Metric must be a string or object",
-                    suggestion="Provide metric as a string name or configuration object"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.TYPE,
+                        field_path=field_path,
+                        message="Metric must be a string or object",
+                        suggestion="Provide metric as a string name or configuration object",
+                    )
+                )
 
     def _validate_evaluation_config(self, eval_config: Any, result: ValidationResult) -> None:
         """Validate evaluation configuration."""
         if not isinstance(eval_config, dict):
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.TYPE,
-                field_path="evaluation",
-                message="Evaluation configuration must be an object",
-                suggestion="Provide evaluation configuration as an object"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.TYPE,
+                    field_path="evaluation",
+                    message="Evaluation configuration must be an object",
+                    suggestion="Provide evaluation configuration as an object",
+                )
+            )
             return
 
         # Validate batch size
         if "batch_size" in eval_config:
             batch_size = eval_config["batch_size"]
             if not isinstance(batch_size, int) or batch_size <= 0:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.VALUE,
-                    field_path="evaluation.batch_size",
-                    message="Batch size must be a positive integer",
-                    suggestion="Set batch_size to a positive integer (e.g., 8, 16, 32)"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.VALUE,
+                        field_path="evaluation.batch_size",
+                        message="Batch size must be a positive integer",
+                        suggestion="Set batch_size to a positive integer (e.g., 8, 16, 32)",
+                    )
+                )
 
         # Validate max_samples
         if "max_samples" in eval_config:
             max_samples = eval_config["max_samples"]
             if not isinstance(max_samples, int) or max_samples <= 0:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.ERROR,
-                    category=ValidationCategory.VALUE,
-                    field_path="evaluation.max_samples",
-                    message="Max samples must be a positive integer",
-                    suggestion="Set max_samples to a positive integer or remove for unlimited samples"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.ERROR,
+                        category=ValidationCategory.VALUE,
+                        field_path="evaluation.max_samples",
+                        message="Max samples must be a positive integer",
+                        suggestion="Set max_samples to a positive integer or remove for unlimited samples",
+                    )
+                )
 
     def _validate_cross_references(self, config: Dict[str, Any], result: ValidationResult) -> None:
         """Validate cross-references between configuration sections."""
@@ -469,13 +526,15 @@ class ConfigurationValidator:
         if task and metrics:
             incompatible_metrics = self._check_metric_task_compatibility(task, metrics)
             for metric in incompatible_metrics:
-                result.add_issue(ValidationIssue(
-                    severity=ValidationSeverity.WARNING,
-                    category=ValidationCategory.COMPATIBILITY,
-                    field_path="metrics",
-                    message=f"Metric '{metric}' may not be compatible with task '{task}'",
-                    suggestion="Review metric-task compatibility in the documentation"
-                ))
+                result.add_issue(
+                    ValidationIssue(
+                        severity=ValidationSeverity.WARNING,
+                        category=ValidationCategory.COMPATIBILITY,
+                        field_path="metrics",
+                        message=f"Metric '{metric}' may not be compatible with task '{task}'",
+                        suggestion="Review metric-task compatibility in the documentation",
+                    )
+                )
 
     def _check_metric_task_compatibility(self, task: str, metrics: List[Any]) -> List[str]:
         """Check compatibility between task and metrics."""
@@ -487,7 +546,7 @@ class ConfigurationValidator:
             "qa": ["exact_match", "f1", "bleu", "rouge"],
             "code_eval": ["pass_rate", "syntax_accuracy"],
             "classification": ["accuracy", "precision", "recall", "f1"],
-            "generation": ["bleu", "rouge", "perplexity"]
+            "generation": ["bleu", "rouge", "perplexity"],
         }
 
         compatible_metrics = task_metric_map.get(task, [])
@@ -506,19 +565,19 @@ class ConfigurationValidator:
             return self.validate_configuration(config)
         except Exception as e:
             result = ValidationResult(is_valid=False)
-            result.add_issue(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
-                category=ValidationCategory.STRUCTURE,
-                field_path="file",
-                message=f"Failed to load configuration file: {e}",
-                suggestion="Ensure the file exists and is valid JSON"
-            ))
+            result.add_issue(
+                ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    category=ValidationCategory.STRUCTURE,
+                    field_path="file",
+                    message=f"Failed to load configuration file: {e}",
+                    suggestion="Ensure the file exists and is valid JSON",
+                )
+            )
             return result
 
     def validate_and_fix(
-        self,
-        config: Union[Dict[str, Any], str, Path],
-        auto_fix: bool = False
+        self, config: Union[Dict[str, Any], str, Path], auto_fix: bool = False
     ) -> Tuple[ValidationResult, Optional[Dict[str, Any]]]:
         """
         Validate configuration and optionally apply automatic fixes.
@@ -541,7 +600,9 @@ class ConfigurationValidator:
 
         return result, fixed_config
 
-    def _apply_auto_fixes(self, config: Dict[str, Any], errors: List[ValidationIssue]) -> Dict[str, Any]:
+    def _apply_auto_fixes(
+        self, config: Dict[str, Any], errors: List[ValidationIssue]
+    ) -> Dict[str, Any]:
         """Apply automatic fixes for certain types of errors."""
         fixed_config = dict(config)
 
@@ -560,24 +621,15 @@ class ConfigurationValidator:
             "type": "object",
             "required": ["task"],
             "properties": {
-                "task": {
-                    "type": "string",
-                    "description": "The evaluation task to perform"
-                },
+                "task": {"type": "string", "description": "The evaluation task to perform"},
                 "model": {
                     "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "parameters": {"type": "object"}
-                    },
-                    "required": ["name"]
+                    "properties": {"name": {"type": "string"}, "parameters": {"type": "object"}},
+                    "required": ["name"],
                 },
                 "dataset": {
                     "type": "object",
-                    "properties": {
-                        "path": {"type": "string"},
-                        "name": {"type": "string"}
-                    }
+                    "properties": {"path": {"type": "string"}, "name": {"type": "string"}},
                 },
                 "metrics": {
                     "type": "array",
@@ -588,29 +640,28 @@ class ConfigurationValidator:
                                 "type": "object",
                                 "properties": {
                                     "name": {"type": "string"},
-                                    "parameters": {"type": "object"}
+                                    "parameters": {"type": "object"},
                                 },
-                                "required": ["name"]
-                            }
+                                "required": ["name"],
+                            },
                         ]
-                    }
+                    },
                 },
                 "evaluation": {
                     "type": "object",
                     "properties": {
                         "batch_size": {"type": "integer", "minimum": 1},
-                        "max_samples": {"type": "integer", "minimum": 1}
-                    }
-                }
-            }
+                        "max_samples": {"type": "integer", "minimum": 1},
+                    },
+                },
+            },
         }
 
         return schema
 
 
 def validate_config(
-    config: Union[Dict[str, Any], str, Path],
-    schema_dir: Optional[Path] = None
+    config: Union[Dict[str, Any], str, Path], schema_dir: Optional[Path] = None
 ) -> ValidationResult:
     """
     Convenience function to validate a configuration.
@@ -627,8 +678,7 @@ def validate_config(
 
 
 def validate_config_file(
-    config_path: Union[str, Path],
-    schema_dir: Optional[Path] = None
+    config_path: Union[str, Path], schema_dir: Optional[Path] = None
 ) -> ValidationResult:
     """
     Convenience function to validate a configuration file.

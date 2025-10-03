@@ -31,12 +31,10 @@ RESULTS_JSON_SCHEMA: Dict[str, Any] = {
                     {"type": "string"},
                     {"type": "integer"},
                     {"type": "boolean"},
-                    {"type": "null"}
+                    {"type": "null"},
                 ],
-                "properties": {
-                    "error": {"type": "string"}
-                }
-            }
+                "properties": {"error": {"type": "string"}},
+            },
         },
         "timing": {
             "type": "object",
@@ -46,8 +44,8 @@ RESULTS_JSON_SCHEMA: Dict[str, Any] = {
                 "total_seconds": {"type": ["number", "null"]},
                 "throughput_eps": {"type": ["number", "null"]},
                 "error_rate": {"type": ["number", "null"]},
-                "cache_hit_rate": {"type": ["number", "null"]}
-            }
+                "cache_hit_rate": {"type": ["number", "null"]},
+            },
         },
         "manifest": {
             "type": "object",
@@ -57,10 +55,7 @@ RESULTS_JSON_SCHEMA: Dict[str, Any] = {
                 "python": {
                     "type": "object",
                     "additionalProperties": True,
-                    "properties": {
-                        "version": {"type": "string"},
-                        "executable": {"type": "string"}
-                    }
+                    "properties": {"version": {"type": "string"}, "executable": {"type": "string"}},
                 },
                 "platform": {
                     "type": "object",
@@ -68,10 +63,10 @@ RESULTS_JSON_SCHEMA: Dict[str, Any] = {
                     "properties": {
                         "system": {"type": "string"},
                         "release": {"type": "string"},
-                        "machine": {"type": "string"}
-                    }
-                }
-            }
+                        "machine": {"type": "string"},
+                    },
+                },
+            },
         },
         "records": {
             "type": "array",
@@ -87,11 +82,11 @@ RESULTS_JSON_SCHEMA: Dict[str, Any] = {
                     "latency_ms": {"type": ["number", "null"]},
                     "cached": {"type": ["boolean", "null"]},
                     "error": {"type": ["string", "null"]},
-                    "trace": {"type": ["array", "null"]}
-                }
-            }
-        }
-    }
+                    "trace": {"type": ["array", "null"]},
+                },
+            },
+        },
+    },
 }
 
 

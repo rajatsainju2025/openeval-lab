@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 try:
     import dask
     import dask.delayed
+
     HAS_DASK = True
 except ImportError:
     HAS_DASK = False
@@ -24,12 +25,13 @@ from .enhanced_logging import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class ComputationNode:
     """A node in the computation graph."""
+
     func: Callable[..., Any]
     args: List[Any] = field(default_factory=list)
     kwargs: Dict[str, Any] = field(default_factory=dict)
@@ -68,13 +70,9 @@ class LazyEvaluator:
         Returns:
             Lazy version of the function
         """
+
         def lazy_func(*args, **kwargs) -> LazyValue[T]:
-            return LazyValue(
-                func=func,
-                args=args,
-                kwargs=kwargs,
-                evaluator=self
-            )
+            return LazyValue(func=func, args=args, kwargs=kwargs, evaluator=self)
 
         return lazy_func
 
@@ -115,7 +113,7 @@ class LazyEvaluator:
                 "cache_size": len(self._cache),
                 "max_cache_size": self.max_cache_size,
                 "cache_hit_rate": 0.0,  # Would need hit/miss counters
-                "memory_usage_estimate": len(self._cache) * 1000  # Rough estimate
+                "memory_usage_estimate": len(self._cache) * 1000,  # Rough estimate
             }
 
 
@@ -147,7 +145,9 @@ class LazyValue(Generic[T]):
         try:
             # Check cache first
             if self.evaluator and self.evaluator.cache_results:
-                cache_key = hash((id(self.func), tuple(self.args), tuple(sorted(self.kwargs.items()))))
+                cache_key = hash(
+                    (id(self.func), tuple(self.args), tuple(sorted(self.kwargs.items())))
+                )
                 with self.evaluator._lock:
                     if cache_key in self.evaluator._cache:
                         self._result = self.evaluator._cache[cache_key]
@@ -163,7 +163,9 @@ class LazyValue(Generic[T]):
 
             # Cache the result
             if self.evaluator and self.evaluator.cache_results:
-                cache_key = hash((id(self.func), tuple(self.args), tuple(sorted(self.kwargs.items()))))
+                cache_key = hash(
+                    (id(self.func), tuple(self.args), tuple(sorted(self.kwargs.items())))
+                )
                 with self.evaluator._lock:
                     if len(self.evaluator._cache) >= self.evaluator.max_cache_size:
                         # Remove oldest entry
@@ -203,7 +205,7 @@ class LazyDataset(Iterator[T]):
         data_source: Union[List[T], Iterator[T], Callable[[], Iterator[T]]],
         transform: Optional[Callable[[T], T]] = None,
         batch_size: int = 1,
-        prefetch: int = 0
+        prefetch: int = 0,
     ):
         self.data_source = data_source
         self.transform = transform
@@ -247,8 +249,8 @@ class LazyDataset(Iterator[T]):
         if self.batch_size == 1:
             return self._buffer.pop(0)
         else:
-            batch = self._buffer[:self.batch_size]
-            self._buffer = self._buffer[self.batch_size:]
+            batch = self._buffer[: self.batch_size]
+            self._buffer = self._buffer[self.batch_size :]
             return batch
 
     def peek(self) -> Optional[T]:
@@ -280,7 +282,7 @@ class DeferredComputationGraph:
         func: Callable[..., Any],
         args: Optional[List[Any]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-        dependencies: Optional[List[str]] = None
+        dependencies: Optional[List[str]] = None,
     ) -> None:
         """
         Add a computation node to the graph.
@@ -297,7 +299,7 @@ class DeferredComputationGraph:
                 func=func,
                 args=args or [],
                 kwargs=kwargs or {},
-                dependencies=[self.nodes[dep] for dep in (dependencies or []) if dep in self.nodes]
+                dependencies=[self.nodes[dep] for dep in (dependencies or []) if dep in self.nodes],
             )
             self.nodes[name] = node
 
@@ -371,7 +373,9 @@ class DeferredComputationGraph:
                 "total_nodes": len(self.nodes),
                 "computed_nodes": computed_nodes,
                 "total_computation_time": total_time,
-                "average_computation_time": total_time / computed_nodes if computed_nodes > 0 else 0
+                "average_computation_time": (
+                    total_time / computed_nodes if computed_nodes > 0 else 0
+                ),
             }
 
 
@@ -387,10 +391,7 @@ class LazyMetric:
         self._computation_count = 0
 
     def compute(
-        self,
-        predictions: LazyValue[List[Any]],
-        references: LazyValue[List[Any]],
-        **kwargs
+        self, predictions: LazyValue[List[Any]], references: LazyValue[List[Any]], **kwargs
     ) -> LazyValue[Any]:
         """
         Compute metric lazily.
@@ -403,13 +404,16 @@ class LazyMetric:
         Returns:
             Lazy metric result
         """
+
         def _lazy_compute():
             # Compute inputs if needed
             preds = predictions.compute() if isinstance(predictions, LazyValue) else predictions
             refs = references.compute() if isinstance(references, LazyValue) else references
 
             # Create cache key
-            cache_key = f"{hash(tuple(preds))}_{hash(tuple(refs))}_{hash(tuple(sorted(kwargs.items())))}"
+            cache_key = (
+                f"{hash(tuple(preds))}_{hash(tuple(refs))}_{hash(tuple(sorted(kwargs.items())))}"
+            )
 
             if self.cache_intermediates and cache_key in self._cache:
                 return self._cache[cache_key]
@@ -449,7 +453,7 @@ def lazy_property(func: Callable[[Any], T]) -> property:
 def create_lazy_dataset(
     data_factory: Callable[[], Iterator[T]],
     transform: Optional[Callable[[T], T]] = None,
-    batch_size: int = 1
+    batch_size: int = 1,
 ) -> LazyDataset[T]:
     """
     Create a lazy dataset from a data factory function.
@@ -466,9 +470,7 @@ def create_lazy_dataset(
 
 
 def benchmark_lazy_evaluation(
-    func: Callable[[], Any],
-    iterations: int = 100,
-    use_lazy: bool = True
+    func: Callable[[], Any], iterations: int = 100, use_lazy: bool = True
 ) -> Dict[str, Any]:
     """
     Benchmark lazy vs eager evaluation.
@@ -504,5 +506,5 @@ def benchmark_lazy_evaluation(
         "avg_time": sum(times) / len(times),
         "min_time": min(times),
         "max_time": max(times),
-        "cache_stats": evaluator.get_cache_stats() if evaluator else None
+        "cache_stats": evaluator.get_cache_stats() if evaluator else None,
     }
