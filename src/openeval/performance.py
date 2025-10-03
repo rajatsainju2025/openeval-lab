@@ -2,13 +2,15 @@
 
 import time
 import threading
+import asyncio
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 import statistics
 import json
 from pathlib import Path
 import functools
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     import psutil
@@ -17,6 +19,14 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
     psutil = None
+
+try:
+    import aiofiles
+
+    AIOFILES_AVAILABLE = True
+except ImportError:
+    AIOFILES_AVAILABLE = False
+    aiofiles = None
 
 
 @dataclass
@@ -259,6 +269,61 @@ class PerformanceMonitor:
             )
 
         return summary
+
+
+class AsyncPerformanceMonitor:
+    """Async version of PerformanceMonitor for asyncio applications."""
+
+    def __init__(self, thread_pool: Optional[ThreadPoolExecutor] = None):
+        self.monitor = PerformanceMonitor()
+        self.thread_pool = thread_pool or ThreadPoolExecutor(max_workers=4)
+        self._active_monitors: Dict[str, PerformanceMonitor] = {}
+        self._lock = threading.Lock()
+
+    @asynccontextmanager
+    async def monitor_async(self, operation_name: str, **metadata):
+        """Async context manager for performance monitoring."""
+        loop = asyncio.get_event_loop()
+        monitor = PerformanceMonitor()
+
+        # Start monitoring in thread pool
+        await loop.run_in_executor(
+            self.thread_pool, monitor.start_monitoring, operation_name, metadata
+        )
+
+        try:
+            yield monitor
+        finally:
+            # Stop monitoring in thread pool
+            metrics = await loop.run_in_executor(self.thread_pool, monitor.stop_monitoring)
+            with self._lock:
+                self._active_monitors[operation_name] = monitor
+
+    async def benchmark_async_function(
+        self, func: Callable, *args, iterations: int = 100, **kwargs
+    ) -> Dict[str, Any]:
+        """Benchmark an async function."""
+        latencies = []
+
+        # Warmup
+        for _ in range(min(10, iterations // 10)):
+            await func(*args, **kwargs)
+
+        # Benchmark
+        for _ in range(iterations):
+            start = time.perf_counter()
+            await func(*args, **kwargs)
+            latencies.append(time.perf_counter() - start)
+
+        return {
+            "avg_latency": statistics.mean(latencies),
+            "p50_latency": statistics.median(latencies),
+            "p95_latency": statistics.quantiles(latencies, n=20)[18],  # 95th percentile
+            "p99_latency": statistics.quantiles(latencies, n=100)[98],  # 99th percentile
+            "min_latency": min(latencies),
+            "max_latency": max(latencies),
+            "throughput": iterations / sum(latencies),
+        }
 
 
 @contextmanager
