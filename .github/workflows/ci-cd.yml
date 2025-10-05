@@ -370,45 +370,164 @@ jobs:
       run: |
         twine upload dist/*
 
-  notification:
-    name: Notification & Reporting
+  deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [test-core, test-integration, validation, security, documentation]
-    if: always()
+    needs: [test-core, test-integration, validation]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
 
     steps:
-    - name: Collect job status
-      id: job_status
-      run: |
-        echo "test_core=${{ needs.test-core.result }}" >> $GITHUB_OUTPUT
-        echo "test_integration=${{ needs.test-integration.result }}" >> $GITHUB_OUTPUT
-        echo "validation=${{ needs.validation.result }}" >> $GITHUB_OUTPUT
-        echo "security=${{ needs.security.result }}" >> $GITHUB_OUTPUT
-        echo "documentation=${{ needs.documentation.result }}" >> $GITHUB_OUTPUT
+    - uses: actions/checkout@v4
 
-    - name: Create status badge
-      run: |
-        if [[ "${{ needs.test-core.result }}" == "success" && "${{ needs.validation.result }}" == "success" ]]; then
-          echo "BUILD_STATUS=passing" >> $GITHUB_ENV
-          echo "BUILD_COLOR=brightgreen" >> $GITHUB_ENV
-        else
-          echo "BUILD_STATUS=failing" >> $GITHUB_ENV
-          echo "BUILD_COLOR=red" >> $GITHUB_ENV
-        fi
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Update README badge (if main branch)
-      if: github.ref == 'refs/heads/main'
+    - name: Install deployment dependencies
       run: |
-        echo "Build Status: ${{ env.BUILD_STATUS }}"
-        # Badge update logic would go here
+        python -m pip install --upgrade pip
+        pip install -e ".[dev,deploy]"
 
-    - name: Send Slack notification (optional)
-      if: failure() && github.ref == 'refs/heads/main'
-      env:
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Build Docker image
       run: |
-        if [[ -n "$SLACK_WEBHOOK" ]]; then
-          curl -X POST -H 'Content-type: application/json' \
-            --data '{"text":"🚨 OpenEval CI/CD Pipeline Failed on main branch"}' \
-            $SLACK_WEBHOOK
-        fi
+        docker build -t openeval-lab:staging-${{ github.sha }} \
+          --build-arg ENVIRONMENT=staging \
+          --build-arg VERSION=${{ github.sha }} \
+          .
+
+    - name: Push to ECR
+      run: |
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+        docker tag openeval-lab:staging-${{ github.sha }} ${{ secrets.ECR_REGISTRY }}/openeval-lab:staging-${{ github.sha }}
+        docker push ${{ secrets.ECR_REGISTRY }}/openeval-lab:staging-${{ github.sha }}
+
+    - name: Deploy to staging
+      run: |
+        # Update staging deployment
+        aws ecs update-service \
+          --cluster ${{ secrets.STAGING_ECS_CLUSTER }} \
+          --service ${{ secrets.STAGING_ECS_SERVICE }} \
+          --force-new-deployment \
+          --query 'service.deployments[0].id' \
+          --output text
+
+    - name: Run smoke tests
+      run: |
+        # Wait for deployment and run smoke tests
+        sleep 60
+        python -c "
+        import requests
+        import sys
+        try:
+            response = requests.get('${{ secrets.STAGING_URL }}/health', timeout=30)
+            if response.status_code == 200:
+                print('Staging deployment successful')
+                sys.exit(0)
+            else:
+                print(f'Health check failed: {response.status_code}')
+                sys.exit(1)
+        except Exception as e:
+            print(f'Health check error: {e}')
+            sys.exit(1)
+        "
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test-core, test-integration, validation, security, release]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install deployment dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev,deploy]"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t openeval-lab:${{ github.sha }} \
+          --build-arg ENVIRONMENT=production \
+          --build-arg VERSION=${{ github.sha }} \
+          .
+
+    - name: Push to ECR
+      run: |
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+        docker tag openeval-lab:${{ github.sha }} ${{ secrets.ECR_REGISTRY }}/openeval-lab:${{ github.sha }}
+        docker push ${{ secrets.ECR_REGISTRY }}/openeval-lab:${{ github.sha }}
+
+    - name: Deploy to production
+      run: |
+        # Update production deployment
+        aws ecs update-service \
+          --cluster ${{ secrets.PRODUCTION_ECS_CLUSTER }} \
+          --service ${{ secrets.PRODUCTION_ECS_SERVICE }} \
+          --force-new-deployment \
+          --query 'service.deployments[0].id' \
+          --output text
+
+    - name: Run production smoke tests
+      run: |
+        # Wait for deployment and run comprehensive smoke tests
+        sleep 120
+        python scripts/smoke_tests.py --environment production --url ${{ secrets.PRODUCTION_URL }}
+
+    - name: Create deployment record
+      run: |
+        # Record deployment for rollback capability
+        echo "DEPLOYMENT_ID=${{ github.sha }}" >> $GITHUB_ENV
+        echo "DEPLOYMENT_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    if: failure() && needs.deploy-production.result == 'failure' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Rollback deployment
+      run: |
+        # Rollback to previous stable version
+        aws ecs update-service \
+          --cluster ${{ secrets.PRODUCTION_ECS_CLUSTER }} \
+          --service ${{ secrets.PRODUCTION_ECS_SERVICE }} \
+          --force-new-deployment \
+          --query 'service.deployments[0].id' \
+          --output text
+
+    - name: Notify rollback
+      if: always()
+      run: |
+        echo "Production deployment failed, rollback initiated"

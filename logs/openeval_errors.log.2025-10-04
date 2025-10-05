@@ -1,0 +1,18 @@
+2025-10-04 14:43:49,189 - openeval.deployment - ERROR - logging.py:200 - Command failed: docker build -t openeval-lab:v1.0.0 .
+Exception: None
+2025-10-04 14:43:49,190 - openeval.deployment - ERROR - logging.py:200 - Error output: Build failed
+Exception: None
+2025-10-04 14:43:49,229 - openeval.deployment - ERROR - logging.py:200 - Helm chart path not configured
+Exception: None
+2025-10-04 14:43:49,423 - openeval.deployment - ERROR - logging.py:200 - No deployment configuration found
+Exception: None
+2025-10-04 14:43:49,423 - openeval.deployment - ERROR - logging.py:200 - Pipeline failed at stage: deploy
+Exception: None
+2025-10-04 14:43:49,552 - openeval.deployment - ERROR - logging.py:200 - No deployment configuration found
+Exception: None
+2025-10-04 14:43:49,569 - openeval.deployment - ERROR - logging.py:200 - Command failed: black --check --diff src/
+Exception: None
+2025-10-04 14:43:49,569 - openeval.deployment - ERROR - logging.py:200 - Error output: Lint failed
+Exception: None
+2025-10-04 14:43:49,569 - openeval.deployment - ERROR - logging.py:200 - Pipeline failed at stage: lint
+Exception: None

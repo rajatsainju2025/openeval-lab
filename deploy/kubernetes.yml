@@ -1,0 +1,177 @@
+# Kubernetes Deployment for OpenEval Lab
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openeval-lab
+  namespace: openeval
+  labels:
+    app: openeval-lab
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: openeval-lab
+  template:
+    metadata:
+      labels:
+        app: openeval-lab
+        version: v1
+    spec:
+      containers:
+      - name: openeval-lab
+        image: openeval-lab:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8001
+          name: metrics
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: METRICS_ENABLED
+          value: "true"
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: openeval-secrets
+              key: redis-url
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: openeval-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - openeval-lab
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openeval-lab-service
+  namespace: openeval
+  labels:
+    app: openeval-lab
+spec:
+  selector:
+    app: openeval-lab
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  - name: metrics
+    port: 8001
+    targetPort: 8001
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openeval-lab-ingress
+  namespace: openeval
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - openeval.example.com
+    secretName: openeval-tls
+  rules:
+  - host: openeval.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: openeval-lab-service
+            port:
+              number: 80
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openeval-config
+  namespace: openeval
+data:
+  config.yaml: |
+    environment: production
+    log_level: INFO
+    metrics_enabled: true
+    cache_enabled: true
+    database_pool_size: 10
+    redis_max_connections: 20
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openeval-secrets
+  namespace: openeval
+type: Opaque
+data:
+  # Base64 encoded values
+  redis-url: <base64-encoded-redis-url>
+  database-url: <base64-encoded-database-url>
+  api-key: <base64-encoded-api-key>
