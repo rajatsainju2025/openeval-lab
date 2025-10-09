@@ -37,7 +37,14 @@ def test_error_categorization():
 
 def test_error_summarization():
     """Test error summarization function."""
-    errors = ["timeout", "value", "timeout", None, "key", "timeout"]
+    errors = [
+        "[timeout]Request timed out",
+        "[value]Invalid value",
+        "[timeout]Another timeout",
+        None,
+        "[key]Missing key",
+        "[timeout]Third timeout",
+    ]
 
     summary = _summarize_errors(errors)
     assert isinstance(summary, dict)

@@ -1,0 +1,14 @@
+2025-10-06 13:46:43,824 - openeval.api_docs - ERROR - logging.py:200 - Command failed: docker build -t openeval-lab:v1.0.0 .
+Exception: None
+2025-10-06 13:46:43,825 - openeval.api_docs - ERROR - logging.py:200 - Error output: Build failed
+Exception: None
+2025-10-06 13:46:43,871 - openeval.api_docs - ERROR - logging.py:200 - Helm chart path not configured
+Exception: None
+2025-10-06 13:46:44,193 - openeval.api_docs - ERROR - logging.py:200 - Command failed: black --check --diff src/
+Exception: None
+2025-10-06 13:46:44,194 - openeval.api_docs - ERROR - logging.py:200 - Error output: Lint failed
+Exception: None
+2025-10-06 13:46:44,194 - openeval.api_docs - ERROR - logging.py:200 - Pipeline failed at stage: lint
+Exception: None
+2025-10-06 13:46:46,327 - openeval.api_docs - ERROR - logging.py:200 - Integration test failed: failing_test | {"exc_info": true}
+Exception: None

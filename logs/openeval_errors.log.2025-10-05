@@ -1,0 +1,40 @@
+2025-10-05 12:41:00,554 - openeval.deployment - ERROR - logging.py:200 - Command failed: docker build -t openeval-lab:v1.0.0 .
+Exception: None
+2025-10-05 12:41:00,554 - openeval.deployment - ERROR - logging.py:200 - Error output: Build failed
+Exception: None
+2025-10-05 12:41:00,603 - openeval.deployment - ERROR - logging.py:200 - Helm chart path not configured
+Exception: None
+2025-10-05 12:41:00,938 - openeval.deployment - ERROR - logging.py:200 - Command failed: black --check --diff src/
+Exception: None
+2025-10-05 12:41:00,938 - openeval.deployment - ERROR - logging.py:200 - Error output: Lint failed
+Exception: None
+2025-10-05 12:41:00,938 - openeval.deployment - ERROR - logging.py:200 - Pipeline failed at stage: lint
+Exception: None
+2025-10-05 12:46:44,457 - openeval.api_docs - ERROR - logging.py:200 - Command failed: docker build -t openeval-lab:v1.0.0 .
+Exception: None
+2025-10-05 12:46:44,457 - openeval.api_docs - ERROR - logging.py:200 - Error output: Build failed
+Exception: None
+2025-10-05 12:46:44,508 - openeval.api_docs - ERROR - logging.py:200 - Helm chart path not configured
+Exception: None
+2025-10-05 12:46:44,833 - openeval.api_docs - ERROR - logging.py:200 - Command failed: black --check --diff src/
+Exception: None
+2025-10-05 12:46:44,833 - openeval.api_docs - ERROR - logging.py:200 - Error output: Lint failed
+Exception: None
+2025-10-05 12:46:44,833 - openeval.api_docs - ERROR - logging.py:200 - Pipeline failed at stage: lint
+Exception: None
+2025-10-05 12:46:46,964 - openeval.api_docs - ERROR - logging.py:200 - Integration test failed: failing_test | {"exc_info": true}
+Exception: None
+2025-10-05 12:47:19,590 - openeval.api_docs - ERROR - logging.py:200 - Command failed: docker build -t openeval-lab:v1.0.0 .
+Exception: None
+2025-10-05 12:47:19,591 - openeval.api_docs - ERROR - logging.py:200 - Error output: Build failed
+Exception: None
+2025-10-05 12:47:19,635 - openeval.api_docs - ERROR - logging.py:200 - Helm chart path not configured
+Exception: None
+2025-10-05 12:47:19,956 - openeval.api_docs - ERROR - logging.py:200 - Command failed: black --check --diff src/
+Exception: None
+2025-10-05 12:47:19,956 - openeval.api_docs - ERROR - logging.py:200 - Error output: Lint failed
+Exception: None
+2025-10-05 12:47:19,956 - openeval.api_docs - ERROR - logging.py:200 - Pipeline failed at stage: lint
+Exception: None
+2025-10-05 12:47:22,088 - openeval.api_docs - ERROR - logging.py:200 - Integration test failed: failing_test | {"exc_info": true}
+Exception: None
