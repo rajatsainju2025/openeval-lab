@@ -14,16 +14,10 @@ from dataclasses import dataclass, field, fields, is_dataclass
 from enum import Enum
 import hashlib
 import time
-
-try:
-    from pydantic import BaseModel, Field, ValidationError, validator, root_validator
-    from pydantic.schema import schema
-
-    HAS_PYDANTIC = True
-except ImportError:
-    HAS_PYDANTIC = False
-
+import importlib.util
 from .enhanced_logging import get_logger
+
+HAS_PYDANTIC = importlib.util.find_spec("pydantic") is not None
 
 logger = get_logger(__name__)
 
@@ -155,22 +149,30 @@ class DatasetConfig:
 
 @dataclass
 class SecurityConfig:
-    """Security and secrets configuration."""
+    """Security configuration settings."""
 
-    # Encryption
-    encryption_key_path: Optional[str] = None
-    secret_store_type: str = "local"  # local, vault, aws-secrets, azure-kv
-    secret_store_config: Dict[str, Any] = field(default_factory=dict)
-
-    # API keys
-    api_key_rotation_days: int = 30
-    api_key_encryption: bool = True
-
-    # Audit
+    enable_encryption: bool = True
+    secret_store_type: str = "local"
+    audit_log_enabled: bool = True
     audit_log_path: Optional[str] = None
-    audit_logging: bool = False
-    security_scanning: bool = True
-    vulnerability_checks: bool = True
+    token_expiry_hours: int = 24
+    password_min_length: int = 8
+    enable_mfa: bool = False
+    rate_limiting_enabled: bool = True
+    max_login_attempts: int = 5
+    session_timeout_minutes: int = 60
+    encryption_key_rotation_days: int = 90
+    api_key_encryption: bool = True
+    audit_logging: bool = True
+
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        if self.password_min_length < 8:
+            raise ValueError("Password minimum length must be at least 8 characters")
+        if self.token_expiry_hours <= 0:
+            raise ValueError("Token expiry hours must be positive")
+        if self.session_timeout_minutes <= 0:
+            raise ValueError("Session timeout must be positive")
 
 
 @dataclass
