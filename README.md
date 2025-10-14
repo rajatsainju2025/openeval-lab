@@ -41,9 +41,20 @@ openeval run examples/interactive_spec.json --interactive-mode
 openeval run examples/agent_spec.json --agent-timeout 300
 ```
 
-## 📦 Installation Optionsthub.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
+## 📦 Installation Options
+
+| Package | Description | Command |
+|---------|-------------|---------|
+| **Basic** | Core evaluation framework | `pip install -e .` |
+| **Development** | Includes testing and linting tools | `pip install -e '.[dev]'` |
+| **OpenAI** | OpenAI API adapter integration | `pip install -e '.[openai]'` |
+| **Metrics** | Advanced metrics (BLEU, BERTScore, ROUGE) | `pip install -e '.[metrics]'` |
+| **HuggingFace** | HF Datasets integration | `pip install -e '.[hf]'` |
+
+[![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
 [![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
 [![codecov](https://codecov.io/gh/rajatsainju2025/openeval-lab/branch/main/graph/badge.svg)](https://codecov.io/gh/rajatsainju2025/openeval-lab)
+[![PyPI version](https://badge.fury.io/py/openeval-lab.svg)](https://pypi.org/project/openeval-lab/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
