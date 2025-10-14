@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📈 **F1 Score Metric** - New F1 score implementation for classification tasks
 - 🔌 **Local API Adapter** - Support for local model servers and API endpoints
 - 📊 **Web Dashboard Enhancements** - Real-time monitoring and API endpoints
+- ✅ **Registry Expansion** - Added support for additional metrics (calibration_error, loglik_accuracy, code_execution) and adapters (anthropic, huggingface, multimodal, vllm)
+- 🧪 **Comprehensive Testing** - New test cases for registry enhancements and error handling improvements
+- 🛡️ **Improved Error Messages** - Better error handling with helpful suggestions and available options
+
+### Changed
+- 📝 **README Modernization** - Fixed broken badge links and added PyPI version badge
+- 🔧 **Error Handling** - Enhanced error messages in registry and validation commands with actionable guidance
 - ✅ **Configuration Validation** - Enhanced config and spec validation functions
 - 🗄️ **Improved Caching** - Compression and metadata support in cache system
 - 📝 **Advanced Examples** - New advanced code examples for complex scenarios
