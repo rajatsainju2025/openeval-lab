@@ -68,33 +68,51 @@ DATASET_DESCRIPTIONS: Dict[str, str] = {
 ADAPTERS: Dict[str, str] = {
     "echo": "openeval.adapters.echo.EchoAdapter",
     "openai-chat": "openeval.adapters.openai.chat_completions.OpenAIChatAdapter",
+    "anthropic": "openeval.adapters.anthropic_adapter.AnthropicAdapter",
+    "huggingface": "openeval.adapters.huggingface_adapter.HuggingFaceAdapter",
+    "local-api": "openeval.adapters.local_api_adapter.LocalAPIAdapter",
+    "multimodal": "openeval.adapters.multimodal_adapter.MultimodalAdapter",
+    "vllm": "openeval.adapters.vllm_adapter.VLLMAdapter",
 }
 
 ADAPTER_DESCRIPTIONS: Dict[str, str] = {
     "echo": "Deterministic adapter that echos the prompt (for testing).",
     "openai-chat": "OpenAI Chat Completions API adapter.",
+    "anthropic": "Anthropic Claude API adapter.",
+    "huggingface": "Hugging Face Transformers model adapter.",
+    "local-api": "Local model server API adapter.",
+    "multimodal": "Multimodal model adapter for vision-language tasks.",
+    "vllm": "vLLM inference server adapter for high-throughput evaluation.",
 }
 
 METRICS: Dict[str, str] = {
     "exact_match": "openeval.metrics.accuracy.ExactMatch",
     "token_f1": "openeval.metrics.accuracy.TokenF1",
+    "f1_score": "openeval.metrics.f1_score.F1Score",
     "sacrebleu": "openeval.metrics.bleu.SacreBLEU",
     "bertscore": "openeval.metrics.bertscore.BERTScore",
     "rouge_l": "openeval.metrics.rouge.ROUGEL",
     "llm_judge": "openeval.metrics.judge.LLMJudge",
     "tool_execution": "openeval.metrics.tool_execution.ToolExecutionMetric",
     "char_edit": "openeval.metrics.edit_distance.CharEditDistance",
+    "calibration_error": "openeval.metrics.calibration.CalibrationError",
+    "loglik_accuracy": "openeval.metrics.loglik_accuracy.LogLikelihoodAccuracy",
+    "code_execution": "openeval.metrics.code_execution.CodeExecutionMetric",
 }
 
 METRIC_DESCRIPTIONS: Dict[str, str] = {
     "exact_match": "Exact string match between prediction and reference.",
     "token_f1": "Whitespace-tokenized F1 score.",
+    "f1_score": "Token-level F1 score with precision and recall balancing.",
     "sacrebleu": "SacreBLEU machine translation metric.",
     "bertscore": "Semantic similarity via BERTScore.",
     "rouge_l": "ROUGE-L summarization metric.",
     "llm_judge": "LLM-as-a-judge with configurable rubric.",
     "tool_execution": "Validate agent tool invocations and outputs.",
     "char_edit": "Character edit distance and similarity.",
+    "calibration_error": "Expected Calibration Error for confidence assessment.",
+    "loglik_accuracy": "Log-likelihood based accuracy metric.",
+    "code_execution": "Code execution and correctness validation.",
 }
 
 
