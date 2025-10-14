@@ -32,8 +32,15 @@ def validate_spec(
         console.print(f"Adapter: {spec.adapter}")
         console.print(f"Metrics: {len(spec.metrics) if spec.metrics else 0}")
 
+    except json.JSONDecodeError as e:
+        console.print(f"[red]✗ Invalid JSON format: {e}[/red]")
+        console.print(
+            "[yellow]Hint: Check for syntax errors like missing commas or quotes[/yellow]"
+        )
+        raise typer.Exit(1)
     except Exception as e:
         console.print(f"[red]✗ Specification invalid: {e}[/red]")
+        console.print("[yellow]Hint: Use 'openeval schema' to see the expected format[/yellow]")
         raise typer.Exit(1)
 
 

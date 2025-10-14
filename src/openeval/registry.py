@@ -140,7 +140,12 @@ def _get_map(kind: str) -> Dict[str, str]:
     try:
         return _REGISTRY_MAP[kind]
     except KeyError as exc:
-        raise KeyError(f"Unknown registry kind: {kind}") from exc
+        available_kinds = list(_REGISTRY_MAP.keys())
+        raise KeyError(
+            f"Unknown registry kind: '{kind}'. "
+            f"Available kinds: {available_kinds}. "
+            f"Use 'task', 'dataset', 'adapter', or 'metric'."
+        ) from exc
 
 
 def lookup(kind: str, name: str) -> Optional[str]:
@@ -184,7 +189,8 @@ def _get_desc_map(kind: str) -> Dict[str, str]:
         return ADAPTER_DESCRIPTIONS
     if kind == "metric":
         return METRIC_DESCRIPTIONS
-    raise KeyError(f"Unknown registry kind: {kind}")
+    available_kinds = ["task", "dataset", "adapter", "metric"]
+    raise KeyError(f"Unknown registry kind: '{kind}'. " f"Available kinds: {available_kinds}.")
 
 
 def info(kind: str, name: str) -> Optional[Dict[str, str]]:
@@ -271,7 +277,11 @@ def _load_component_cached(
     except (ImportError, AttributeError) as e:
         import logging
 
-        logging.error(f"Failed to load {kind} '{name}' from {path}: {e}")
+        logging.error(
+            f"Failed to load {kind} '{name}' from {path}: {e}. "
+            f"Check that the module exists and the class is properly defined. "
+            f"You may need to install optional dependencies."
+        )
         return None
     return {"name": name, "path": path, "description": _get_desc_map(kind).get(name, "")}
 
