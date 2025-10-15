@@ -2,6 +2,12 @@
 # Provides convenient shortcuts for common tasks
 
 .PHONY: help install test lint format eval benchmark clean docs
+quickstart: ## Install dev deps and run the QA demo
+	@echo "$(BLUE)Running quickstart...$(NC)"
+	$(PIP) install -e '.[dev]'
+	$(OPENEVAL) run examples/qa_spec.json --records --artifacts artifacts/quickstart
+	@echo "$(GREEN)✓ Quickstart complete$(NC)"
+	@echo "$(YELLOW)See artifacts/quickstart for results.$(NC)"
 .DEFAULT_GOAL := help
 
 # Variables

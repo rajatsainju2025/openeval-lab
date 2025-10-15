@@ -27,6 +27,12 @@ openeval web --reload
 openeval doctor --json
 ```
 
+Or use the Makefile shortcut:
+
+```bash
+make quickstart
+```
+
 ## � Table of Contents
 
 - 📋 Updated Usage Examples
