@@ -1,10 +1,31 @@
 # OpenEval Lab 🚀
 
-[![CI/CD](htt# Validate your environment
+**🎬 Want to see it in action?** Try the [interactive tutorial](docs/tutorial.md).
+
+[![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
+[![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
+[![codecov](https://codecov.io/gh/rajatsainju2025/openeval-lab/branch/main/graph/badge.svg)](https://codecov.io/gh/rajatsainju2025/openeval-lab)
+[![PyPI version](https://badge.fury.io/py/openeval-lab.svg)](https://pypi.org/project/openeval-lab/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+
+> **State-of-the-art evaluation framework for LLMs, multimodal models, and AI agents with enterprise-grade reproducibility and extensibility.**
+
+## 🚀 Quick Start
+
+```bash
+# Install with development dependencies
+pip install -e '.[dev]'
+
+# Run your first evaluation
+openeval run examples/qa_spec.json --records --artifacts runs
+
+# Launch the dashboard (optional)
+openeval web --reload
+
+# Validate your environment
 openeval doctor --json
 ```
-
-**🎬 Want to see it in action?** Check out our [5-minute demo video](docs/demo.md) or try the [interactive tutorial](docs/tutorial.md).
 
 ## 📋 Updated Usage Examples
 
