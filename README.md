@@ -45,29 +45,14 @@ make quickstart
 
 ### Advanced Evaluation with Custom Metrics
 
-```bash
-# Run evaluation with custom metrics and caching
-openeval run examples/qa_advanced_metrics_spec.json --cache rw --concurrency 8
 
 # Compare multiple models
-openeval compare-runs runs/model_a.json runs/model_b.json --output comparison_report.json
-
-# Analyze uncertainty in predictions
 openeval run examples/uncertainty_spec.json --statistical --bias-detection
-```
-
-### Multimodal Evaluation
-
+## 📋 Updated Usage Examples
 ```bash
 # Evaluate multimodal models
-openeval run examples/multimodal_spec.json --artifacts multimodal_runs
-
-# Use federated evaluation for distributed datasets
 openeval run examples/federated_spec.json --federated-nodes 4
 ```
-
-### Interactive and Agent-Based Evaluations
-
 ```bash
 # Run interactive evaluation
 openeval run examples/interactive_spec.json --interactive-mode
@@ -82,9 +67,6 @@ openeval run examples/agent_spec.json --agent-timeout 300
 |---------|-------------|---------|
 | **Basic** | Core evaluation framework | `pip install -e .` |
 | **Development** | Includes testing and linting tools | `pip install -e '.[dev]'` |
-| **OpenAI** | OpenAI API adapter integration | `pip install -e '.[openai]'` |
-| **Metrics** | Advanced metrics (BLEU, BERTScore, ROUGE) | `pip install -e '.[metrics]'` |
-| **HuggingFace** | HF Datasets integration | `pip install -e '.[hf]'` |
 
 [![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
 [![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
