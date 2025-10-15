@@ -27,7 +27,15 @@ openeval web --reload
 openeval doctor --json
 ```
 
-## 📋 Updated Usage Examples
+## � Table of Contents
+
+- 📋 Updated Usage Examples
+- 📦 Installation Options
+- 🎯 What Makes OpenEval Different
+- 🌐 Dashboard & Web
+- 📖 Docs & Tutorials
+
+## �📋 Updated Usage Examples
 
 ### Advanced Evaluation with Custom Metrics
 
