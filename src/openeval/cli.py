@@ -29,6 +29,9 @@ import typer
 from rich.console import Console
 
 from .commands import base_app, eval_app, run_app
+from .commands.base import registry_list, registry_info, tutorial, docs, version, doctor
+from .commands.evaluation import validate_spec, validate_results, compare, write_out
+from .commands.run import run
 from .results_schema import RESULTS_JSON_SCHEMA
 from .spec import EvalSpec
 
@@ -47,9 +50,6 @@ app.add_typer(run_app, name="run")
 # For backward compatibility, also add commands directly to main app
 # Import and add key commands from submodules
 
-# Base commands
-from .commands.base import registry_list, registry_info, tutorial, docs, version, doctor
-
 app.command()(registry_list)
 app.command()(registry_info)
 app.command()(tutorial)
@@ -57,16 +57,10 @@ app.command()(docs)
 app.command()(version)
 app.command()(doctor)
 
-# Evaluation commands
-from .commands.evaluation import validate_spec, validate_results, compare, write_out
-
 app.command("validate")(validate_spec)
 app.command("validate-results")(validate_results)
 app.command("compare")(compare)
 app.command("write_out")(write_out)
-
-# Run command
-from .commands.run import run
 
 app.command("run")(run)
 
@@ -96,9 +90,14 @@ def schema(
     """Print the JSON schema for experiment specs."""
     sch = EvalSpec.model_json_schema()
     if out:
-        out.write(sch)
+        # Ensure valid JSON is written to file
+        json.dump(sch, out, indent=2)
     else:
-        console.print(sch)
+        # Pretty-print JSON to console
+        try:
+            console.print_json(data=sch)
+        except Exception:
+            console.print(sch)
 
 
 @app.command("results-schema")
@@ -109,9 +108,12 @@ def results_schema(
 ):
     """Print the JSON schema for OpenEval results payloads."""
     if out:
-        out.write(RESULTS_JSON_SCHEMA)
+        json.dump(RESULTS_JSON_SCHEMA, out, indent=2)
     else:
-        console.print(RESULTS_JSON_SCHEMA)
+        try:
+            console.print_json(data=RESULTS_JSON_SCHEMA)
+        except Exception:
+            console.print(RESULTS_JSON_SCHEMA)
 
 
 @app.command()
