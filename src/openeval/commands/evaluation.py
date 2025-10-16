@@ -14,6 +14,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from ..results_schema import validate_results_payload
 from ..spec import EvalSpec
 
 console = Console()
@@ -50,8 +51,17 @@ def validate_results(
     """Validate a results file against the schema."""
     try:
         data = json.load(results_path)
-        # TODO: Add proper schema validation
-        console.print("[green]✓ Results file format appears valid[/green]")
+
+        # Use proper schema validation
+        is_valid, errors = validate_results_payload(data)
+
+        if is_valid:
+            console.print("[green]✓ Results file is valid[/green]")
+        else:
+            console.print("[red]✗ Results file validation failed:[/red]")
+            for error in errors:
+                console.print(f"  • {error}")
+            raise typer.Exit(1)
 
         if "metrics" in data:
             console.print(f"Metrics found: {list(data['metrics'].keys())}")

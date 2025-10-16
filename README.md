@@ -18,7 +18,7 @@
 pip install -e '.[dev]'
 
 # Run your first evaluation
-openeval run examples/qa_spec.json --records --artifacts runs
+openeval run spec examples/qa_spec.json --verbose
 
 # Launch the dashboard (optional)
 openeval web --reload

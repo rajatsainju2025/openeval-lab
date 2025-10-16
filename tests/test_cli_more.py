@@ -58,3 +58,23 @@ def test_write_out_preview():
     res = runner.invoke(app, ["write_out", str(spec), "--limit", "2", "--preview", "1"])
     assert res.exit_code == 0
     assert "preview_count" in res.stdout
+
+
+def test_run_spec_basic(tmp_path):
+    """Test basic run spec command with echo adapter."""
+    spec = Path(__file__).resolve().parents[1] / "examples" / "qa_spec.json"
+    output = tmp_path / "results.json"
+
+    res = runner.invoke(app, ["run", "spec", str(spec), "--output", str(output)])
+    assert res.exit_code == 0
+    assert output.exists()
+
+    # Check results structure
+    data = json.loads(output.read_text())
+    assert "task" in data
+    assert "dataset" in data
+    assert "adapter" in data
+    assert "metrics" in data
+    assert "size" in data
+    assert "runtime" in data
+    assert data["status"] == "completed"

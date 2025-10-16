@@ -45,7 +45,7 @@
         </div>
         {% endif %}
       {% else %}
-        <p class="muted">{{ content or 'Run `openeval run examples/qa_spec.json --records` to populate results.json' }}</p>
+        <p class="muted">{{ content or 'Run `openeval run spec examples/qa_spec.json --verbose` to populate results.json' }}</p>
       {% endif %}
 
       {% if data and data.records %}

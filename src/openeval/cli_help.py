@@ -15,7 +15,7 @@ def show_command_examples():
         {
             "title": "Basic Evaluation",
             "description": "Run a simple evaluation with echo adapter",
-            "command": "openeval run examples/qa_spec.json --records --artifacts runs",
+            "command": "openeval run spec examples/qa_spec.json --verbose",
             "notes": "Uses offline echo adapter for testing",
         },
         {
