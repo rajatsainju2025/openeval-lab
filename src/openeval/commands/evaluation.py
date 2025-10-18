@@ -33,6 +33,21 @@ def validate_spec(
         console.print(f"Adapter: {spec.adapter}")
         console.print(f"Metrics: {len(spec.metrics) if spec.metrics else 0}")
 
+        # Try to resolve the components to ensure they exist
+        try:
+            from ..spec import import_class
+
+            import_class(spec.task)
+            if isinstance(spec.dataset, str):
+                import_class(spec.dataset)
+            import_class(spec.adapter)
+            for metric in spec.metrics:
+                import_class(metric.name)
+            console.print("[green]✓ All referenced components found[/green]")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Warning: Could not resolve components: {e}[/yellow]")
+            console.print("[yellow]Hint: Check that all class paths are correct[/yellow]")
+
     except json.JSONDecodeError as e:
         console.print(f"[red]✗ Invalid JSON format: {e}[/red]")
         console.print(
