@@ -67,6 +67,7 @@ type-check: ## Run type checking
 # Evaluation shortcuts
 eval: ## Run quick evaluation demo
 	@echo "$(BLUE)Running quick evaluation demo...$(NC)"
+	$(OPENEVAL) validate examples/qa_spec.json
 	$(OPENEVAL) run examples/qa_spec.json --records --artifacts artifacts/demo
 	@echo "$(GREEN)✓ Demo evaluation complete$(NC)"
 	@echo "$(YELLOW)Results saved to: artifacts/demo/$(NC)"
