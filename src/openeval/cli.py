@@ -12,7 +12,7 @@ Features:
 - Comprehensive error handling and user feedback
 
 Usage:
-    openeval run <spec> --concurrency 4
+    openeval run spec <spec> --concurrency 4
     openeval validate <spec>
     openeval web --reload
 
@@ -31,7 +31,6 @@ from rich.console import Console
 from .commands import base_app, eval_app, run_app
 from .commands.base import registry_list, registry_info, tutorial, docs, version, doctor
 from .commands.evaluation import validate_spec, validate_results, compare, write_out
-from .commands.run import run
 from .results_schema import RESULTS_JSON_SCHEMA
 from .spec import EvalSpec
 
@@ -61,8 +60,6 @@ app.command("validate")(validate_spec)
 app.command("validate-results")(validate_results)
 app.command("compare")(compare)
 app.command("write_out")(write_out)
-
-app.command("run")(run)
 
 # Legacy commands that were in the original CLI
 # These will be moved to appropriate modules over time

@@ -43,19 +43,12 @@ def test_cli(tmp_path):
         app,
         [
             "run",
+            "spec",
             str(spec),
-            "--concurrency",
+            "--max-concurrent",
             "2",
-            "--max-retries",
-            "1",
             "--request-timeout",
             "1",
-            "--cache",
-            "rw",
-            "--cache-dir",
-            str(tmp_path / ".cache"),
-            "--cache-ttl",
-            "60",
         ],
     )
     assert res.exit_code == 0

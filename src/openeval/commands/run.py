@@ -30,6 +30,9 @@ def run(
     debug: bool = typer.Option(False, "--debug", help="Debug mode"),
     cache: Optional[str] = typer.Option(None, "--cache", help="Cache directory for predictions"),
     max_concurrent: int = typer.Option(10, "--max-concurrent", help="Maximum concurrent requests"),
+    request_timeout: Optional[float] = typer.Option(
+        30.0, "--request-timeout", help="Request timeout in seconds"
+    ),
     no_cache: bool = typer.Option(False, "--no-cache", help="Disable caching"),
 ):
     """Run an evaluation from a specification file."""
@@ -53,6 +56,7 @@ def run(
         # Set up evaluation engine
         config = AsyncTaskConfig(
             max_concurrent_requests=max_concurrent,
+            request_timeout=request_timeout,
             enable_progress_tracking=True,
         )
         engine = AsyncEvaluationEngine(config)
