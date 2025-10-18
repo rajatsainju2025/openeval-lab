@@ -115,11 +115,6 @@ def load_spec(
     except ValidationError as e:
         # Provide helpful hints for common fields
         hints = []
-        missing = (
-            {err["loc"][0] for err in e.errors() if err.get("type") == "missing"}
-            if hasattr(e, "errors")
-            else set()
-        )
         if "task" in str(e):
             hints.append(f"Known tasks: {', '.join(sorted(list(registry.TASKS.keys())))}")
         if "dataset" in str(e):
@@ -134,11 +129,22 @@ def load_spec(
         raise SystemExit(msg)
 
     # Route through import_class so tests can patch it and short names work
-    task_cls = import_class(spec.task)
+    try:
+        task_cls = import_class(spec.task)
+    except Exception as e:
+        raise SystemExit(
+            f"Failed to import task '{spec.task}': {e}\nHint: Check that the task class path is correct"
+        )
+
     # Dataset can be: short/dotted string or inline object
     if isinstance(spec.dataset, str):
-        dataset_cls = import_class(spec.dataset)
-        dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
+        try:
+            dataset_cls = import_class(spec.dataset)
+            dataset: Dataset = dataset_cls(**spec.dataset_kwargs)
+        except Exception as e:
+            raise SystemExit(
+                f"Failed to import dataset '{spec.dataset}': {e}\nHint: Check that the dataset class path is correct"
+            )
     elif isinstance(spec.dataset, dict) and (spec.dataset.get("type") == "inline"):
         dataset = InlineDataset(
             name=spec.dataset.get("name", "inline"), examples=spec.dataset.get("examples", [])
@@ -148,15 +154,26 @@ def load_spec(
         raise SystemExit(
             "Invalid dataset value in spec: expected short/dotted string or inline object."
         )
-    adapter_cls = import_class(spec.adapter)
+
+    try:
+        adapter_cls = import_class(spec.adapter)
+        adapter: Adapter = adapter_cls(**spec.adapter_kwargs)
+    except Exception as e:
+        raise SystemExit(
+            f"Failed to import adapter '{spec.adapter}': {e}\nHint: Check that the adapter class path is correct"
+        )
 
     task: Task = task_cls(**spec.task_kwargs)
-    adapter: Adapter = adapter_cls(**spec.adapter_kwargs)
 
     metrics: list[Metric] = []
     for m in spec.metrics:
-        m_cls = import_class(m.name)
-        metric_instance = m_cls(**m.kwargs)
+        try:
+            m_cls = import_class(m.name)
+            metric_instance = m_cls(**m.kwargs)
+        except Exception as e:
+            raise SystemExit(
+                f"Failed to import metric '{m.name}': {e}\nHint: Check that the metric class path is correct"
+            )
 
         # If statistical analysis is enabled, wrap basic metrics with statistical versions
         if statistical_analysis:
