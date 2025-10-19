@@ -1,23 +1,28 @@
 # OpenEval Lab 🚀
 
-**🎬 Want to see it in a## ## 📋 Table of Contents
+**🎬 Want to see it in action?**## 📋 Usage Examples
+
+### Basic Evaluation
+```bash
+# Evaluate multimodal models
+openeval run spec examples/federated_spec.json --federated-nodes 4
+```
+
+```bash
+# Run interactive evaluation
+openeval run spec examples/interactive_spec.json --interactive-mode
+
+# Evaluate AI agents
+openeval run spec examples/agent_spec.json --agent-timeout 300
+```e tutorial](docs/tutorial.md).
+
+## 📋 Table of Contents
 
 - 📋 Usage Examples
 - 📦 Installation Options
 - 🎯 What Makes OpenEval Different
 - 🌐 Dashboard & Web
-- 📖 Docs & Tutorialse Examples
-
-### Basic Evaluation
-```bash
-# Evaluate multimodal models
-openeval run examples/federated_spec.json --federated-nodes 4
-```
-```bash
-# Run interactive evaluation
-openeval run examples/interactive_spec.json --interactive-mode
-
-# Evaluate AI agents[interactive tutorial](docs/tutorial.md).
+- 📖 Docs & Tutorials
 
 [![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
 [![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
