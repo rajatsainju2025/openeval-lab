@@ -1,28 +1,6 @@
 # OpenEval Lab 🚀
 
-**🎬 Want to see it in action?**## 📋 Usage Examples
-
-### Basic Evaluation
-```bash
-# Evaluate multimodal models
-openeval run spec examples/federated_spec.json --federated-nodes 4
-```
-
-```bash
-# Run interactive evaluation
-openeval run spec examples/interactive_spec.json --interactive-mode
-
-# Evaluate AI agents
-openeval run spec examples/agent_spec.json --agent-timeout 300
-```e tutorial](docs/tutorial.md).
-
-## 📋 Table of Contents
-
-- 📋 Usage Examples
-- 📦 Installation Options
-- 🎯 What Makes OpenEval Different
-- 🌐 Dashboard & Web
-- 📖 Docs & Tutorials
+**🎬 Want to see it in action?** Try the [interactive tutorial](docs/tutorial.md).
 
 [![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
 [![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
@@ -55,32 +33,28 @@ Or use the Makefile shortcut:
 make quickstart
 ```
 
-## � Table of Contents
+## 📋 Table of Contents
 
-- 📋 Updated Usage Examples
+- 📋 Usage Examples
 - 📦 Installation Options
 - 🎯 What Makes OpenEval Different
 - 🌐 Dashboard & Web
 - 📖 Docs & Tutorials
 
-## �📋 Updated Usage Examples
+## 📋 Usage Examples
 
-### Advanced Evaluation with Custom Metrics
-
-
-# Compare multiple models
-openeval run examples/uncertainty_spec.json --statistical --bias-detection
-## 📋 Updated Usage Examples
+### Basic Evaluation
 ```bash
 # Evaluate multimodal models
-openeval run examples/federated_spec.json --federated-nodes 4
+openeval run spec examples/federated_spec.json --federated-nodes 4
 ```
+
 ```bash
 # Run interactive evaluation
-openeval run examples/interactive_spec.json --interactive-mode
+openeval run spec examples/interactive_spec.json --interactive-mode
 
 # Evaluate AI agents
-openeval run examples/agent_spec.json --agent-timeout 300
+openeval run spec examples/agent_spec.json --agent-timeout 300
 ```
 
 ## 📦 Installation Options
@@ -89,19 +63,13 @@ openeval run examples/agent_spec.json --agent-timeout 300
 |---------|-------------|---------|
 | **Basic** | Core evaluation framework | `pip install -e .` |
 | **Development** | Includes testing and linting tools | `pip install -e '.[dev]'` |
-
-[![CI/CD](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/ci-cd.yml)
-[![PR Checks](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/rajatsainju2025/openeval-lab/actions/workflows/pr-checks.yml)
-[![codecov](https://codecov.io/gh/rajatsainju2025/openeval-lab/branch/main/graph/badge.svg)](https://codecov.io/gh/rajatsainju2025/openeval-lab)
-[![PyPI version](https://badge.fury.io/py/openeval-lab.svg)](https://pypi.org/project/openeval-lab/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-
-> **State-of-the-art evaluation framework for LLMs, multimodal models, and AI agents with enterprise-grade reproducibility and extensibility.**
+| **OpenAI** | OpenAI API adapter integration | `pip install -e '.[openai]'` |
+| **Metrics** | Advanced metrics (BLEU, BERTScore, ROUGE) | `pip install -e '.[metrics]'` |
+| **HuggingFace** | HF Datasets integration | `pip install -e '.[hf]'` |
 
 ## 🎯 What Makes OpenEval Different
 
-- **🔧 Plugin Architecture**: Extensible tasks, datasets, adapters, and metrics
+- **�� Plugin Architecture**: Extensible tasks, datasets, adapters, and metrics
 - **📋 Declarative Specs**: JSON/YAML configs with version pinning and validation
 - **🔄 Reproducibility**: Deterministic seeding, artifact logging, and manifest tracking
 - **⚡ Performance**: Concurrent execution, caching, and optimization
@@ -127,15 +95,6 @@ openeval doctor --json
 
 **🎬 Want to see it in action?** Check out our [5-minute demo video](docs/demo.md) or try the [interactive tutorial](docs/tutorial.md).
 
-## 📦 Installation Options
-
-| Package | Description | Command |
-|---------|-------------|---------|
-| **Basic** | Core evaluation framework | `pip install -e .` |
-| **Development** | Includes testing and linting tools | `pip install -e '.[dev]'` |
-| **OpenAI** | OpenAI API adapter integration | `pip install -e '.[openai]'` |
-| **Metrics** | Advanced metrics (BLEU, BERTScore, ROUGE) | `pip install -e '.[metrics]'` |
-| **HuggingFace** | HF Datasets integration | `pip install -e '.[hf]'` |
 ## 🆕 Latest Features
 
 ### 🔒 Security & Quality Assurance
@@ -174,10 +133,10 @@ make format           # Auto-format code
 make validate         # Validate examples and configurations
 
 # 🏃 Evaluation Workflows
-openeval run <spec>               # Execute evaluation
+openeval run spec <spec>               # Execute evaluation
 openeval validate <spec>          # Validate specification
 openeval schema                   # Print JSON schema
-openeval write_out <spec>         # Debug prompt rendering
+openeval write_out spec <spec>         # Debug prompt rendering
 
 # 📊 Analysis & Monitoring
 openeval runs collect --dir runs    # Aggregate run results
@@ -435,7 +394,7 @@ Every evaluation result includes:
 | **🔗 Contracts** | Plugin APIs and interfaces | [docs/contracts.md](docs/contracts.md) |
 | **🚀 EvalOps** | Deployment and operations | [docs/evalops.md](docs/evalops.md) |
 | **🎯 SOTA Methods** | Best practices and references | [docs/sota.md](docs/sota.md) |
-| **🗺️ Roadmap** | Future plans and milestones | [docs/roadmap.md](docs/roadmap.md) |
+| **��️ Roadmap** | Future plans and milestones | [docs/roadmap.md](docs/roadmap.md) |
 | **📝 Research** | Academic paper and findings | [ICML_PAPER.md](ICML_PAPER.md) |
 
 ## ⚠️ OpenAI Usage & Costs
@@ -546,7 +505,7 @@ print(score)  # {"exact_match": 0.5}
 
 | Command | Description | Options |
 |---------|-------------|---------|
-| `openeval run <spec>` | Execute evaluation | `--concurrency`, `--cache`, `--records` |
+| `openeval run spec <spec>` | Execute evaluation | `--concurrency`, `--cache`, `--records` |
 | `openeval validate <spec>` | Validate spec file | `--json` |
 | `openeval web` | Launch dashboard | `--reload`, `--port` |
 | `openeval doctor` | Environment check | `--json` |
@@ -570,13 +529,10 @@ adapter:
   max_tokens: 100
 metrics:
   - name: exact_match
-  - name: bleu
-    kwargs:
-      max_n: 4
-concurrency: 4
-cache: rw
-statistical: true
-seed: 42
+  - name: f1
+  - name: bootstrap_ci
+    confidence: 0.95
+    n_samples: 1000
 ```
 
 **Built with ❤️ for the AI evaluation community**
