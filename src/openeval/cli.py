@@ -34,6 +34,7 @@ from .commands.evaluation import validate_spec, validate_results, compare, write
 from .results_schema import RESULTS_JSON_SCHEMA
 from .spec import EvalSpec
 from . import cli_help
+from . import version_utils
 
 # Create the main app
 app = typer.Typer(
@@ -108,6 +109,24 @@ def perf_tips():
 def advanced():
     """Show advanced features and use cases."""
     cli_help.show_advanced_features()
+
+
+# Version management commands
+@app.command("version-info")
+def version_info():
+    """Show detailed version and git information."""
+    version_utils.show_version_info()
+
+
+@app.command()
+def release(
+    part: str = typer.Option("patch", help="Version part to bump: major, minor, or patch"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would happen without making changes"
+    ),
+):
+    """Prepare a new release with version bump and changelog generation."""
+    version_utils.create_release(part, dry_run)
 
 
 # Legacy commands that were in the original CLI
