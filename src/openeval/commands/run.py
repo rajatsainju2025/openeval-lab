@@ -9,16 +9,17 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ..spec import load_spec
-from ..async_evaluation_engine import AsyncEvaluationEngine, AsyncTaskConfig
-from ..cache import PredictionCache
 from . import run_app
+
+# Lazy imports for heavy modules - only imported when run command is actually executed
+if TYPE_CHECKING:
+    pass
 
 console = Console()
 
@@ -37,6 +38,11 @@ def run(
 ):
     """Run an evaluation from a specification file."""
     try:
+        # Import heavy modules only when needed
+        from ..spec import load_spec
+        from ..async_evaluation_engine import AsyncEvaluationEngine, AsyncTaskConfig
+        from ..cache import PredictionCache
+
         # Load components from spec
         task, dataset, adapter, metrics, default_output = load_spec(spec_path)
 

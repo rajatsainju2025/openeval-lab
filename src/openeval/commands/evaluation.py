@@ -8,14 +8,16 @@ and managing evaluation outputs.
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from ..results_schema import validate_results_payload
-from ..spec import EvalSpec
+# Lazy imports
+if TYPE_CHECKING:
+    pass
+
 
 console = Console()
 
@@ -25,6 +27,8 @@ def validate_spec(
 ):
     """Validate an evaluation specification file."""
     try:
+        from ..spec import EvalSpec, import_class
+
         data = json.load(spec_path)
         spec = EvalSpec.model_validate(data)
         console.print("[green]✓ Specification is valid[/green]")
@@ -35,8 +39,6 @@ def validate_spec(
 
         # Try to resolve the components to ensure they exist
         try:
-            from ..spec import import_class
-
             import_class(spec.task)
             if isinstance(spec.dataset, str):
                 import_class(spec.dataset)
@@ -65,6 +67,8 @@ def validate_results(
 ):
     """Validate a results file against the schema."""
     try:
+        from ..results_schema import validate_results_payload
+
         data = json.load(results_path)
 
         # Use proper schema validation
