@@ -133,10 +133,10 @@ make format           # Auto-format code
 make validate         # Validate examples and configurations
 
 # 🏃 Evaluation Workflows
-openeval run spec <spec>               # Execute evaluation
-openeval validate <spec>          # Validate specification
-openeval schema                   # Print JSON schema
-openeval write_out spec <spec>         # Debug prompt rendering
+openeval run spec <spec>            # Execute evaluation
+openeval validate <spec>            # Validate specification
+openeval schema                     # Print JSON schema
+openeval write_out spec <spec>      # Debug prompt rendering
 
 # 📊 Analysis & Monitoring
 openeval runs collect --dir runs    # Aggregate run results
@@ -145,7 +145,7 @@ openeval analyze-bias <spec>        # Bias detection
 openeval doctor                     # Environment diagnostics
 
 # 🌐 Dashboard & Visualization
-openeval web --reload              # Launch dashboard
+openeval web --reload               # Launch dashboard
 ```
 
 ## � New Tools & Scripts
@@ -229,10 +229,10 @@ class CustomAccuracy(Metric):
 <details>
 <summary><b>🚀 Performance Optimization</b></summary>
 
-- **Concurrent Execution**: `--concurrency N` for parallel requests
-- **Smart Caching**: `--cache rw` with TTL and hit rate tracking
+- **Concurrent Execution**: `--max-concurrent N` for parallel requests
+- **Smart Caching**: `--cache <dir>` with result caching
 - **vLLM Integration**: High-throughput GPU inference
-- **Request Optimization**: Retry logic and timeout handling
+- **Request Optimization**: Retry logic and timeout handling with `--request-timeout`
 
 </details>
 
@@ -250,12 +250,11 @@ class CustomAccuracy(Metric):
 
 ### Basic Question Answering
 ```bash
-# Run QA evaluation with caching and statistical analysis
-openeval run examples/qa_spec.json \
-  --cache rw \
-  --statistical \
-  --records \
-  --artifacts runs
+# Run QA evaluation with caching and results
+openeval run spec examples/qa_spec.json \
+  --cache .cache \
+  --output results.json \
+  --verbose
 ```
 
 ### Advanced Metrics Comparison
@@ -264,10 +263,9 @@ openeval run examples/qa_spec.json \
 pip install -e '.[metrics]'
 
 # Run with multiple metrics
-openeval run examples/qa_metrics_spec.json \
-  --run-name "advanced-metrics" \
-  --records \
-  --artifacts runs
+openeval run spec examples/qa_metrics_spec.json \
+  --output results.json \
+  --verbose
 
 # Aggregate results for leaderboard
 openeval runs collect --dir runs
@@ -283,9 +281,9 @@ export OPENAI_API_KEY="your-key-here"
 pip install -e '.[openai]'
 
 # Run judge-based evaluation
-openeval run examples/qa_judge_spec.json \
-  --records \
-  --artifacts runs
+openeval run spec examples/qa_judge_spec.json \
+  --output results.json \
+  --verbose
 ```
 
 ### Statistical Comparison

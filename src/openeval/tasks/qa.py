@@ -71,4 +71,16 @@ class QATask(Task):
         return super().build_prompt_with_template(ex, **extra_vars)
 
     def postprocess(self, raw_output: str):
-        return raw_output.strip().splitlines()[0]
+        """Post-process model output for QA task.
+
+        Extracts the first line of output and strips whitespace.
+        This is suitable for most QA tasks where the answer is
+        expected to be concise.
+
+        Args:
+            raw_output: Raw model output string
+
+        Returns:
+            Processed output string (first line, stripped)
+        """
+        return raw_output.strip().splitlines()[0] if raw_output.strip() else ""
