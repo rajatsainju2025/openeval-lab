@@ -33,6 +33,7 @@ from .commands.base import registry_list, registry_info, tutorial, docs, version
 from .commands.evaluation import validate_spec, validate_results, compare, write_out
 from .results_schema import RESULTS_JSON_SCHEMA
 from .spec import EvalSpec
+from . import cli_help
 
 # Create the main app
 app = typer.Typer(
@@ -60,6 +61,54 @@ app.command("validate")(validate_spec)
 app.command("validate-results")(validate_results)
 app.command("compare")(compare)
 app.command("write_out")(write_out)
+
+
+# Enhanced help commands
+@app.command()
+def examples(
+    category: Optional[str] = typer.Argument(
+        None, help="Category: quickstart, evaluation, validation, analysis, advanced"
+    )
+):
+    """Show practical CLI command examples."""
+    cli_help.show_command_examples(category)
+
+
+@app.command()
+def spec_guide():
+    """Show comprehensive guide for creating specification files."""
+    cli_help.show_spec_guide()
+
+
+@app.command()
+def workflow():
+    """Show typical evaluation workflow steps."""
+    cli_help.show_workflow_guide()
+
+
+@app.command()
+def troubleshoot():
+    """Show common troubleshooting tips and solutions."""
+    cli_help.show_troubleshooting()
+
+
+@app.command("registry-help")
+def registry_help():
+    """Show help for using the component registry."""
+    cli_help.show_registry_help()
+
+
+@app.command("perf-tips")
+def perf_tips():
+    """Show performance optimization tips."""
+    cli_help.show_performance_tips()
+
+
+@app.command()
+def advanced():
+    """Show advanced features and use cases."""
+    cli_help.show_advanced_features()
+
 
 # Legacy commands that were in the original CLI
 # These will be moved to appropriate modules over time

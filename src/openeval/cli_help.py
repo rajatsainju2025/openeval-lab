@@ -1,81 +1,156 @@
 """Enhanced CLI help and documentation utilities."""
 
+from typing import Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.syntax import Syntax
 
 console = Console()
 
 
-def show_command_examples():
-    """Show practical examples for common CLI commands."""
+def show_command_examples(category: Optional[str] = None):
+    """Show practical examples for common CLI commands.
 
-    examples = [
-        {
-            "title": "Basic Evaluation",
-            "description": "Run a simple evaluation with echo adapter",
-            "command": "openeval run spec examples/qa_spec.json --verbose",
-            "notes": "Uses offline echo adapter for testing",
-        },
-        {
-            "title": "OpenAI Evaluation",
-            "description": "Run evaluation with OpenAI GPT-4",
-            "command": "openeval run my_spec.json --concurrency 5 --max-retries 2",
-            "notes": "Requires OPENAI_API_KEY environment variable",
-        },
-        {
-            "title": "Cached Evaluation",
-            "description": "Use prediction caching to avoid re-runs",
-            "command": "openeval run spec.json --cache-dir ./cache --cache rw",
-            "notes": "Cache mode: off|read|write|rw",
-        },
-        {
-            "title": "Bootstrap Comparison",
-            "description": "Compare two model runs statistically",
-            "command": "openeval compare runs/run1.json runs/run2.json --bootstrap 1000",
-            "notes": "Outputs confidence intervals and p-values",
-        },
-        {
-            "title": "Robustness Testing",
-            "description": "Test model robustness with input noise",
-            "command": "openeval run spec.json --robustness-noise 0.05 --records",
-            "notes": "Applies character-level noise to inputs",
-        },
-        {
-            "title": "Calibration Analysis",
-            "description": "Analyze model confidence calibration",
-            "command": "openeval run spec.json --calibration --records",
-            "notes": "Requires adapter with logprobs support",
-        },
-        {
-            "title": "Dataset Validation",
-            "description": "Validate dataset quality before evaluation",
-            "command": "openeval validate-dataset data.jsonl --output report.json",
-            "notes": "Checks format, duplicates, encoding issues",
-        },
-        {
-            "title": "Interactive Mode",
-            "description": "Step through examples manually",
-            "command": "openeval run spec.json --interactive",
-            "notes": "Preview prompts and control execution",
-        },
-    ]
+    Args:
+        category: Filter by category (quickstart, evaluation, validation, analysis, advanced)
+    """
+
+    all_examples = {
+        "quickstart": [
+            {
+                "title": "🚀 First Evaluation",
+                "description": "Run your first evaluation in seconds",
+                "command": "openeval run spec examples/qa_spec.json --verbose",
+                "notes": "Uses offline echo adapter for testing",
+            },
+            {
+                "title": "✅ Validate Setup",
+                "description": "Check your environment is ready",
+                "command": "openeval doctor",
+                "notes": "Diagnoses installation and dependencies",
+            },
+            {
+                "title": "🌐 Launch Dashboard",
+                "description": "View results in your browser",
+                "command": "openeval web --reload",
+                "notes": "Opens at http://localhost:8000",
+            },
+        ],
+        "evaluation": [
+            {
+                "title": "Basic Evaluation",
+                "description": "Run a simple evaluation with echo adapter",
+                "command": "openeval run spec examples/qa_spec.json --verbose",
+                "notes": "Uses offline echo adapter for testing",
+            },
+            {
+                "title": "Concurrent Evaluation",
+                "description": "Process multiple requests in parallel",
+                "command": "openeval run spec examples/qa_spec.json --max-concurrent 10",
+                "notes": "Adjust based on your API rate limits",
+            },
+            {
+                "title": "Cached Evaluation",
+                "description": "Use prediction caching to avoid re-runs",
+                "command": "openeval run spec examples/qa_spec.json --cache .cache",
+                "notes": "Saves time and API costs on reruns",
+            },
+            {
+                "title": "Custom Output",
+                "description": "Save results to specific location",
+                "command": "openeval run spec examples/qa_spec.json -o results.json",
+                "notes": "Specify output file path",
+            },
+        ],
+        "validation": [
+            {
+                "title": "Spec Validation",
+                "description": "Check specification file syntax",
+                "command": "openeval validate examples/qa_spec.json",
+                "notes": "Validates schema and component availability",
+            },
+            {
+                "title": "Results Validation",
+                "description": "Verify results file format",
+                "command": "openeval validate-results results.json",
+                "notes": "Ensures results match expected schema",
+            },
+            {
+                "title": "Environment Check",
+                "description": "Diagnose installation issues",
+                "command": "openeval doctor --json",
+                "notes": "Machine-readable diagnostic output",
+            },
+        ],
+        "analysis": [
+            {
+                "title": "Compare Runs",
+                "description": "Statistical comparison of two models",
+                "command": "openeval compare runs/model-a.json runs/model-b.json",
+                "notes": "Outputs confidence intervals and p-values",
+            },
+            {
+                "title": "Aggregate Results",
+                "description": "Collect all runs in a directory",
+                "command": "openeval runs collect --dir runs",
+                "notes": "Creates unified leaderboard",
+            },
+            {
+                "title": "Preview Prompts",
+                "description": "See prompts without running evaluation",
+                "command": "openeval write_out spec examples/qa_spec.json",
+                "notes": "Debug prompt templates",
+            },
+        ],
+        "advanced": [
+            {
+                "title": "Robustness Testing",
+                "description": "Test model robustness with input noise",
+                "command": "openeval run spec examples/qa_spec.json --robustness-noise 0.05",
+                "notes": "Applies character-level noise to inputs",
+            },
+            {
+                "title": "Calibration Analysis",
+                "description": "Analyze model confidence calibration",
+                "command": "openeval run spec examples/qa_spec.json --calibration",
+                "notes": "Requires adapter with logprobs support",
+            },
+            {
+                "title": "Interactive Mode",
+                "description": "Step through examples manually",
+                "command": "openeval run spec examples/qa_spec.json --interactive",
+                "notes": "Preview prompts and control execution",
+            },
+        ],
+    }
+
+    # Filter by category if specified
+    if category:
+        if category not in all_examples:
+            console.print(f"[red]Unknown category: {category}[/red]")
+            console.print(f"Available: {', '.join(all_examples.keys())}")
+            return
+        examples_to_show = {category: all_examples[category]}
+    else:
+        examples_to_show = all_examples
 
     console.print("\n[bold cyan]OpenEval CLI Examples[/bold cyan]\n")
 
-    for example in examples:
-        panel_content = f"""[bold]{example['description']}[/bold]
+    for cat_name, examples in examples_to_show.items():
+        console.print(f"[bold magenta]═══ {cat_name.upper()} ═══[/bold magenta]\n")
+
+        for example in examples:
+            panel_content = f"""[bold]{example['description']}[/bold]
 
 [yellow]Command:[/yellow]
-[green]{example['command']}[/green]
-
-[dim]{example['notes']}[/dim]"""
-
-        console.print(
-            Panel(panel_content, title=example["title"], border_style="blue", padding=(1, 2))
-        )
-        console.print()
+"""
+            console.print(
+                Panel(panel_content, title=example["title"], border_style="blue", padding=(1, 2))
+            )
+            console.print(Syntax(example["command"], "bash", theme="monokai", padding=1))
+            console.print(f"[dim]💡 {example['notes']}[/dim]\n")
 
 
 def show_spec_guide():
