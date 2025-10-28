@@ -80,44 +80,77 @@ def run(
             console=console,
             disable=not verbose,
         ) as progress:
-            task_progress = progress.add_task("Loading dataset...", total=None)
+            task_progress = progress.add_task("Starting evaluation...", total=None)
 
-            # Load all samples
-            samples = list(dataset)
-            progress.update(task_progress, description=f"Loaded {len(samples)} samples")
+            # Use streaming evaluation to reduce memory footprint
+            # Process samples in batches instead of loading all into memory
+            batch_size = min(max_concurrent, 50) if max_concurrent > 0 else 50
 
-            # Format prompts
             prompts = []
             references = []
-            for sample in samples:
-                prompt = task.build_prompt_with_template(sample)
-                prompts.append(prompt)
-                references.append(sample.reference)
-
-            progress.update(task_progress, description=f"Formatted {len(prompts)} prompts")
-
-            # Run evaluation
-            progress.update(task_progress, description="Running evaluation...")
-
-            async def run_evaluation():
-                results = await engine.evaluate_batch(
-                    adapter=adapter,
-                    prompts=prompts,
-                )
-                return results
+            predictions = []
+            latencies = []
+            sample_count = 0
 
             import asyncio
 
-            evaluation_results = asyncio.run(run_evaluation())
+            async def process_batch(batch_prompts, batch_refs):
+                """Process a batch of prompts asynchronously."""
+                results = await engine.evaluate_batch(
+                    adapter=adapter,
+                    prompts=batch_prompts,
+                )
+                return results, batch_refs
 
-            progress.update(task_progress, description="Computing metrics...")
+            # Process dataset in batches using generator pattern
+            progress.update(task_progress, description="Processing dataset in batches...")
 
-            # Extract predictions
-            predictions = []
-            latencies = []
-            for result in evaluation_results:
-                predictions.append(result.prediction)
-                latencies.append(result.latency)
+            batch_prompts = []
+            batch_refs = []
+
+            for sample in dataset:  # Generator - no memory overhead
+                sample_count += 1
+                prompt = task.build_prompt_with_template(sample)
+                batch_prompts.append(prompt)
+                batch_refs.append(sample.reference)
+
+                # Process batch when full
+                if len(batch_prompts) >= batch_size:
+                    progress.update(
+                        task_progress, description=f"Processing samples 1-{sample_count}..."
+                    )
+
+                    batch_results, batch_references = asyncio.run(
+                        process_batch(batch_prompts, batch_refs)
+                    )
+
+                    # Collect results
+                    prompts.extend(batch_prompts)
+                    references.extend(batch_references)
+                    for result in batch_results:
+                        predictions.append(result.prediction)
+                        latencies.append(result.latency)
+
+                    # Clear batch for next iteration
+                    batch_prompts = []
+                    batch_refs = []
+
+            # Process final partial batch
+            if batch_prompts:
+                progress.update(task_progress, description="Processing final batch...")
+                batch_results, batch_references = asyncio.run(
+                    process_batch(batch_prompts, batch_refs)
+                )
+
+                prompts.extend(batch_prompts)
+                references.extend(batch_references)
+                for result in batch_results:
+                    predictions.append(result.prediction)
+                    latencies.append(result.latency)
+
+            progress.update(
+                task_progress, description=f"Computing metrics for {sample_count} samples..."
+            )
 
             # Compute metrics
             metrics_results = {}
@@ -139,7 +172,7 @@ def run(
             "task": task.__class__.__module__ + "." + task.__class__.__name__,
             "dataset": dataset.__class__.__module__ + "." + dataset.__class__.__name__,
             "adapter": adapter.__class__.__module__ + "." + adapter.__class__.__name__,
-            "size": len(samples),
+            "size": sample_count,
             "metrics": metrics_results,
             "runtime": runtime,
             "cache_stats": engine.get_stats() if hasattr(engine, "get_stats") else {},
