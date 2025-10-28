@@ -245,7 +245,7 @@ class ContextualLogger:
 def log_context(**kwargs):
     """Context manager for logging context."""
     logger = get_contextual_logger()
-    old_context = logger.get_context()
+    logger.get_context()
 
     try:
         logger.push_context(**kwargs)

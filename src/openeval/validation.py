@@ -153,7 +153,7 @@ class PerformanceValidator(AdapterValidator):
             # Test 1: Response time
             prompt = "Generate a short response to this prompt."
             response_start = time.time()
-            response = adapter.generate(prompt)
+            adapter.generate(prompt)
             response_time = time.time() - response_start
 
             if response_time < self.timeout_seconds:

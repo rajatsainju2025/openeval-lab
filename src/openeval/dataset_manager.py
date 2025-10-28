@@ -11,7 +11,7 @@ import json
 import hashlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field
 from datetime import datetime
 import random
 import statistics
@@ -25,7 +25,7 @@ except ImportError:
     HAS_PANDAS = False
 
 try:
-    import numpy as np
+    import numpy as np  # noqa: F401
 
     HAS_NUMPY = True
 except ImportError:
@@ -49,8 +49,8 @@ class DatasetMetadata:
     checksum: str
     created_at: datetime
     last_modified: datetime
-    statistics: Dict[str, Any] = field(default_factory=dict)
-    validation_results: Dict[str, Any] = field(default_factory=dict)
+    statistics: Dict[str, Any] = dataclass_field(default_factory=dict)
+    validation_results: Dict[str, Any] = dataclass_field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -74,10 +74,10 @@ class DatasetValidationResult:
     """Result of dataset validation."""
 
     is_valid: bool
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    statistics: Dict[str, Any] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
+    errors: List[str] = dataclass_field(default_factory=list)
+    warnings: List[str] = dataclass_field(default_factory=list)
+    statistics: Dict[str, Any] = dataclass_field(default_factory=dict)
+    recommendations: List[str] = dataclass_field(default_factory=list)
 
     def add_error(self, error: str) -> None:
         """Add a validation error."""
@@ -275,7 +275,6 @@ class DatasetValidator:
     ) -> None:
         """Validate code evaluation dataset."""
         required_fields = ["code", "test_cases"]
-        suggested_fields = ["language", "description", "expected_output"]
 
         for i, item in enumerate(data):
             for field in required_fields:

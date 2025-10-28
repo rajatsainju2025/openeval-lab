@@ -156,7 +156,7 @@ class BLEUScore:
         pred_len = len(pred_tokens)
         closest_ref_len = min(ref_lengths, key=lambda x: abs(x - pred_len))
         closest_ref_idx = ref_lengths.index(closest_ref_len)
-        closest_ref = ref_tokens_list[closest_ref_idx]
+        ref_tokens_list[closest_ref_idx]
 
         # Calculate brevity penalty
         bp = self._brevity_penalty(pred_len, closest_ref_len)

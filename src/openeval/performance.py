@@ -295,7 +295,7 @@ class AsyncPerformanceMonitor:
             yield monitor
         finally:
             # Stop monitoring in thread pool
-            metrics = await loop.run_in_executor(self.thread_pool, monitor.stop_monitoring)
+            await loop.run_in_executor(self.thread_pool, monitor.stop_monitoring)
             with self._lock:
                 self._active_monitors[operation_name] = monitor
 
@@ -476,9 +476,9 @@ class AdapterPerformanceProfiler:
                 try:
                     # Process batch
                     if hasattr(adapter, "predict_batch"):
-                        results = adapter.predict_batch(batch)
+                        adapter.predict_batch(batch)
                     else:
-                        results = [adapter.predict(ex) for ex in batch]
+                        [adapter.predict(ex) for ex in batch]
 
                     # Record individual latencies for throughput calculation
                     end_time = time.perf_counter()
@@ -492,7 +492,7 @@ class AdapterPerformanceProfiler:
                     # Record error but continue profiling
                     pass
 
-                metrics = monitor.stop_monitoring()
+                monitor.stop_monitoring()
 
             # Store metrics for this batch size
             adapter_name = getattr(adapter, "__class__", type(adapter)).__name__

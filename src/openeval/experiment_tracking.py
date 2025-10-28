@@ -535,7 +535,7 @@ def track_experiment(name: str, description: str = "", tags: Optional[List[str]]
     def decorator(func):
         def wrapper(*args, **kwargs):
             # Create experiment
-            exp_id = experiment_tracker.create_experiment(name, description, tags)
+            experiment_tracker.create_experiment(name, description, tags)
 
             try:
                 # Log function parameters

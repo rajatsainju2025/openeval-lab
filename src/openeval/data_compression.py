@@ -335,7 +335,7 @@ class AdaptiveCompressor:
         # Decompress
         start_time = time.time()
         decompressed = algorithm.decompress(compressed_data)
-        decompression_time = time.time() - start_time
+        time.time() - start_time
 
         # Verify checksum if available
         if "checksum" in metadata:

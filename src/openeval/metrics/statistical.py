@@ -358,10 +358,10 @@ class McNemar(Metric):
         correct2 = [p == r for p, r in zip(pred2, references)]
 
         # Contingency table: both correct, 1 correct 2 wrong, 1 wrong 2 correct, both wrong
-        both_correct = sum(1 for c1, c2 in zip(correct1, correct2) if c1 and c2)
+        sum(1 for c1, c2 in zip(correct1, correct2) if c1 and c2)
         only1_correct = sum(1 for c1, c2 in zip(correct1, correct2) if c1 and not c2)
         only2_correct = sum(1 for c1, c2 in zip(correct1, correct2) if not c1 and c2)
-        both_wrong = sum(1 for c1, c2 in zip(correct1, correct2) if not c1 and not c2)
+        sum(1 for c1, c2 in zip(correct1, correct2) if not c1 and not c2)
 
         # McNemar's statistic
         if only1_correct + only2_correct == 0:

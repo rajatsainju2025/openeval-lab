@@ -1,6 +1,6 @@
 # Type stubs for external dependencies
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 
 # Stub for rich library

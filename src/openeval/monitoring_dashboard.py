@@ -227,7 +227,7 @@ class MetricsCollector:
         cutoff = time.time() - self.retention_period
         with self._lock:
             for name in list(self.metrics.keys()):
-                original_len = len(self.metrics[name])
+                len(self.metrics[name])
                 while self.metrics[name] and self.metrics[name][0].timestamp < cutoff:
                     self.metrics[name].popleft()
 
