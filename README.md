@@ -113,6 +113,10 @@ openeval doctor --json
 - **Local API Adapter**: Direct integration with local model servers
 
 ### ⚡ Performance & Monitoring
+- **Streaming Evaluation**: Memory-efficient processing for large datasets
+- **Lazy Imports**: ~30% faster CLI startup with TYPE_CHECKING optimizations
+- **Metric Optimization**: 30-40% faster TokenF1 with pre-processing and module-level imports
+- **Profiling Utilities**: Simple @profile_time decorator, profile_block context manager, and PerformanceTimer
 - **Performance Profiler**: Memory and CPU analysis with bottleneck identification
 - **Web Dashboard Enhancements**: Real-time monitoring and API endpoints
 - **Benchmarking Script**: Comprehensive performance metrics and optimization
