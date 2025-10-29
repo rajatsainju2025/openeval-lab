@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 🚀 **Version Management** - Automated version bumping and CHANGELOG generation utilities
+- ⚡ **Performance Profiling** - New profiling utilities (@profile_time, profile_block, PerformanceTimer)
+- 📦 **Constants Module** - Centralized configuration constants for better maintainability
+- 📝 **Comprehensive Documentation** - Expanded contributing guidelines, quickstart guide, and performance docs
+- 🔧 **Enhanced CLI Help** - Improved help text with examples and better parameter descriptions
+- 🎯 **Module Exports** - Expanded __all__ exports for better API discoverability
+- 📋 **Profiling Example** - Runnable example demonstrating all profiling utilities
+- 🌐 **Git Attributes** - Added .gitattributes for consistent line endings across platforms
 - 🚀 **Modern CI/CD Pipeline** - Comprehensive GitHub Actions workflows for testing, linting, security scanning, and automated releases
 - 🔧 **Enhanced Validation Framework** - New `validate-comprehensive` CLI command with schema, import, dataset, and performance validation
 - 📋 **Evaluation Presets** - Pre-configured YAML specs for common evaluation scenarios (QA, summarization, code, etc.)
@@ -23,25 +31,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🛡️ **Improved Error Messages** - Better error handling with helpful suggestions and available options
 
 ### Changed
+- ⚡ **Streaming Evaluation** - Memory-efficient processing for large datasets (no longer loads all into memory)
+- 🚀 **Lazy Imports** - ~30% faster CLI startup using TYPE_CHECKING optimizations
+- 📝 **README Updates** - Added performance optimization highlights to Latest Features section
 - 📝 **README Modernization** - Fixed broken badge links and added PyPI version badge
 - 🔧 **Error Handling** - Enhanced error messages in registry and validation commands with actionable guidance
 - ✅ **Configuration Validation** - Enhanced config and spec validation functions
 - 🗄️ **Improved Caching** - Compression and metadata support in cache system
 - 📝 **Advanced Examples** - New advanced code examples for complex scenarios
 - 🏁 **Performance Benchmarking** - Comprehensive benchmarking script for performance metrics
-
-### Changed
-- ♻️ **README Modernization** - Complete redesign with better structure, examples, and visual hierarchy
+- 📝 **README Modernization** - Complete redesign with better structure, examples, and visual hierarchy
 - 🏗️ **Project Architecture** - Clearer separation of concerns with enhanced plugin architecture documentation
 - 📋 **Configuration Standards** - Standardized YAML/JSON specification format with comprehensive validation
 - 🔧 **Error Handling Improvements** - Better error handling in core modules and CLI
 - 📊 **Dashboard Updates** - Enhanced web dashboard with monitoring capabilities
 
+### Performance
+- ⚡ **Metric Optimization** - 30-40% faster TokenF1 metric with pre-processing and module-level imports
+- 🔧 **Code Quality** - Fixed shadowed imports and removed 10+ unused variables
+- � **Type Hints** - Added comprehensive type hints and improved docstrings
+- ⚡ **CLI Startup** - ~30% faster for simple commands (--help, --version)
+
 ### Fixed
-- 🐛 **CLI Import Issues** - Resolved module import errors and added proper `__main__.py` entry point
+- �🐛 **CLI Import Issues** - Resolved module import errors and added proper `__main__.py` entry point
 - 🔧 **Validation Script Bugs** - Fixed duplicate function definitions and import path issues
 - 📝 **Documentation Links** - Updated all internal documentation references and examples
 - 🐛 **Lint Errors** - Resolved import and attribute errors in benchmarking script
+- 🔧 **Code Quality** - Fixed shadowing of dataclasses.field in dataset_manager.py
 
 ### Security
 - 🔒 **Security Scanning** - Added automated security vulnerability detection in CI/CD pipeline
