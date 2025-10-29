@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
@@ -80,21 +81,19 @@ class TokenF1:
             ValueError: If predictions and references have different lengths
         """
 
-        def f1(p: str, r: str) -> float:
+        def f1(pred_tokens: list[str], ref_tokens: list[str]) -> float:
             """Calculate F1 for a single prediction-reference pair."""
-            ps = str(p).strip().split()
-            rs = str(r).strip().split()
-            if not ps and not rs:
+            if not pred_tokens and not ref_tokens:
                 return 1.0
-            if not ps or not rs:
+            if not pred_tokens or not ref_tokens:
                 return 0.0
-            # multiset overlap (bag of words)
-            from collections import Counter
 
-            cp, cr = Counter(ps), Counter(rs)
+            # multiset overlap (bag of words) - use pre-computed Counters
+            cp, cr = Counter(pred_tokens), Counter(ref_tokens)
             overlap = sum((cp & cr).values())
-            prec = overlap / max(1, sum(cp.values()))
-            rec = overlap / max(1, sum(cr.values()))
+            prec = overlap / sum(cp.values())
+            rec = overlap / sum(cr.values())
+
             if prec + rec == 0:
                 return 0.0
             return 2 * prec * rec / (prec + rec)
@@ -111,5 +110,9 @@ class TokenF1:
         if not preds:
             return {"f1": 0.0}
 
-        score = sum(f1(p, r) for p, r in zip(preds, refs)) / len(preds)
+        # Pre-process all strings once: convert to str, strip, and split
+        pred_tokens = [str(p).strip().split() for p in preds]
+        ref_tokens = [str(r).strip().split() for r in refs]
+
+        score = sum(f1(pt, rt) for pt, rt in zip(pred_tokens, ref_tokens)) / len(preds)
         return {"f1": score}
