@@ -25,18 +25,32 @@ console = Console()
 
 
 def run(
-    spec_path: str = typer.Argument(..., help="Path to evaluation spec file"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Override output path"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    debug: bool = typer.Option(False, "--debug", help="Debug mode"),
-    cache: Optional[str] = typer.Option(None, "--cache", help="Cache directory for predictions"),
-    max_concurrent: int = typer.Option(10, "--max-concurrent", help="Maximum concurrent requests"),
-    request_timeout: Optional[float] = typer.Option(
-        30.0, "--request-timeout", help="Request timeout in seconds"
+    spec_path: str = typer.Argument(..., help="Path to evaluation spec file (JSON or YAML)"),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Output path for results (default: auto-generated)"
     ),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Disable caching"),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show detailed progress and timing"
+    ),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging for troubleshooting"),
+    cache: Optional[str] = typer.Option(
+        None, "--cache", help="Cache directory for predictions (default: .cache)"
+    ),
+    max_concurrent: int = typer.Option(
+        10, "--max-concurrent", help="Maximum concurrent API requests (tune for rate limits)"
+    ),
+    request_timeout: Optional[float] = typer.Option(
+        30.0, "--request-timeout", help="Timeout for individual requests in seconds"
+    ),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Disable prediction caching entirely"),
 ):
-    """Run an evaluation from a specification file."""
+    """Run an evaluation from a specification file.
+
+    Examples:
+        openeval run examples/qa_spec.json
+        openeval run my_eval.yaml --verbose --cache .mycache
+        openeval run spec.json --output results/run1.json --max-concurrent 5
+    """
     try:
         # Import heavy modules only when needed
         from ..spec import load_spec

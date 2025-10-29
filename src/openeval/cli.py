@@ -38,7 +38,16 @@ from . import version_utils
 
 # Create the main app
 app = typer.Typer(
-    no_args_is_help=True, add_completion=False, help="OpenEval Lab - LLM Evaluation Framework"
+    no_args_is_help=True,
+    add_completion=False,
+    help="OpenEval Lab - Enterprise-grade LLM Evaluation Framework\n\n"
+    "Evaluate language models, multimodal models, and AI agents with "
+    "reproducible, extensible, and production-ready workflows.\n\n"
+    "Quick Start:\n"
+    "  openeval run examples/qa_spec.json\n"
+    "  openeval tutorial\n"
+    "  openeval doctor\n\n"
+    "For detailed help on any command, use: openeval <command> --help",
 )
 
 console = Console()
