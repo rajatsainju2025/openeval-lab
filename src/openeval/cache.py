@@ -43,6 +43,11 @@ logger = get_logger(__name__)
 
 @dataclass
 class CacheStats:
+    """Statistics for cache performance tracking.
+
+    Tracks hits, misses, evictions, and compression savings for cache operations.
+    """
+
     hits: int = 0
     misses: int = 0
     bloom_filter_hits: int = 0
@@ -53,11 +58,13 @@ class CacheStats:
 
     @property
     def hit_rate(self) -> float:
+        """Calculate cache hit rate as percentage."""
         total = self.hits + self.misses
         return (self.hits / total) if total else 0.0
 
     @property
     def prefetch_hit_rate(self) -> float:
+        """Calculate prefetch hit rate as percentage."""
         total = self.prefetch_hits + self.prefetch_misses
         return (self.prefetch_hits / total) if total else 0.0
 

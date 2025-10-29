@@ -21,7 +21,7 @@ class StatisticalResult:
 class ConfidenceIntervalMixin:
     """Mixin class to add confidence interval computation to any metric."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.n_bootstrap = getattr(self, "n_bootstrap", 1000)
         self.confidence_level = getattr(self, "confidence_level", 0.95)

@@ -27,7 +27,8 @@ class LLMJudge:
     )
     max_examples: Optional[int] = None  # limit judged pairs for speed
 
-    def _load_adapter(self):
+    def _load_adapter(self) -> Any:
+        """Load and instantiate the judge adapter."""
         # allow registry short names or dotted path
         from ..registry import lookup
 
@@ -37,7 +38,7 @@ class LLMJudge:
         cls = getattr(mod, cls_name)
         return cls(**self.judge_kwargs)
 
-    def _judge_once(self, adapter, prompt: str) -> str:
+    def _judge_once(self, adapter: Any, prompt: str) -> str:
         try:
             out = adapter.generate(prompt)
         except Exception:  # pragma: no cover - network or adapter errors
