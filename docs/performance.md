@@ -114,6 +114,36 @@ openeval benchmark spec.json \
 
 ## Integration with Code
 
+### Simple Profiling Utilities
+
+OpenEval provides lightweight profiling utilities for quick performance debugging:
+
+```python
+from openeval.profiling import profile_time, profile_block, PerformanceTimer
+
+# Decorator for function timing
+@profile_time
+def expensive_operation():
+    # Your code here
+    pass
+
+# Context manager for code blocks
+with profile_block("data loading"):
+    data = load_dataset()
+
+# Multi-operation tracking
+timer = PerformanceTimer()
+timer.start("preprocessing")
+preprocess_data()
+timer.stop("preprocessing")
+
+timer.start("inference")
+model.predict(data)
+timer.stop("inference")
+
+timer.report()  # Prints formatted timing report
+```
+
 ### Performance Context Manager
 ```python
 from openeval.performance import performance_context, PerformanceMonitor
