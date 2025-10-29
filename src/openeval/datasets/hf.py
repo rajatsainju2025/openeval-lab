@@ -22,7 +22,14 @@ class HFDataset(Dataset):
 
     def __iter__(self) -> Iterator[Example]:  # pragma: no cover - depends on HF datasets
         if load_dataset is None:
-            raise RuntimeError("Please install openeval-lab[hf] to use HFDataset.")
+            raise RuntimeError(
+                "HuggingFace datasets library is not installed.\n\n"
+                "To use HFDataset, install the optional dependency:\n"
+                "  pip install openeval-lab[hf]\n\n"
+                "Or install directly:\n"
+                "  pip install datasets\n\n"
+                "For more information, visit: https://huggingface.co/docs/datasets"
+            )
         ds = load_dataset(self.dataset_name, self.subset, split=self.split)
         for i, row in enumerate(ds):
             ref = row[self.reference_field]

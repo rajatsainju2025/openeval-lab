@@ -563,10 +563,26 @@ class Task(ABC):
         try:
             examples = list(iter(dataset))
             if not examples:
-                raise ValueError("Dataset is empty")
+                raise ValueError(
+                    "Dataset is empty - no examples found.\n\n"
+                    "Possible causes:\n"
+                    "- The dataset file is empty or contains no valid examples\n"
+                    "- The dataset path is incorrect\n"
+                    "- The dataset format is not recognized\n\n"
+                    "Hint: Use 'openeval validate <spec>' to check your dataset configuration."
+                )
+        except ValueError:
+            raise  # Re-raise our improved error message
         except Exception as e:
             logger.error(f"Failed to load dataset: {e}", exc_info=True)
-            raise ValueError(f"Dataset loading failed: {e}") from e
+            raise ValueError(
+                f"Dataset loading failed: {e}\n\n"
+                f"Possible causes:\n"
+                f"- File not found or inaccessible\n"
+                f"- Invalid file format (JSON/JSONL syntax errors)\n"
+                f"- Missing required fields in dataset\n\n"
+                f"Hint: Check the dataset file exists and is properly formatted."
+            ) from e
 
         if max(1, int(concurrency)) <= 1:
             for i, ex in enumerate(examples):
