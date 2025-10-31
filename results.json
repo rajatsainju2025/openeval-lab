@@ -1,0 +1,24 @@
+{
+  "spec_path": "examples/qa_spec.json",
+  "task": "openeval.tasks.qa.QATask",
+  "dataset": "openeval.datasets.jsonl.JSONLinesDataset",
+  "adapter": "openeval.adapters.echo.EchoAdapter",
+  "size": 2,
+  "metrics": {
+    "exact_match": {
+      "accuracy": 0.0
+    },
+    "token_f1": {
+      "f1": 0.0
+    }
+  },
+  "runtime": 0.006500959396362305,
+  "cache_stats": {
+    "cache_hits": 0,
+    "cache_misses": 2,
+    "cache_hit_rate": 0.0,
+    "max_concurrent_requests": 10,
+    "thread_pool_workers": 10
+  },
+  "status": "completed"
+}

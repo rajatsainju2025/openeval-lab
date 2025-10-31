@@ -76,7 +76,6 @@ class ICMLExperimentRunner:
         print(f"🔬 Running ICML Experiment: {experiment_id}")
 
         # Initialize results structure
-        results = {"performance": {}, "statistical": {}, "bias": {}, "reproducibility": {}}
 
         # Run multi-seed evaluation for each adapter
         adapter_results = {}
@@ -212,7 +211,7 @@ class ICMLExperimentRunner:
                                 expected_outputs.append(sample.__dict__["output"])
                             else:
                                 expected_outputs.append("default_output")
-                        except:
+                        except Exception:
                             expected_outputs.append("default_output")
 
                     score = metric.compute(predictions[: len(samples)], expected_outputs)
@@ -224,9 +223,9 @@ class ICMLExperimentRunner:
                     else:
                         # Default fallback
                         results["metrics"][metric.__class__.__name__] = 0.0
-                except:
+                except Exception:
                     results["metrics"][metric.__class__.__name__] = 0.75 + np.random.normal(0, 0.05)
-        except:
+        except Exception:
             # Fallback to simulated results
             results["metrics"] = {
                 "accuracy": 0.75 + np.random.normal(0, 0.05),
@@ -529,7 +528,7 @@ class ICMLExperimentRunner:
         # Try to get dataset size
         try:
             info["size"] = str(len(list(dataset)))
-        except:
+        except Exception:
             info["size"] = "unknown"
 
         return info

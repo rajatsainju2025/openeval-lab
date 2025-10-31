@@ -493,9 +493,9 @@ def benchmark_lazy_evaluation(
 
         if use_lazy:
             lazy_result = evaluator.lazy(func)()
-            result = lazy_result.compute()
+            lazy_result.compute()
         else:
-            result = func()
+            func()
 
         times.append(time.time() - start_time)
 

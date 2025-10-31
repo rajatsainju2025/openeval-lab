@@ -267,8 +267,8 @@ class AdvancedVectorizedMetrics:
             }
 
         # Convert to tensors for GPU processing
-        pred_tokens = [str(p).split() for p in predictions]
-        ref_tokens = [str(r).split() for r in references]
+        [str(p).split() for p in predictions]
+        [str(r).split() for r in references]
 
         # Simple GPU-accelerated exact match
         results = {}
@@ -341,7 +341,7 @@ class AdvancedVectorizedMetrics:
         )
 
     @staticmethod
-    def exact_match(
+    def exact_match_vectorized(
         predictions: Iterable[Any], references: Iterable[Any]
     ) -> VectorizedMetricResult:
         """Compute exact match accuracy using vectorized operations."""
@@ -994,7 +994,7 @@ def benchmark_metrics_performance(
     vectorized_times = []
     for _ in range(iterations):
         start_time = time.time()
-        vectorized_results = processor.compute_metrics_batch(pred_list, ref_list, metrics)
+        processor.compute_metrics_batch(pred_list, ref_list, metrics)
         vectorized_times.append(time.time() - start_time)
 
     # Simple non-vectorized benchmark (just for comparison)
@@ -1013,7 +1013,7 @@ def benchmark_metrics_performance(
                         intersection = pred_tokens & ref_tokens
                         precision = len(intersection) / len(pred_tokens) if pred_tokens else 0.0
                         recall = len(intersection) / len(ref_tokens)
-                        f1 = (
+                        (
                             2 * precision * recall / (precision + recall)
                             if (precision + recall) > 0
                             else 0.0
