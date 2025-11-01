@@ -1,6 +1,7 @@
 """Data validation system with schema enforcement and type checking."""
 
 import json
+import hashlib
 from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass
 
@@ -56,6 +57,7 @@ class DataValidator:
     def __init__(self):
         self.rules: Dict[str, ValidationRule] = {}
         self.schemas: Dict[str, Dict[str, Any]] = {}
+        self._validation_cache: Dict[str, ValidationResult] = {}
 
     def add_rule(self, rule: ValidationRule):
         """Add a validation rule."""
@@ -67,6 +69,15 @@ class DataValidator:
 
     def validate_data(self, data: Any, rules: Optional[List[str]] = None) -> ValidationResult:
         """Validate data against specified rules."""
+        # Create cache key from data and rules
+        data_hash = hashlib.md5(str(data).encode()).hexdigest()
+        rules_key = tuple(sorted(rules)) if rules else None
+        cache_key = f"{data_hash}:{rules_key}"
+
+        # Check cache first
+        if cache_key in self._validation_cache:
+            return self._validation_cache[cache_key]
+
         errors = []
         warnings = []
         metadata = {}
@@ -87,9 +98,17 @@ class DataValidator:
                 except Exception as e:
                     errors.append(f"Rule '{rule_name}' failed: {str(e)}")
 
-        return ValidationResult(
+        result = ValidationResult(
             is_valid=len(errors) == 0, errors=errors, warnings=warnings, metadata=metadata
         )
+
+        # Cache the result
+        self._validation_cache[cache_key] = result
+        return result
+
+    def clear_cache(self):
+        """Clear the validation cache."""
+        self._validation_cache.clear()
 
     def validate_json_schema(self, data: Any, schema_name: str) -> ValidationResult:
         """Validate data against a JSON schema."""

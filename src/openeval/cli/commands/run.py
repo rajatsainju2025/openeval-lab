@@ -15,7 +15,13 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from . import run_app
+
+# Lazy import to avoid circular import
+def _get_run_app():
+    from . import run_app
+
+    return run_app
+
 
 # Lazy imports for heavy modules - only imported when run command is actually executed
 if TYPE_CHECKING:
@@ -226,4 +232,4 @@ def run(
 
 
 # Register command with run_app
-run_app.command("spec")(run)
+_get_run_app().command("spec")(run)

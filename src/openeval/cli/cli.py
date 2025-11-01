@@ -31,10 +31,10 @@ from rich.console import Console
 from .commands import base_app, eval_app, run_app
 from .commands.base import registry_list, registry_info, tutorial, docs, version, doctor
 from .commands.evaluation import validate_spec, validate_results, compare, write_out
-from .results_schema import RESULTS_JSON_SCHEMA
-from .spec import EvalSpec
+from ..results_schema import RESULTS_JSON_SCHEMA
+from ..spec import EvalSpec
 from . import cli_help
-from . import version_utils
+from .. import version_utils
 
 # Create the main app
 app = typer.Typer(

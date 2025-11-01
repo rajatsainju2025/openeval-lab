@@ -11,8 +11,8 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 
-from .. import registry
-from ..utils import get_project_root
+from ... import registry
+from ...utils import get_project_root
 
 console = Console()
 
