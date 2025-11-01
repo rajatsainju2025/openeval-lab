@@ -5,7 +5,7 @@ This module provides log-likelihood evaluation capabilities,
 inspired by lm-evaluation-harness multiple-choice evaluation.
 """
 
-from typing import Any, Dict, List, Optional, Protocol, Union
+from typing import Any, Dict, List, Optional, Protocol
 import numpy as np
 
 from .core import Example, Task
@@ -71,10 +71,6 @@ class MultipleChoiceTask(Task):
 
     def build_prompt(self, ex: Example) -> str:
         """Build the prompt for evaluation."""
-        raise NotImplementedError
-
-    def predict(self, adapter: LogLikelihoodAdapter, ex: Example) -> Dict[str, Any]:
-        """Predict using log-likelihood evaluation."""
         raise NotImplementedError
 
 
@@ -189,7 +185,7 @@ class MCQATask(MultipleChoiceTask):
 def evaluate_multiple_choice(
     task: MultipleChoiceTask,
     adapter: LogLikelihoodAdapter,
-    examples: List[Union[Example, MCQAExample]],
+    examples: List[Example],
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """
