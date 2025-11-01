@@ -4,6 +4,14 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
+try:
+    import numpy as np
+
+    HAS_NUMPY = True
+except ImportError:
+    np = None
+    HAS_NUMPY = False
+
 
 @dataclass
 class ExactMatch:
@@ -46,7 +54,14 @@ class ExactMatch:
         if not preds:
             return {"accuracy": 0.0}
 
-        correct = sum(1 for p, r in zip(preds, refs) if str(p).strip() == str(r).strip())
+        # Use NumPy for vectorized comparison if available
+        if HAS_NUMPY and np is not None:
+            pred_array = np.array([str(p).strip() for p in preds])
+            ref_array = np.array([str(r).strip() for r in refs])
+            correct = np.sum(pred_array == ref_array)
+        else:
+            correct = sum(1 for p, r in zip(preds, refs) if str(p).strip() == str(r).strip())
+
         total = len(preds)
         return {"accuracy": correct / total}
 
