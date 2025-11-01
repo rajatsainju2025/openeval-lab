@@ -77,6 +77,16 @@ openeval run spec examples/agent_spec.json --agent-timeout 300
 - **🌐 Modern UI**: Clean dashboard with real-time monitoring
 - **🔒 Enterprise Ready**: Security scanning, comprehensive testing, and CI/CD
 
+### ⚡ Performance Optimizations
+
+OpenEval Lab includes several performance enhancements for efficient evaluation:
+
+- **Vectorized Metrics**: NumPy-accelerated metric computations for large datasets
+- **Async Evaluation Engine**: Concurrent API calls with connection pooling
+- **Intelligent Caching**: Multi-level caching with bloom filters and compression
+- **Streaming Datasets**: Memory-efficient processing of large datasets
+- **Adaptive Batching**: Dynamic batch sizing based on load and rate limits
+
 ## 🚀 Quick Start
 
 ```bash
