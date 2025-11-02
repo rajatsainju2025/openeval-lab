@@ -291,6 +291,84 @@ class AsyncEvaluationEngine:
 
         return result, False
 
+    async def _cached_generate_batch(
+        self, adapter: AsyncAdapterWrapper, prompts: List[str], cache_keys: List[str], **kwargs: Any
+    ) -> List[Tuple[str, bool]]:
+        """Generate a batch with cache-aware lookups to minimize round trips."""
+
+        loop = asyncio.get_running_loop()
+        results: List[Optional[Tuple[str, bool]]] = [None] * len(prompts)
+        cached_results: Dict[str, Any] = {}
+
+        if self.cache is not None:
+            try:
+                if hasattr(self.cache, "get_batch"):
+                    cached_batch = await loop.run_in_executor(
+                        self._thread_pool,
+                        lambda: self.cache.get_batch(cache_keys),  # type: ignore[attr-defined]
+                    )
+                    cached_results = {
+                        key: value
+                        for key, value in zip(cache_keys, cached_batch)
+                        if value is not None
+                    }
+                else:
+                    for cache_key in cache_keys:
+                        try:
+                            cached_value = await loop.run_in_executor(
+                                self._thread_pool,
+                                lambda k=cache_key: self.cache.get(k),  # type: ignore[arg-type]
+                            )
+                            if cached_value is not None:
+                                cached_results[cache_key] = cached_value
+                        except Exception as exc:
+                            logger.debug(f"Cache read error for {cache_key}: {exc}")
+            except Exception as exc:
+                logger.debug(f"Batch cache read error: {exc}")
+
+        to_generate: List[Tuple[int, str, str]] = []
+        for idx, (prompt, cache_key) in enumerate(zip(prompts, cache_keys)):
+            cached_value = cached_results.get(cache_key)
+            if cached_value is not None:
+                results[idx] = (cached_value, True)
+                self.cache_stats.hits += 1
+            else:
+                to_generate.append((idx, prompt, cache_key))
+                self.cache_stats.misses += 1
+
+        async def _generate_with_limit(prompt: str, **inner_kwargs: Any) -> str:
+            async with self.semaphore:
+                return await adapter.agenerate(prompt, **inner_kwargs)
+
+        if to_generate:
+            generated_outputs = await asyncio.gather(
+                *[_generate_with_limit(prompt, **kwargs) for _, prompt, _ in to_generate]
+            )
+
+            if self.cache is not None:
+                try:
+                    cache_updates = list(
+                        zip([cache_key for _, _, cache_key in to_generate], generated_outputs)
+                    )
+                    if hasattr(self.cache, "set_batch"):
+                        await loop.run_in_executor(
+                            self._thread_pool,
+                            lambda: self.cache.set_batch(cache_updates),  # type: ignore[attr-defined]
+                        )
+                    else:
+                        for cache_key, output in cache_updates:
+                            await loop.run_in_executor(
+                                self._thread_pool,
+                                lambda k=cache_key, v=output: self.cache.set(k, v),  # type: ignore[arg-type]
+                            )
+                except Exception as exc:
+                    logger.debug(f"Batch cache write error: {exc}")
+
+            for (original_index, _, _), output in zip(to_generate, generated_outputs):
+                results[original_index] = (output, False)
+
+        return [item if item is not None else ("", False) for item in results]
+
     async def evaluate_batch(
         self,
         adapter: Any,
@@ -368,6 +446,79 @@ class AsyncEvaluationEngine:
         results.sort(key=lambda r: r.index)
 
         return results
+
+    async def evaluate_batch_optimized(
+        self,
+        adapter: Any,
+        prompts: List[str],
+        cache_keys: Optional[List[str]] = None,
+        priorities: Optional[List[int]] = None,
+        **kwargs: Any,
+    ) -> List[AsyncEvaluationResult]:
+        """
+        Evaluate a batch of prompts with optimized batch caching.
+
+        This method groups prompts by cache status and processes cached/uncached
+        items in batches for better performance.
+        """
+        async_adapter = AsyncAdapterWrapper(adapter, self._thread_pool)
+        cache_keys = cache_keys or [hash_prompt([prompt]) for prompt in prompts]
+        priorities = priorities or [1] * len(prompts)
+
+        # Update adaptive batch size
+        self._update_adaptive_batch_size()
+
+        start_time = time.perf_counter()
+
+        try:
+            # Use batch caching for better performance
+            batch_results = await self._cached_generate_batch(
+                async_adapter, prompts, cache_keys, **kwargs
+            )
+
+            # Convert to AsyncEvaluationResult format
+            results = []
+            total_latency = time.perf_counter() - start_time
+
+            for i, (prediction, cached) in enumerate(batch_results):
+                # Estimate latency per item (could be improved with per-item timing)
+                estimated_latency = total_latency / len(prompts)
+
+                result = AsyncEvaluationResult(
+                    index=i,
+                    prediction=prediction,
+                    latency=estimated_latency,
+                    cached=cached,
+                    priority=priorities[i],
+                )
+                results.append(result)
+
+                # Record latency for adaptive batching
+                self.latency_history.append(estimated_latency)
+
+            # Record success for circuit breaker
+            self._record_success()
+
+            return results
+
+        except Exception as e:
+            # Record failure for circuit breaker
+            self._record_failure()
+
+            # Create error results for all prompts
+            error_results = []
+            for i in range(len(prompts)):
+                error_result = AsyncEvaluationResult(
+                    index=i,
+                    prediction="",
+                    latency=0.0,
+                    error=str(e),
+                    cached=False,
+                    priority=priorities[i],
+                )
+                error_results.append(error_result)
+
+            return error_results
 
     async def _evaluate_single(
         self,
@@ -510,6 +661,7 @@ async def evaluate_with_async_engine(
     prompts: List[str],
     config: Optional[AsyncTaskConfig] = None,
     cache: Optional[PredictionCache] = None,
+    use_optimized_batch: bool = True,
 ) -> List[AsyncEvaluationResult]:
     """
     Convenience function for async evaluation.
@@ -519,6 +671,7 @@ async def evaluate_with_async_engine(
         prompts: List of prompts
         config: Async configuration
         cache: Optional cache
+        use_optimized_batch: Whether to use optimized batch processing
 
     Returns:
         List of evaluation results
@@ -528,7 +681,10 @@ async def evaluate_with_async_engine(
         engine.set_cache(cache)
 
     async with engine.session():
-        return await engine.evaluate_batch(adapter, prompts)
+        if use_optimized_batch:
+            return await engine.evaluate_batch_optimized(adapter, prompts)
+        else:
+            return await engine.evaluate_batch(adapter, prompts)
 
 
 def create_async_iterator_from_list(items: List[Any]) -> AsyncIterator[Any]:
