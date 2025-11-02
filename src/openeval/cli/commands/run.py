@@ -49,6 +49,11 @@ def run(
         30.0, "--request-timeout", help="Timeout for individual requests in seconds"
     ),
     no_cache: bool = typer.Option(False, "--no-cache", help="Disable prediction caching entirely"),
+    use_optimized_batch: bool = typer.Option(
+        True,
+        "--use-optimized-batch/--no-optimized-batch",
+        help="Use optimized batch caching for better throughput (default: enabled)",
+    ),
 ):
     """Run an evaluation from a specification file.
 
@@ -122,10 +127,16 @@ def run(
 
             async def process_batch(batch_prompts, batch_refs):
                 """Process a batch of prompts asynchronously."""
-                results = await engine.evaluate_batch(
-                    adapter=adapter,
-                    prompts=batch_prompts,
-                )
+                if use_optimized_batch:
+                    results = await engine.evaluate_batch_optimized(
+                        adapter=adapter,
+                        prompts=batch_prompts,
+                    )
+                else:
+                    results = await engine.evaluate_batch(
+                        adapter=adapter,
+                        prompts=batch_prompts,
+                    )
                 return results, batch_refs
 
             # Process dataset in batches using generator pattern
@@ -214,7 +225,14 @@ def run(
 
         if verbose:
             console.print(f"[dim]Average latency: {sum(latencies)/len(latencies):.3f}s[/dim]")
-            console.print(f"[dim]Cache hits: {results['cache_stats'].get('cache_hits', 0)}[/dim]")
+            cache_stats = results["cache_stats"]
+            console.print(f"[dim]Cache hits: {cache_stats.get('cache_hits', 0)}[/dim]")
+            console.print(f"[dim]Cache misses: {cache_stats.get('cache_misses', 0)}[/dim]")
+            console.print(
+                f"[dim]Cache hit rate: {cache_stats.get('cache_hit_rate', 0.0):.1%}[/dim]"
+            )
+            if use_optimized_batch:
+                console.print("[dim]Optimization: optimized batch caching enabled[/dim]")
 
     except FileNotFoundError:
         console.print(f"[red]✗ Spec file not found: {spec_path}[/red]")
