@@ -69,8 +69,17 @@ class DataValidator:
 
     def validate_data(self, data: Any, rules: Optional[List[str]] = None) -> ValidationResult:
         """Validate data against specified rules."""
-        # Create cache key from data and rules
-        data_hash = hashlib.md5(str(data).encode()).hexdigest()
+        # Create deterministic cache key using canonical JSON hashing
+        try:
+            if isinstance(data, dict):
+                data_str = json.dumps(data, sort_keys=True, separators=(",", ":"))
+            else:
+                data_str = json.dumps(data, separators=(",", ":"))
+            data_hash = hashlib.md5(data_str.encode()).hexdigest()
+        except (TypeError, ValueError):
+            # Fallback for non-JSON-serializable objects
+            data_hash = hashlib.md5(str(data).encode()).hexdigest()
+
         rules_key = tuple(sorted(rules)) if rules else None
         cache_key = f"{data_hash}:{rules_key}"
 
