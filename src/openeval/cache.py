@@ -632,6 +632,82 @@ class PredictionCache:
         # Record access pattern
         self._record_access_pattern(key)
 
+    def get_batch(self, keys: List[str]) -> List[Optional[str]]:
+        """Get multiple values from cache in batch.
+
+        Args:
+            keys: List of cache keys to retrieve
+
+        Returns:
+            List of values (or None if not found), in same order as keys
+        """
+        results = []
+        for key in keys:
+            try:
+                value = self.get(key)
+                results.append(value)
+            except Exception:
+                results.append(None)
+        return results
+
+    def set_batch(
+        self, items: List[tuple[str, str]], metadata_list: Optional[List[Dict[str, Any]]] = None
+    ) -> None:
+        """Set multiple values in cache in batch using executemany.
+
+        Args:
+            items: List of (key, output) tuples
+            metadata_list: Optional list of metadata dicts (one per item)
+        """
+        if not items:
+            return
+
+        now = time.time()
+        batch_data = []
+
+        for idx, (key, output) in enumerate(items):
+            payload = json.dumps({"output": output})
+
+            # Compress if enabled
+            compressed = 0
+            if self.compress and len(payload) > 1024:
+                try:
+                    compressed_payload = zlib.compress(payload.encode("utf-8"))
+                    if len(compressed_payload) < len(payload):
+                        payload = compressed_payload.decode("latin-1")
+                        compressed = 1
+                except Exception:
+                    pass
+
+            metadata_str = None
+            if metadata_list and idx < len(metadata_list):
+                metadata_str = json.dumps(metadata_list[idx])
+
+            batch_data.append((key, payload, now, compressed, metadata_str, 0, now))
+
+        # Batch insert using executemany for better performance
+        with self._lock, self._conn:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO kv(key, value, created_at, compressed, metadata, access_count, last_accessed) VALUES(?,?,?,?,?,?,?)",
+                batch_data,
+            )
+            self._conn.commit()
+
+        # Update memory cache and bloom filter for all items
+        for key, output in items:
+            self._memory_cache_set(
+                key,
+                {
+                    "value": output,
+                    "created_at": now,
+                    "compressed": 0,
+                    "metadata": None,
+                    "access_count": 0,
+                },
+            )
+            if self.bloom_filter:
+                self.bloom_filter.add(key)
+
     def clear_expired(self, ttl: float) -> int:
         """Clear expired entries and return number cleared."""
         cutoff = time.time() - ttl
