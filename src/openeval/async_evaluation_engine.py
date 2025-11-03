@@ -645,14 +645,31 @@ class AsyncEvaluationEngine:
             self._thread_pool.shutdown(wait=True)
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get engine statistics."""
-        return {
+        """Get engine statistics including cache performance."""
+        cache_stats = {
             "cache_hits": self.cache_stats.hits,
             "cache_misses": self.cache_stats.misses,
-            "cache_hit_rate": self.cache_stats.hit_rate,
+            "cache_hit_rate": (
+                self.cache_stats.hits / (self.cache_stats.hits + self.cache_stats.misses)
+                if (self.cache_stats.hits + self.cache_stats.misses) > 0
+                else 0.0
+            ),
             "max_concurrent_requests": self.config.max_concurrent_requests,
             "thread_pool_workers": self._thread_pool._max_workers,
+            "adaptive_batch_size": self._adaptive_batch_size,
+            "circuit_breaker_state": self.circuit_breaker.state,
+            "circuit_breaker_failures": self.circuit_breaker.failures,
         }
+
+        if len(self.latency_history) > 0:
+            cache_stats["avg_latency"] = statistics.mean(self.latency_history)
+            cache_stats["p95_latency"] = (
+                statistics.quantiles(self.latency_history, n=20)[18]
+                if len(self.latency_history) >= 20
+                else max(self.latency_history)
+            )
+
+        return cache_stats
 
 
 # Utility functions for easy integration
