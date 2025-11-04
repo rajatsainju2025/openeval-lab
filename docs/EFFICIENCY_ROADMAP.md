@@ -1,53 +1,97 @@
-# Project Efficiency Roadmap (November 2, 2025)
-
-## Executive Summary
-
-This document outlines a systematic, measurement-driven approach to improve the OpenEval Lab codebase through 20 granular commits. The focus is on reducing latency for large-scale evaluations, stabilizing caching layers, and enabling concurrent execution where sequential processing currently dominates.
-
----
+# OpenEval Lab Efficiency Roadmap (Fresh Start - November 4, 2025)
 
 ## Project Critique
 
 ### Strengths
+- **Modular Architecture**: Clean separation between CLI, core evaluation engine, metrics, caching, and benchmarking components
+- **Advanced Async Infrastructure**: AsyncEvaluationEngine with circuit breaker, adaptive batching, and connection pooling
+- **Comprehensive Caching**: Multi-level cache with bloom filters, compression, and batch operations
+- **Vectorized Metrics**: NumPy-accelerated computations where applicable
+- **Rich Documentation**: Extensive docs, examples, and configuration options
+- **Type Safety**: Full type hints and Pydantic validation throughout
 
-1. **Strong Modular Architecture**
-   - Clear separation of concerns: CLI (`src/openeval/cli/`), metrics (`src/openeval/metrics/`), caching (`src/openeval/cache.py`), and benchmarking (`src/openeval/benchmarking.py`)
-   - Comprehensive documentation in `docs/` with examples and configuration guides
-   - Well-organized task/dataset/adapter plugin system with registry pattern
+### Areas for Improvement
 
-2. **Advanced Async Infrastructure**
-   - `AsyncEvaluationEngine` implements circuit breaker, adaptive batching, connection pooling, and priority scheduling
-   - Latency-aware adaptive batch sizing based on recent latency history
-   - Thread pool management for mixed sync/async adapter support
+#### Performance Bottlenecks
+1. **Synchronous Benchmarking**: BenchmarkSuite still processes evaluations synchronously despite async infrastructure
+2. **Dataset Materialization**: `list(dataset)` loads entire datasets into memory unnecessarily
+3. **Duplicate Normalization**: Text normalization repeated across metrics without caching
+4. **Cache Batch Inefficiency**: Batch operations use individual SQL calls instead of bulk operations
+5. **CLI Output Overhead**: Large result serialization without streaming or compression
 
-3. **Rich CLI and Logging**
-   - Typer-based command interface with multiple subcommands
-   - Enhanced logging with JSON support and structured output
-   - Example specifications and benchmark suites for quick onboarding
+#### Memory & Resource Management
+1. **Unbounded Caches**: No size limits or TTL policies on validation/data caches
+2. **Memory Leaks**: No profiling or leak detection in long-running processes
+3. **Connection Overhead**: HTTP adapters create new connections per request
+4. **Result Size**: Large evaluation outputs stored uncompressed
 
-### Weaknesses & Inefficiencies
+#### Observability Gaps
+1. **Limited Profiling**: No performance regression detection or memory profiling
+2. **Progress Estimation**: No ETA calculations based on historical data
+3. **Configuration Validation**: No performance hints for suboptimal settings
 
-1. **Validation Cache Instability**
-   - Hashes `str(data)` which is non-deterministic for dictionaries (insertion-order dependent)
-   - No eviction policy: unbounded growth over long-running sessions
-   - Missing TTL/LRU mechanisms, risking stale entries in production
+## 20-Commit Efficiency Roadmap
 
-2. **Async Batching Partially Integrated**
-   - `_cached_generate_batch()` and `evaluate_batch_optimized()` recently added but untested
-   - Lacks fallback handling for cache-miss bulk operations
-   - No CLI flag to toggle or measure impact of optimization
+### Phase 1: Core Performance (Commits 1-5)
+1. **docs: Record fresh project critique and roadmap** - Document current state and plan
+2. **feat: Add metrics normalization utilities** - Commit existing normalization helpers
+3. **perf: Parallelize benchmark predictions** - Use AsyncEvaluationEngine in benchmarks
+4. **perf: Stream benchmark dataset processing** - Replace list(dataset) with iterators
+5. **perf: Cache benchmark metric outputs** - Memoize adapter/task/dataset combinations
 
-3. **Benchmark Suite Remains Sequential**
-   - `run_single_benchmark()` materializes entire datasets (`list(dataset)`)
-   - Adapter calls inside loop, missing opportunity for async parallelism
-   - No concurrent prediction gathering even though `AsyncEvaluationEngine` exists
+### Phase 2: Cache & I/O Optimization (Commits 6-10)
+6. **perf: Improve cache batch primitives** - Optimize SQL patterns for bulk operations
+7. **perf: Prefetch streaming datasets** - Add async buffering to dataset loading
+8. **perf: Add cache eviction policies** - Size/TTL controls for PredictionCache
+9. **perf: Expose cache metrics via monitoring** - Integrate stats into telemetry
+10. **test: Add microbenchmark harness** - pytest-benchmark for performance validation
 
-4. **Metric Computation Hot Paths**
-   - `TokenF1` normalizes text per invocation; no shared normalization pipeline
-   - Repeated string operations in Python loops without NumPy vectorization fallback
-   - No caching of intermediate tokenization across multiple metrics
+### Phase 3: CLI & Output Optimization (Commits 11-15)
+11. **perf: Optimize CLI write_out operations** - Chunked streaming and reduced JSON ops
+12. **perf: Tune adapter retry parameters** - Adaptive backoff based on latency
+13. **perf: Add memory profiling hooks** - Leak detection and memory monitoring
+14. **perf: Optimize HTTP adapter connections** - Connection pooling for adapters
+15. **perf: Compress large result outputs** - Result compression for large evaluations
 
-5. **Cache Layer Lacks Primitives**
+### Phase 4: Advanced Features (Commits 16-20)
+16. **perf: Preprocess datasets with caching** - Pipeline caching for expensive operations
+17. **perf: Add progress estimation** - ETA based on historical performance
+18. **perf: Add performance regression tests** - CI pipeline regression detection
+19. **perf: Optimize configuration loading** - Validation and performance hints
+20. **docs: Update performance guide** - Comprehensive guide with validation steps
+
+## Success Metrics
+
+### Performance Targets
+- **Benchmark Throughput**: 3x improvement in benchmark suite execution time
+- **Memory Usage**: 50% reduction in peak memory for large evaluations
+- **Cache Hit Rate**: >80% for repeated evaluations
+- **CLI Responsiveness**: <100ms for common operations
+
+### Quality Targets
+- **Test Coverage**: >90% for performance-critical paths
+- **Type Safety**: Zero mypy errors in core modules
+- **Documentation**: Complete performance tuning guide
+- **CI Performance**: <5min for full test suite
+
+## Implementation Notes
+
+### Commit Discipline
+- Each commit focuses on one performance aspect
+- Include performance measurements where possible
+- Update documentation for new features
+- Maintain backward compatibility
+
+### Testing Strategy
+- Unit tests for individual optimizations
+- Integration tests for end-to-end performance
+- Microbenchmarks for regression detection
+- Memory profiling for leak detection
+
+### Rollback Plan
+- Feature flags for major changes
+- Performance monitoring to detect regressions
+- Clear documentation of performance trade-offs
    - `PredictionCache` only supports single-key `get()` and `set()`
    - Async batch operations must fall back to per-key round trips
    - No bulk insert (`executemany`) for SQLite backend
