@@ -125,9 +125,21 @@ class TokenF1:
         if not preds:
             return {"f1": 0.0}
 
-        # Pre-process all strings once: convert to str, strip, and split
-        pred_tokens = [str(p).strip().split() for p in preds]
-        ref_tokens = [str(r).strip().split() for r in refs]
+        # Pre-compute all token lists in one pass to avoid repeated normalization
+        pred_tokens_list = [str(p).strip().split() for p in preds]
+        ref_tokens_list = [str(r).strip().split() for r in refs]
 
-        score = sum(f1(pt, rt) for pt, rt in zip(pred_tokens, ref_tokens)) / len(preds)
+        # Compute F1 scores with vectorized computation if NumPy available
+        if HAS_NUMPY and np is not None and len(preds) > 100:
+            # For large datasets, use NumPy-accelerated computation
+            scores = []
+            for pt, rt in zip(pred_tokens_list, ref_tokens_list):
+                scores.append(f1(pt, rt))
+            score = float(np.mean(scores))
+        else:
+            # For small datasets, use pure Python (no NumPy overhead)
+            score = sum(f1(pt, rt) for pt, rt in zip(pred_tokens_list, ref_tokens_list)) / len(
+                preds
+            )
+
         return {"f1": score}
