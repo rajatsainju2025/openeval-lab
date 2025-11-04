@@ -101,22 +101,64 @@ class BenchmarkSuite:
             if self.sample_size and len(samples) > self.sample_size:
                 samples = samples[: self.sample_size]
 
-            # Run predictions
-            predictions = []
+            # Build prompts for all samples
+            prompts = []
             references = []
+            cache_keys = []
 
             for sample in samples:
                 try:
-                    # Build prompt and get prediction from adapter
                     prompt = task.build_prompt(sample)
-                    prediction = adapter.generate(prompt)
-                    predictions.append(prediction)
+                    prompts.append(prompt)
                     references.append(sample.reference)
-
+                    # Generate cache key based on prompt
+                    cache_keys.append(f"{adapter.name}:{hash(prompt)}")
                 except Exception as e:
-                    self.logger.warning(f"Prediction failed for sample {sample.id}: {str(e)}")
-                    predictions.append("")
+                    self.logger.warning(f"Prompt building failed for sample {sample.id}: {str(e)}")
+                    prompts.append("")
                     references.append(sample.reference)
+                    cache_keys.append(f"{adapter.name}:error:{sample.id}")
+
+            # Use AsyncEvaluationEngine for parallel predictions
+            try:
+                import asyncio
+                from .async_evaluation_engine import AsyncEvaluationEngine, AsyncTaskConfig
+
+                config = AsyncTaskConfig(
+                    max_concurrent_requests=min(
+                        10, len(prompts)
+                    ),  # Limit concurrency for benchmarks
+                    request_timeout=30.0,
+                    enable_progress_tracking=False,  # Disable progress for benchmarks
+                )
+
+                # Create event loop for async execution
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                # Run predictions in parallel
+                engine = AsyncEvaluationEngine(config)
+                results = loop.run_until_complete(
+                    engine.evaluate_batch_optimized(adapter, prompts, cache_keys)
+                )
+
+                # Extract predictions from results
+                predictions = [result.prediction for result in results]
+
+            except Exception as e:
+                self.logger.warning(f"Async evaluation failed, falling back to sync: {str(e)}")
+                # Fallback to synchronous processing
+                predictions = []
+                for prompt in prompts:
+                    try:
+                        prediction = adapter.generate(prompt)
+                        predictions.append(prediction)
+                    except Exception as e:
+                        self.logger.warning(f"Prediction failed: {str(e)}")
+                        predictions.append("")
 
             # Compute metrics
             metric_scores = {}
