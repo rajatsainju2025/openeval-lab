@@ -11,12 +11,17 @@ import json
 import gzip
 import bz2
 import lzma
+import asyncio
+import threading
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Iterator, Union, Callable, TextIO
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Iterator, Union, Callable, TextIO, AsyncIterator
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 import csv
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+import heapq
 
 try:
     import pandas as pd
@@ -58,6 +63,11 @@ class StreamingConfig:
     buffer_size: int = 8192  # Buffer size for I/O operations
     prefetch_chunks: int = 2  # Number of chunks to prefetch
     cache_chunks: bool = True  # Whether to cache processed chunks
+    adaptive_batching: bool = True  # Enable adaptive batch sizing
+    parallel_processing: bool = True  # Enable parallel chunk processing
+    max_workers: Optional[int] = None  # Max workers for parallel processing
+    progress_tracking: bool = True  # Enable progress tracking
+    memory_pressure_threshold: float = 0.8  # Memory pressure threshold (0-1)
 
 
 class StreamProcessor(ABC):
@@ -161,6 +171,94 @@ class CSVProcessor(StreamProcessor):
             return False
 
 
+class MemoryMonitor:
+    """Monitor memory usage and pressure."""
+
+    def __init__(self, pressure_threshold: float = 0.8):
+        self.pressure_threshold = pressure_threshold
+        self._last_memory_check = 0
+        self._check_interval = 1.0  # Check every second
+
+    def is_under_pressure(self) -> bool:
+        """Check if system is under memory pressure."""
+        current_time = time.time()
+        if current_time - self._last_memory_check < self._check_interval:
+            return False
+
+        self._last_memory_check = current_time
+        memory_usage = get_memory_usage()
+
+        # Get system memory info
+        try:
+            import psutil
+            system_memory = psutil.virtual_memory()
+            return (system_memory.percent / 100.0) > self.pressure_threshold
+        except ImportError:
+            # Fallback: check if usage exceeds threshold
+            return memory_usage > (self.pressure_threshold * 1000)  # Rough estimate
+
+    def get_optimal_chunk_size(self, base_size: int) -> int:
+        """Get optimal chunk size based on memory pressure."""
+        if self.is_under_pressure():
+            return max(100, base_size // 2)  # Reduce chunk size
+        return base_size
+
+
+class ProgressTracker:
+    """Track progress of streaming operations."""
+
+    def __init__(self):
+        self.total_examples = 0
+        self.processed_examples = 0
+        self.start_time = time.time()
+        self._last_report = 0
+        self._report_interval = 5.0  # Report every 5 seconds
+
+    def update(self, count: int = 1) -> None:
+        """Update progress counter."""
+        self.processed_examples += count
+        self._maybe_report()
+
+    def set_total(self, total: int) -> None:
+        """Set total expected examples."""
+        self.total_examples = total
+
+    def _maybe_report(self) -> None:
+        """Report progress if enough time has passed."""
+        current_time = time.time()
+        if current_time - self._last_report >= self._report_interval:
+            self._report_progress()
+            self._last_report = current_time
+
+    def _report_progress(self) -> None:
+        """Report current progress."""
+        elapsed = time.time() - self.start_time
+        if self.total_examples > 0:
+            percentage = (self.processed_examples / self.total_examples) * 100
+            rate = self.processed_examples / elapsed if elapsed > 0 else 0
+            eta = (self.total_examples - self.processed_examples) / rate if rate > 0 else 0
+            logger.info(
+                f"Progress: {self.processed_examples}/{self.total_examples} "
+                f"({percentage:.1f}%) - {rate:.1f} examples/sec - ETA: {eta:.1f}s"
+            )
+        else:
+            rate = self.processed_examples / elapsed if elapsed > 0 else 0
+            logger.info(
+                f"Progress: {self.processed_examples} examples processed "
+                f"- {rate:.1f} examples/sec"
+            )
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get progress statistics."""
+        elapsed = time.time() - self.start_time
+        return {
+            "processed": self.processed_examples,
+            "total": self.total_examples,
+            "elapsed_seconds": elapsed,
+            "rate_per_second": self.processed_examples / elapsed if elapsed > 0 else 0,
+        }
+
+
 class StreamingDataset(Dataset):
     """
     Memory-efficient streaming dataset that processes data on-demand.
@@ -180,6 +278,10 @@ class StreamingDataset(Dataset):
         self._file_size = None
         self._estimated_count = None
         self._chunk_cache = {}
+        self._adaptive_chunk_size = self.config.chunk_size
+        self._memory_monitor = MemoryMonitor(self.config.memory_pressure_threshold)
+        self._progress_tracker = ProgressTracker() if self.config.progress_tracking else None
+        self._thread_pool = ThreadPoolExecutor(max_workers=self.config.max_workers) if self.config.parallel_processing else None
 
         if not self.file_path.exists():
             raise FileNotFoundError(f"Dataset file not found: {file_path}")
@@ -265,7 +367,7 @@ class StreamingDataset(Dataset):
 
     def __iter__(self) -> Iterator[Example]:
         """Iterate through examples efficiently."""
-        chunk_size = self.config.chunk_size
+        chunk_size = self._get_adaptive_chunk_size()
         chunk_cache = self._chunk_cache if self.config.cache_chunks else {}
 
         with self._open_file() as f:
@@ -281,6 +383,10 @@ class StreamingDataset(Dataset):
 
                     chunk.append(example)
 
+                    # Update progress
+                    if self._progress_tracker:
+                        self._progress_tracker.update()
+
                     # Yield chunk when it reaches the target size
                     if len(chunk) >= chunk_size:
                         if self.config.cache_chunks:
@@ -295,6 +401,50 @@ class StreamingDataset(Dataset):
                 if self.config.cache_chunks:
                     chunk_cache[chunk_idx] = chunk.copy()
                 yield from chunk
+
+    async def __aiter__(self) -> AsyncIterator[Example]:
+        """Async iterate through examples."""
+        chunk_size = self._get_adaptive_chunk_size()
+
+        # Use thread pool for file I/O
+        loop = asyncio.get_event_loop()
+
+        with self._open_file() as f:
+            chunk = []
+            lines_iter = iter(f)
+
+            while True:
+                # Read lines asynchronously
+                try:
+                    line = await loop.run_in_executor(None, next, lines_iter)
+                except StopIteration:
+                    break
+
+                example = self.processor.process_line(line)
+                if example is not None:
+                    if self.transform:
+                        example = self.transform(example)
+
+                    chunk.append(example)
+
+                    if self._progress_tracker:
+                        self._progress_tracker.update()
+
+                    if len(chunk) >= chunk_size:
+                        for ex in chunk:
+                            yield ex
+                        chunk = []
+
+            # Yield remaining examples
+            for ex in chunk:
+                yield ex
+
+    def _get_adaptive_chunk_size(self) -> int:
+        """Get adaptive chunk size based on memory pressure."""
+        if not self.config.adaptive_batching:
+            return self.config.chunk_size
+
+        return self._memory_monitor.get_optimal_chunk_size(self._adaptive_chunk_size)
 
     def get_chunk(self, chunk_idx: int) -> List[Example]:
         """Get a specific chunk of examples."""
@@ -326,7 +476,7 @@ class StreamingDataset(Dataset):
 
     def iter_chunks(self) -> Iterator[List[Example]]:
         """Iterate through chunks of examples."""
-        chunk_size = self.config.chunk_size
+        chunk_size = self._get_adaptive_chunk_size()
 
         with self._open_file() as f:
             chunk = []
@@ -338,12 +488,86 @@ class StreamingDataset(Dataset):
                         example = self.transform(example)
                     chunk.append(example)
 
+                    if self._progress_tracker:
+                        self._progress_tracker.update()
+
                     if len(chunk) >= chunk_size:
                         yield chunk
                         chunk = []
 
             if chunk:
                 yield chunk
+
+    def iter_chunks_parallel(self) -> Iterator[List[Example]]:
+        """Iterate through chunks with parallel processing."""
+        if not self.config.parallel_processing or self._thread_pool is None:
+            yield from self.iter_chunks()
+            return
+
+        chunk_size = self._get_adaptive_chunk_size()
+        futures = []
+
+        with self._open_file() as f:
+            chunk = []
+
+            for line in f:
+                example = self.processor.process_line(line)
+                if example is not None:
+                    if self.transform:
+                        example = self.transform(example)
+                    chunk.append(example)
+
+                    if self._progress_tracker:
+                        self._progress_tracker.update()
+
+                    if len(chunk) >= chunk_size:
+                        # Submit chunk for parallel processing
+                        future = self._thread_pool.submit(self._process_chunk_parallel, chunk.copy())
+                        futures.append(future)
+                        chunk = []
+
+                        # Yield completed chunks
+                        for completed_future in [f for f in futures if f.done()]:
+                            yield completed_future.result()
+                            futures.remove(completed_future)
+
+            # Process remaining chunk
+            if chunk:
+                future = self._thread_pool.submit(self._process_chunk_parallel, chunk)
+                futures.append(future)
+
+            # Yield all remaining results
+            for future in futures:
+                yield future.result()
+
+    def _process_chunk_parallel(self, chunk: List[Example]) -> List[Example]:
+        """Process a chunk in parallel (placeholder for additional processing)."""
+        # Update progress
+        if self._progress_tracker:
+            self._progress_tracker.update(len(chunk))
+
+        return chunk
+
+    def evaluate_with_streaming(
+        self,
+        evaluator_func: Callable[[List[Example]], Any],
+        batch_size: Optional[int] = None,
+        parallel: bool = True
+    ) -> Iterator[Any]:
+        """Evaluate dataset using streaming with automatic batching."""
+        batch_size = batch_size or self._get_adaptive_chunk_size()
+
+        if parallel and self.config.parallel_processing and self._thread_pool:
+            chunk_iter = self.iter_chunks_parallel()
+        else:
+            chunk_iter = self.iter_chunks()
+
+        for chunk in chunk_iter:
+            if len(chunk) > 0:
+                # Adaptive batching: split large chunks if needed
+                for i in range(0, len(chunk), batch_size):
+                    batch = chunk[i:i + batch_size]
+                    yield evaluator_func(batch)
 
     def sample(self, n: int, seed: Optional[int] = None) -> List[Example]:
         """Sample n examples from the dataset."""
