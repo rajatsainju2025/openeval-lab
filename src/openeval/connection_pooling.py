@@ -10,10 +10,16 @@ from __future__ import annotations
 import asyncio
 import time
 import threading
-from typing import Any, Dict, List, Optional, Callable, AsyncContextManager, TypeVar
+from typing import Any, Dict, List, Optional, Callable, AsyncContextManager, TypeVar, TYPE_CHECKING
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
+
+if TYPE_CHECKING:
+    import aiohttp
+    import httpx
+    import requests
+    from requests.adapters import HTTPAdapter
 
 try:
     import aiohttp
@@ -60,6 +66,13 @@ class ConnectionConfig:
     retry_delay: float = 1.0
     max_concurrent_requests: int = 10
     connection_pool_timeout: float = 5.0
+    enable_circuit_breaker: bool = True
+    circuit_breaker_threshold: int = 5  # failures before opening circuit
+    circuit_breaker_timeout: float = 60.0  # seconds to wait before retrying
+    health_check_interval: float = 30.0  # seconds between health checks
+    adaptive_pool_sizing: bool = True
+    min_connections: int = 2
+    connection_scaling_factor: float = 1.5
 
 
 @dataclass
@@ -92,6 +105,125 @@ class ConnectionStats:
             "avg_response_time": self.avg_response_time,
             "pool_exhaustion_events": self.pool_exhaustion_events,
         }
+
+
+class CircuitBreaker:
+    """Circuit breaker for fault tolerance."""
+
+    def __init__(self, threshold: int = 5, timeout: float = 60.0):
+        self.threshold = threshold
+        self.timeout = timeout
+        self.failure_count = 0
+        self.last_failure_time: Optional[float] = None
+        self.state = "closed"  # closed, open, half-open
+
+    def record_success(self) -> None:
+        """Record a successful operation."""
+        self.failure_count = 0
+        self.state = "closed"
+
+    def record_failure(self) -> None:
+        """Record a failed operation."""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.threshold:
+            self.state = "open"
+
+    def can_attempt(self) -> bool:
+        """Check if an operation can be attempted."""
+        if self.state == "closed":
+            return True
+        elif self.state == "open":
+            if self.last_failure_time and (time.time() - self.last_failure_time) > self.timeout:
+                self.state = "half-open"
+                return True
+            return False
+        elif self.state == "half-open":
+            return True
+        return False
+
+
+class HealthChecker:
+    """Health checker for connection validation."""
+
+    def __init__(self, check_interval: float = 30.0):
+        self.check_interval = check_interval
+        self.last_check: Optional[float] = None
+        self.is_healthy = True
+        self._lock = threading.Lock()
+
+    async def check_health(self, check_func: Callable[[], Any]) -> bool:
+        """Perform health check if interval has passed."""
+        current_time = time.time()
+
+        with self._lock:
+            if self.last_check is None or (current_time - self.last_check) >= self.check_interval:
+                try:
+                    await check_func()
+                    self.is_healthy = True
+                    self.last_check = current_time
+                except Exception:
+                    self.is_healthy = False
+                    self.last_check = current_time
+
+            return self.is_healthy
+
+
+class AdaptivePoolSizer:
+    """Adaptive pool sizing based on usage patterns."""
+
+    def __init__(
+        self,
+        min_connections: int = 2,
+        max_connections: int = 20,
+        scaling_factor: float = 1.5,
+        cooldown_period: float = 300.0,  # 5 minutes
+    ):
+        self.min_connections = min_connections
+        self.max_connections = max_connections
+        self.scaling_factor = scaling_factor
+        self.cooldown_period = cooldown_period
+        self.last_scaling_time: Optional[float] = None
+        self.current_target = min_connections
+
+    def should_scale_up(self, stats: ConnectionStats) -> bool:
+        """Determine if pool should scale up."""
+        if stats.active_connections >= self.current_target * 0.8:  # 80% utilization
+            return True
+        if stats.pool_exhaustion_events > 0:
+            return True
+        return False
+
+    def should_scale_down(self, stats: ConnectionStats) -> bool:
+        """Determine if pool should scale down."""
+        if stats.active_connections < self.current_target * 0.3:  # 30% utilization
+            return True
+        return False
+
+    def get_target_size(self, stats: ConnectionStats) -> int:
+        """Calculate target pool size."""
+        current_time = time.time()
+
+        # Check cooldown period
+        if (
+            self.last_scaling_time
+            and (current_time - self.last_scaling_time) < self.cooldown_period
+        ):
+            return self.current_target
+
+        if self.should_scale_up(stats):
+            new_target = min(int(self.current_target * self.scaling_factor), self.max_connections)
+            if new_target != self.current_target:
+                self.current_target = new_target
+                self.last_scaling_time = current_time
+        elif self.should_scale_down(stats):
+            new_target = max(int(self.current_target / self.scaling_factor), self.min_connections)
+            if new_target != self.current_target:
+                self.current_target = new_target
+                self.last_scaling_time = current_time
+
+        return self.current_target
 
 
 class ConnectionPool(ABC):
@@ -128,11 +260,14 @@ class HTTPConnectionPool(ConnectionPool):
     def __init__(self, config: ConnectionConfig, base_url: Optional[str] = None):
         super().__init__(config)
         self.base_url = base_url
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._connector: Optional[aiohttp.TCPConnector] = None
+        self._session: Optional[Any] = None
+        self._connector: Optional[Any] = None
 
-    async def _ensure_session(self) -> aiohttp.ClientSession:
+    async def _ensure_session(self) -> Any:
         """Ensure we have an active session."""
+        if not HAS_AIOHTTP:
+            raise ImportError("aiohttp is required for HTTPConnectionPool")
+
         if self._session is None or self._session.closed:
             self._connector = aiohttp.TCPConnector(
                 limit=self.config.max_connections,
@@ -152,13 +287,13 @@ class HTTPConnectionPool(ConnectionPool):
 
         return self._session
 
-    async def acquire(self) -> aiohttp.ClientSession:
+    async def acquire(self) -> Any:
         """Acquire a session from the pool."""
         with self._lock:
             self.stats.total_requests += 1
             return await self._ensure_session()
 
-    async def release(self, connection: aiohttp.ClientSession) -> None:
+    async def release(self, connection: Any) -> None:
         """Release a session (no-op for aiohttp as it's shared)."""
         with self._lock:
             self.stats.connections_reused += 1
@@ -179,9 +314,9 @@ class HTTPXConnectionPool(ConnectionPool):
     def __init__(self, config: ConnectionConfig, base_url: Optional[str] = None):
         super().__init__(config)
         self.base_url = base_url
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: Optional[Any] = None
 
-    async def _ensure_client(self) -> httpx.AsyncClient:
+    async def _ensure_client(self) -> Any:
         """Ensure we have an active client."""
         if self._client is None or self._client.is_closed:
             limits = httpx.Limits(
@@ -197,13 +332,13 @@ class HTTPXConnectionPool(ConnectionPool):
 
         return self._client
 
-    async def acquire(self) -> httpx.AsyncClient:
+    async def acquire(self) -> Any:
         """Acquire a client from the pool."""
         with self._lock:
             self.stats.total_requests += 1
             return await self._ensure_client()
 
-    async def release(self, connection: httpx.AsyncClient) -> None:
+    async def release(self, connection: Any) -> None:
         """Release a client (no-op for httpx as it's shared)."""
         with self._lock:
             self.stats.connections_reused += 1
@@ -221,9 +356,9 @@ class RequestsConnectionPool(ConnectionPool):
     def __init__(self, config: ConnectionConfig, base_url: Optional[str] = None):
         super().__init__(config)
         self.base_url = base_url
-        self._session: Optional[requests.Session] = None
+        self._session: Optional[Any] = None
 
-    def _ensure_session(self) -> requests.Session:
+    def _ensure_session(self) -> Any:
         """Ensure we have an active session."""
         if self._session is None:
             self._session = requests.Session()
@@ -243,13 +378,13 @@ class RequestsConnectionPool(ConnectionPool):
 
         return self._session
 
-    async def acquire(self) -> requests.Session:
+    def acquire(self) -> Any:
         """Acquire a session from the pool."""
         with self._lock:
             self.stats.total_requests += 1
             return self._ensure_session()
 
-    async def release(self, connection: requests.Session) -> None:
+    async def release(self, connection: Any) -> None:
         """Release a session (no-op for requests as it's shared)."""
         with self._lock:
             self.stats.connections_reused += 1
@@ -276,6 +411,9 @@ class PooledAdapter:
         self.pool_config = pool_config or ConnectionConfig()
         self.pool_type = pool_type
         self._pool: Optional[ConnectionPool] = None
+        self._circuit_breaker: Optional[CircuitBreaker] = None
+        self._health_checker: Optional[HealthChecker] = None
+        self._adaptive_sizer: Optional[AdaptivePoolSizer] = None
         self._base_url = getattr(base_adapter, "base_url", None) or getattr(
             base_adapter, "api_base", None
         )
@@ -314,9 +452,36 @@ class PooledAdapter:
             f"Initialized {self.pool_type} connection pool for adapter {self.base_adapter.__class__.__name__}"
         )
 
+    def _get_circuit_breaker(self, adapter_key: str) -> CircuitBreaker:
+        """Get or create circuit breaker for this adapter."""
+        if self._circuit_breaker is None:
+            self._circuit_breaker = CircuitBreaker(
+                threshold=self.pool_config.circuit_breaker_threshold,
+                timeout=self.pool_config.circuit_breaker_timeout,
+            )
+        return self._circuit_breaker
+
+    def _get_health_checker(self, adapter_key: str) -> HealthChecker:
+        """Get or create health checker for this adapter."""
+        if self._health_checker is None:
+            self._health_checker = HealthChecker(
+                check_interval=self.pool_config.health_check_interval
+            )
+        return self._health_checker
+
+    async def _health_check_func(self) -> None:
+        """Health check function - makes a simple request."""
+        # Simple health check - try to make a basic request
+        try:
+            if self._pool:
+                connection = await self._pool.acquire()
+                await self._pool.release(connection)
+        except Exception:
+            raise
+
     async def make_request(self, method: str, url: str, **kwargs: Any) -> Any:
         """
-        Make an HTTP request using the connection pool.
+        Make an HTTP request using the connection pool with circuit breaker and health checks.
 
         Args:
             method: HTTP method
@@ -326,6 +491,22 @@ class PooledAdapter:
         Returns:
             Response object
         """
+        # Circuit breaker check
+        adapter_key = f"{self.base_adapter.__class__.__name__}_{self.pool_type}"
+        circuit_breaker = None
+        if self.pool_config.enable_circuit_breaker:
+            circuit_breaker = self._get_circuit_breaker(adapter_key)
+
+            if not circuit_breaker.can_attempt():
+                raise Exception(f"Circuit breaker is open for {adapter_key}")
+
+        # Health check
+        if self.pool_config.health_check_interval > 0:
+            health_checker = self._get_health_checker(adapter_key)
+            is_healthy = await health_checker.check_health(self._health_check_func)
+            if not is_healthy:
+                logger.warning(f"Health check failed for {adapter_key}")
+
         if not self._pool:
             # Fallback to base adapter if no pool available
             return await self._fallback_request(method, url, **kwargs)
@@ -354,10 +535,19 @@ class PooledAdapter:
                     future = executor.submit(self._sync_request, connection, method, url, kwargs)
                     return future.result()
 
-        except Exception:
+        except Exception as e:
+            # Record failure for circuit breaker
+            if circuit_breaker is not None:
+                circuit_breaker.record_failure()
+
             if self._pool:
                 self._pool.stats.failed_requests += 1
-            raise
+            raise e
+
+        else:
+            # Record success for circuit breaker
+            if circuit_breaker is not None:
+                circuit_breaker.record_success()
 
         finally:
             await self._pool.release(connection)
@@ -460,6 +650,9 @@ class ConnectionPoolManager:
         self._pools: Dict[str, ConnectionPool] = {}
         self._adapters: Dict[str, PooledAdapter] = {}
         self._lock = threading.RLock()
+        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self._health_checkers: Dict[str, HealthChecker] = {}
+        self._adaptive_sizers: Dict[str, AdaptivePoolSizer] = {}
 
     def get_pooled_adapter(
         self,
@@ -569,7 +762,7 @@ def benchmark_connection_pooling(
     # Benchmark without pooling
     start_time = time.time()
     for _ in range(iterations):
-        adapter = adapter_factory()
+        adapter_factory()  # Create adapter instance
         # Simulate requests without pooling
         time.sleep(0.001)
     no_pool_time = time.time() - start_time
