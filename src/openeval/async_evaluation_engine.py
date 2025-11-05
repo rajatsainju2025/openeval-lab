@@ -69,6 +69,9 @@ class AsyncTaskConfig:
     circuit_breaker_threshold: int = 5
     circuit_breaker_timeout: float = 60.0
     priority_levels: int = 3
+    # Adaptive concurrency parameters
+    enable_adaptive_concurrency: bool = True
+    adaptive_concurrency_config: Optional[AdaptiveConcurrencyConfig] = None
 
 
 @dataclass
@@ -78,6 +81,247 @@ class CircuitBreakerState:
     failures: int = 0
     last_failure_time: float = 0.0
     state: str = "closed"  # closed, open, half-open
+
+
+@dataclass
+class AdaptiveConcurrencyConfig:
+    """Configuration for adaptive concurrency control."""
+
+    min_concurrency: int = 1
+    max_concurrency: int = 50
+    target_response_time: float = 2.0  # seconds
+    adaptation_interval: float = 10.0  # seconds
+    cpu_threshold_high: float = 0.8  # scale down when CPU > 80%
+    cpu_threshold_low: float = 0.3   # scale up when CPU < 30%
+    memory_threshold_high: float = 0.85  # scale down when memory > 85%
+    memory_threshold_low: float = 0.4   # scale up when memory < 40%
+    scale_up_factor: float = 1.5
+    scale_down_factor: float = 0.7
+    stabilization_window: int = 5  # measurements to consider stable
+    enable_load_balancing: bool = True
+
+
+class AdaptiveConcurrencyController:
+    """Adaptive concurrency controller that adjusts based on system load and performance."""
+
+    def __init__(self, config: AdaptiveConcurrencyConfig):
+        self.config = config
+        self.current_concurrency = config.min_concurrency
+        self.last_adaptation = time.time()
+        self.response_times: deque[float] = deque(maxlen=100)
+        self.cpu_measurements: deque[float] = deque(maxlen=20)
+        self.memory_measurements: deque[float] = deque(maxlen=20)
+        self.concurrency_history: deque[int] = deque(maxlen=10)
+        self._lock = _get_asyncio().Lock()
+
+    async def get_optimal_concurrency(self) -> int:
+        """Calculate optimal concurrency based on current conditions."""
+        async with self._lock:
+            current_time = time.time()
+
+            # Check if we should adapt
+            if current_time - self.last_adaptation < self.config.adaptation_interval:
+                return self.current_concurrency
+
+            # Update system metrics
+            await self._update_system_metrics()
+
+            # Calculate optimal concurrency
+            optimal = self._calculate_optimal_concurrency()
+
+            # Apply bounds and stabilization
+            optimal = self._apply_bounds_and_stabilization(optimal)
+
+            # Update state
+            self.current_concurrency = optimal
+            self.last_adaptation = current_time
+            self.concurrency_history.append(optimal)
+
+            return optimal
+
+    def record_response_time(self, response_time: float) -> None:
+        """Record a response time measurement."""
+        self.response_times.append(response_time)
+
+    async def _update_system_metrics(self) -> None:
+        """Update CPU and memory measurements."""
+        try:
+            import psutil
+
+            # CPU measurement (average over short period)
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            self.cpu_measurements.append(cpu_percent / 100.0)
+
+            # Memory measurement
+            memory = psutil.virtual_memory()
+            self.memory_measurements.append(memory.percent / 100.0)
+
+        except ImportError:
+            # Fallback estimates
+            self.cpu_measurements.append(0.5)  # Default CPU estimate
+            self.memory_measurements.append(0.5)  # Default memory estimate
+
+    def _calculate_optimal_concurrency(self) -> int:
+        """Calculate optimal concurrency based on all factors."""
+        if len(self.response_times) < 5:
+            return self.current_concurrency
+
+        # Base calculation from response times
+        avg_response_time = statistics.mean(self.response_times)
+        response_time_ratio = self.config.target_response_time / avg_response_time
+
+        optimal = int(self.current_concurrency * response_time_ratio)
+
+        # Apply system resource constraints
+        optimal = self._apply_resource_constraints(optimal)
+
+        # Apply load balancing considerations
+        if self.config.enable_load_balancing:
+            optimal = self._apply_load_balancing(optimal)
+
+        return optimal
+
+    def _apply_resource_constraints(self, base_concurrency: int) -> int:
+        """Apply CPU and memory constraints to concurrency."""
+        if not self.cpu_measurements or not self.memory_measurements:
+            return base_concurrency
+
+        avg_cpu = statistics.mean(self.cpu_measurements)
+        avg_memory = statistics.mean(self.memory_measurements)
+
+        # CPU-based adjustment
+        if avg_cpu > self.config.cpu_threshold_high:
+            cpu_factor = self.config.scale_down_factor
+        elif avg_cpu < self.config.cpu_threshold_low:
+            cpu_factor = self.config.scale_up_factor
+        else:
+            cpu_factor = 1.0
+
+        # Memory-based adjustment
+        if avg_memory > self.config.memory_threshold_high:
+            memory_factor = self.config.scale_down_factor
+        elif avg_memory < self.config.memory_threshold_low:
+            memory_factor = self.config.scale_up_factor
+        else:
+            memory_factor = 1.0
+
+        # Combine factors (take the more restrictive one)
+        adjustment_factor = min(cpu_factor, memory_factor)
+
+        return int(base_concurrency * adjustment_factor)
+
+    def _apply_load_balancing(self, base_concurrency: int) -> int:
+        """Apply load balancing considerations."""
+        if len(self.concurrency_history) < 3:
+            return base_concurrency
+
+        # Check for oscillations (rapid changes indicate instability)
+        recent_changes = []
+        history_list = list(self.concurrency_history)
+        for i in range(1, len(history_list)):
+            change = abs(history_list[i] - history_list[i-1])
+            recent_changes.append(change)
+
+        if recent_changes:
+            avg_change = statistics.mean(recent_changes)
+            max_recent = max(history_list[-3:]) if len(history_list) >= 3 else max(history_list)
+            min_recent = min(history_list[-3:]) if len(history_list) >= 3 else min(history_list)
+
+            # If oscillating too much, stabilize
+            if avg_change > max_recent * 0.3:  # More than 30% change on average
+                # Return to middle of recent range for stability
+                return (max_recent + min_recent) // 2
+
+        return base_concurrency
+
+    def _apply_bounds_and_stabilization(self, optimal: int) -> int:
+        """Apply bounds and stabilization logic."""
+        # Apply absolute bounds
+        optimal = max(self.config.min_concurrency, min(self.config.max_concurrency, optimal))
+
+        # Stabilization: don't change by more than 50% at once
+        max_change = max(1, self.current_concurrency // 2)
+        if abs(optimal - self.current_concurrency) > max_change:
+            if optimal > self.current_concurrency:
+                optimal = self.current_concurrency + max_change
+            else:
+                optimal = self.current_concurrency - max_change
+
+        return optimal
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get controller statistics."""
+        return {
+            "current_concurrency": self.current_concurrency,
+            "avg_response_time": statistics.mean(self.response_times) if self.response_times else 0.0,
+            "avg_cpu_usage": statistics.mean(self.cpu_measurements) if self.cpu_measurements else 0.0,
+            "avg_memory_usage": statistics.mean(self.memory_measurements) if self.memory_measurements else 0.0,
+            "response_time_count": len(self.response_times),
+            "concurrency_history": list(self.concurrency_history),
+        }
+
+
+class DynamicSemaphore:
+    """Semaphore that can dynamically adjust its limit."""
+
+    def __init__(self, initial_limit: int):
+        self._limit = initial_limit
+        self._current = 0
+        self._waiters: deque = deque()
+        self._lock = _get_asyncio().Lock()
+
+    async def acquire(self) -> None:
+        """Acquire the semaphore."""
+        async with self._lock:
+            if self._current < self._limit:
+                self._current += 1
+                return
+
+            # Create a future for waiting
+            future = _get_asyncio().Future()
+            self._waiters.append(future)
+
+        # Wait for the semaphore
+        await future
+
+    def release(self) -> None:
+        """Release the semaphore."""
+        # Note: This is a simplified implementation. In production, use asyncio.Lock properly.
+        self._current -= 1
+
+        # Wake up a waiter if any (simplified)
+        if self._waiters:
+            waiter = self._waiters.popleft()
+            self._current += 1
+            waiter.set_result(None)
+
+    def set_limit(self, new_limit: int) -> None:
+        """Set a new limit for the semaphore."""
+        if new_limit < 1:
+            new_limit = 1
+
+        self._limit = new_limit
+
+        # Wake up waiters if the limit increased
+        while self._waiters and self._current < self._limit:
+            waiter = self._waiters.popleft()
+            self._current += 1
+            waiter.set_result(None)
+
+    @property
+    def limit(self) -> int:
+        """Get current limit."""
+        return self._limit
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        self.release()
+        return False
 
 
 @dataclass
@@ -186,9 +430,22 @@ class AsyncEvaluationEngine:
 
     def __init__(self, config: Optional[AsyncTaskConfig] = None):
         self.config = config or AsyncTaskConfig()
-        self.semaphore = _get_asyncio().Semaphore(
-            self.config.semaphore_limit or self.config.max_concurrent_requests
-        )
+
+        # Initialize adaptive concurrency
+        if self.config.enable_adaptive_concurrency:
+            adaptive_config = self.config.adaptive_concurrency_config or AdaptiveConcurrencyConfig()
+            self.concurrency_controller = AdaptiveConcurrencyController(adaptive_config)
+            initial_concurrency = adaptive_config.min_concurrency
+        else:
+            self.concurrency_controller = None
+            initial_concurrency = self.config.semaphore_limit or self.config.max_concurrent_requests
+
+        # Use dynamic semaphore if adaptive concurrency is enabled
+        if self.concurrency_controller:
+            self.semaphore = DynamicSemaphore(initial_concurrency)
+        else:
+            self.semaphore = _get_asyncio().Semaphore(initial_concurrency)
+
         self.cache: Optional[PredictionCache] = None
         self.cache_stats = CacheStats()
         self._thread_pool = ThreadPoolExecutor(max_workers=self.config.max_concurrent_requests)
@@ -218,6 +475,22 @@ class AsyncEvaluationEngine:
             self._adaptive_batch_size = max(
                 self._adaptive_batch_size - 2, self.config.min_batch_size
             )
+
+    async def _adapt_concurrency(self) -> None:
+        """Adapt concurrency based on system conditions and performance."""
+        if not self.concurrency_controller or not isinstance(self.semaphore, DynamicSemaphore):
+            return
+
+        # Record response times for controller
+        if self.latency_history:
+            avg_response_time = statistics.mean(self.latency_history)
+            self.concurrency_controller.record_response_time(avg_response_time)
+
+        # Get optimal concurrency
+        optimal_concurrency = await self.concurrency_controller.get_optimal_concurrency()
+
+        # Update semaphore limit
+        self.semaphore.set_limit(optimal_concurrency)
 
     def _check_circuit_breaker(self) -> bool:
         """Check if circuit breaker should allow requests."""
@@ -405,6 +678,9 @@ class AsyncEvaluationEngine:
         """
         async_adapter = AsyncAdapterWrapper(adapter, self._thread_pool)
         cache_keys = cache_keys or [hash_prompt([prompt]) for prompt in prompts]
+
+        # Adapt concurrency based on current conditions
+        await self._adapt_concurrency()
         priorities = priorities or [1] * len(prompts)
 
         # Update adaptive batch size
@@ -675,6 +951,12 @@ class AsyncEvaluationEngine:
             "circuit_breaker_state": self.circuit_breaker.state,
             "circuit_breaker_failures": self.circuit_breaker.failures,
         }
+
+        # Add concurrency controller stats if available
+        if self.concurrency_controller:
+            concurrency_stats = self.concurrency_controller.get_stats()
+            cache_stats["concurrency_controller"] = concurrency_stats
+            cache_stats["current_semaphore_limit"] = self.semaphore.limit if isinstance(self.semaphore, DynamicSemaphore) else self.config.max_concurrent_requests
 
         if len(self.latency_history) > 0:
             cache_stats["avg_latency"] = statistics.mean(self.latency_history)
