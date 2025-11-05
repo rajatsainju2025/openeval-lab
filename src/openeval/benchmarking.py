@@ -96,10 +96,13 @@ class BenchmarkSuite:
         try:
             self.logger.info(f"Running benchmark: {adapter.name} on {task.__class__.__name__}")
 
-            # Prepare dataset samples
-            samples = list(dataset)
-            if self.sample_size and len(samples) > self.sample_size:
-                samples = samples[: self.sample_size]
+            # Prepare dataset samples using streaming iterator
+            import itertools
+
+            if self.sample_size:
+                samples = list(itertools.islice(dataset, self.sample_size))
+            else:
+                samples = list(dataset)
 
             # Build prompts for all samples
             prompts = []

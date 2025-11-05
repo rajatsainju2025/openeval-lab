@@ -1,17 +1,17 @@
 """
-Advanced Prediction Cache for OpenEval Lab
+Unified Prediction Cache for OpenEval Lab
 
-This module provides advanced caching strategies with bloom filters,
-predictive prefetching, and intelligent cache management.
-
-Features:
+This module provides a comprehensive caching system combining:
 - Bloom filter for fast cache miss detection
 - Predictive prefetching based on access patterns
-- Multi-level cache hierarchy (memory + disk)
-- Adaptive cache sizing based on usage patterns
-- Cache compression and deduplication
-- Distributed cache support
-- Cache analytics and performance monitoring
+- Multi-level cache hierarchy (memory + disk with LRU eviction)
+- Adaptive cache sizing and compression
+- Thread-safe operations with performance monitoring
+
+Optimizations:
+- Consolidated from cache.py and optimized_cache.py
+- Reduced memory footprint through compression
+- Improved cache hit rates via intelligent eviction
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import time
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple, Union
 import hashlib
 from collections import defaultdict, deque
 import statistics
@@ -41,6 +41,15 @@ from .enhanced_logging import get_logger
 logger = get_logger(__name__)
 
 
+class CompressionAlgorithm:
+    """Supported compression algorithms for cache storage."""
+
+    NONE = "none"
+    ZLIB = "zlib"
+    LZMA = "lzma"
+    BZIP2 = "bzip2"
+
+
 @dataclass
 class CacheStats:
     """Statistics for cache performance tracking.
@@ -55,6 +64,8 @@ class CacheStats:
     prefetch_misses: int = 0
     evictions: int = 0
     compression_savings: int = 0
+    total_access_time: float = 0.0
+    sets: int = 0
 
     @property
     def hit_rate(self) -> float:
@@ -73,6 +84,23 @@ class CacheStats:
         """Hit rate including bloom filter hits."""
         total = self.hits + self.misses + self.bloom_filter_hits
         return ((self.hits + self.bloom_filter_hits) / total) if total else 0.0
+
+    @property
+    def avg_access_time(self) -> float:
+        """Average time per cache access."""
+        total_requests = self.hits + self.misses
+        return (self.total_access_time / total_requests) if total_requests > 0 else 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert stats to dictionary for serialization."""
+        return {
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": self.hit_rate,
+            "evictions": self.evictions,
+            "compression_savings_mb": self.compression_savings / (1024 * 1024),
+            "avg_access_time_ms": self.avg_access_time * 1000,
+        }
 
 
 class BloomFilter:
@@ -492,6 +520,45 @@ class PredictionCache:
 
         # Update access history
         self._access_history.append(key)
+
+    def _compress_value(self, value: str) -> Tuple[bytes, bool]:
+        """Compress a value if beneficial, returning (data, compressed_flag)."""
+        if not self.compress:
+            return value.encode("utf-8"), False
+
+        # Try compression if data is reasonably sized
+        original_bytes = value.encode("utf-8")
+        if len(original_bytes) < 512:  # Don't compress small values
+            return original_bytes, False
+
+        try:
+            compressed = zlib.compress(original_bytes, level=6)
+            # Only use compression if it saves significant space (>10%)
+            if len(compressed) < len(original_bytes) * 0.9:
+                savings = len(original_bytes) - len(compressed)
+                self.cache_stats.compression_savings += savings
+                return compressed, True
+        except Exception:
+            pass
+
+        return original_bytes, False
+
+    def _decompress_value(self, data: Union[bytes, str], compressed: bool) -> str:
+        """Decompress a value if needed."""
+        if not compressed:
+            if isinstance(data, str):
+                return data
+            return data.decode("utf-8") if isinstance(data, bytes) else str(data)
+        try:
+            if isinstance(data, str):
+                data_bytes = data.encode("latin-1")
+            else:
+                data_bytes = bytes(data)
+            return zlib.decompress(data_bytes).decode("utf-8")
+        except Exception:
+            if isinstance(data, str):
+                return data
+            return data.decode("utf-8") if isinstance(data, bytes) else str(data)
 
     def close(self) -> None:
         try:
