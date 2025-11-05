@@ -42,8 +42,8 @@ try:
 except ImportError:
     HAS_AWS = False
 
-from .enhanced_logging import get_logger
-from .unified_config import SecurityConfig
+from .logging import get_logger
+from .config import SecurityConfig
 
 logger = get_logger(__name__)
 
@@ -809,7 +809,7 @@ def get_security_manager(config: Optional[SecurityConfig] = None) -> SecurityMan
     global _security_manager
     if _security_manager is None:
         if config is None:
-            from .unified_config import load_config
+            from .config import load_config
 
             unified_config = load_config()
             config = unified_config.security

@@ -14,7 +14,6 @@ Optimizations:
 
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any, Dict, List, Optional, Callable, AsyncIterator, Tuple
 from dataclasses import dataclass, field
@@ -24,6 +23,20 @@ from collections import deque
 import statistics
 import heapq
 
+# Lazy import asyncio for faster startup
+_asyncio = None
+
+
+def _get_asyncio():
+    """Lazy import asyncio."""
+    global _asyncio
+    if _asyncio is None:
+        import asyncio
+
+        _asyncio = asyncio
+    return _asyncio
+
+
 try:
     import aiofiles
 
@@ -32,7 +45,7 @@ except ImportError:
     aiofiles = None  # type: ignore
     HAS_AIOFILES = False
 
-from .enhanced_logging import get_logger
+from .logging import get_logger
 from .cache import PredictionCache, CacheStats
 from .utils import hash_prompt
 
@@ -86,7 +99,7 @@ class PrioritizedTask:
 
     priority: int
     index: int
-    coro: asyncio.Task = field(compare=False)
+    coro: Any = field(compare=False)
 
 
 class ConnectionPool:
@@ -94,15 +107,15 @@ class ConnectionPool:
 
     def __init__(self, max_connections: int = 10):
         self.max_connections = max_connections
-        self.available_connections = asyncio.Queue(maxsize=max_connections)
+        self.available_connections = _get_asyncio().Queue(maxsize=max_connections)
         self._connection_count = 0
-        self._lock = asyncio.Lock()
+        self._lock = _get_asyncio().Lock()
 
     async def acquire(self) -> Any:
         """Acquire a connection from the pool."""
         try:
             return self.available_connections.get_nowait()
-        except asyncio.QueueEmpty:
+        except _get_asyncio().QueueEmpty:
             async with self._lock:
                 if self._connection_count < self.max_connections:
                     self._connection_count += 1
@@ -114,7 +127,7 @@ class ConnectionPool:
         """Release a connection back to the pool."""
         try:
             self.available_connections.put_nowait(connection)
-        except asyncio.QueueFull:
+        except _get_asyncio().QueueFull:
             # Pool is full, close the connection
             await self._close_connection(connection)
 
@@ -141,26 +154,26 @@ class AsyncAdapterWrapper:
 
     async def agenerate(self, prompt: str, **kwargs: Any) -> str:
         """Async generate method with automatic fallback."""
-        if hasattr(self.adapter, "agenerate") and asyncio.iscoroutinefunction(
+        if hasattr(self.adapter, "agenerate") and _get_asyncio().iscoroutinefunction(
             self.adapter.agenerate
         ):
             return await self.adapter.agenerate(prompt, **kwargs)
 
         # Fallback to sync method in thread pool
-        loop = asyncio.get_running_loop()
+        loop = _get_asyncio().get_running_loop()
         return await loop.run_in_executor(
             self.thread_pool, lambda: self.adapter.generate(prompt, **kwargs)
         )
 
     async def agenerate_with_logprobs(self, prompt: str, **kwargs: Any) -> Dict[str, Any]:
         """Async generate with logprobs method."""
-        if hasattr(self.adapter, "agenerate_with_logprobs") and asyncio.iscoroutinefunction(
+        if hasattr(self.adapter, "agenerate_with_logprobs") and _get_asyncio().iscoroutinefunction(
             self.adapter.agenerate_with_logprobs
         ):
             return await self.adapter.agenerate_with_logprobs(prompt, **kwargs)
 
         # Fallback to sync method
-        loop = asyncio.get_running_loop()
+        loop = _get_asyncio().get_running_loop()
         return await loop.run_in_executor(
             self.thread_pool, lambda: self.adapter.generate_with_logprobs(prompt, **kwargs)
         )
@@ -173,7 +186,7 @@ class AsyncEvaluationEngine:
 
     def __init__(self, config: Optional[AsyncTaskConfig] = None):
         self.config = config or AsyncTaskConfig()
-        self.semaphore = asyncio.Semaphore(
+        self.semaphore = _get_asyncio().Semaphore(
             self.config.semaphore_limit or self.config.max_concurrent_requests
         )
         self.cache: Optional[PredictionCache] = None
@@ -249,7 +262,7 @@ class AsyncEvaluationEngine:
             except Exception as e:
                 last_exception = e
                 if attempt < max_retries:
-                    await asyncio.sleep(retry_delay * (2**attempt))  # Exponential backoff
+                    await _get_asyncio().sleep(retry_delay * (2**attempt))  # Exponential backoff
                     logger.warning(f"Attempt {attempt + 1} failed, retrying: {e}")
 
         if last_exception:
@@ -261,7 +274,7 @@ class AsyncEvaluationEngine:
         self, adapter: AsyncAdapterWrapper, prompt: str, cache_key: str, **kwargs: Any
     ) -> Tuple[str, bool]:
         """Generate with caching support."""
-        loop = asyncio.get_running_loop()
+        loop = _get_asyncio().get_running_loop()
 
         # Try cache first
         if self.cache is not None:
@@ -296,7 +309,7 @@ class AsyncEvaluationEngine:
     ) -> List[Tuple[str, bool]]:
         """Generate a batch with cache-aware lookups to minimize round trips."""
 
-        loop = asyncio.get_running_loop()
+        loop = _get_asyncio().get_running_loop()
         results: List[Optional[Tuple[str, bool]]] = [None] * len(prompts)
         cached_results: Dict[str, Any] = {}
 
@@ -341,7 +354,7 @@ class AsyncEvaluationEngine:
                 return await adapter.agenerate(prompt, **inner_kwargs)
 
         if to_generate:
-            generated_outputs = await asyncio.gather(
+            generated_outputs = await _get_asyncio().gather(
                 *[_generate_with_limit(prompt, **kwargs) for _, prompt, _ in to_generate]
             )
 
@@ -402,7 +415,9 @@ class AsyncEvaluationEngine:
             task = self._evaluate_single(
                 async_adapter, prompt, cache_key, i, priority=priority, **kwargs
             )
-            heapq.heappush(self.task_queue, PrioritizedTask(priority, i, asyncio.create_task(task)))
+            heapq.heappush(
+                self.task_queue, PrioritizedTask(priority, i, _get_asyncio().create_task(task))
+            )
 
         # Execute tasks by priority
         results: List[AsyncEvaluationResult] = []
@@ -631,7 +646,7 @@ class AsyncEvaluationEngine:
             tasks.append(task)
 
         # Execute tasks and yield results as they complete
-        for coro in asyncio.as_completed(tasks):
+        for coro in _get_asyncio().as_completed(tasks):
             result = await coro
             yield result
 

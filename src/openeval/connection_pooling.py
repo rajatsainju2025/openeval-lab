@@ -10,14 +10,14 @@ from __future__ import annotations
 import asyncio
 import time
 import threading
-from typing import Any, Dict, List, Optional, Union, Callable, AsyncContextManager, TypeVar
-from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Callable, AsyncContextManager, TypeVar
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-import weakref
 
 try:
     import aiohttp
+
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
@@ -25,6 +25,7 @@ except ImportError:
 
 try:
     import httpx
+
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
@@ -33,22 +34,24 @@ except ImportError:
 try:
     import requests
     from requests.adapters import HTTPAdapter
+
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
     requests = None
     HTTPAdapter = None
 
-from .enhanced_logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class ConnectionConfig:
     """Configuration for connection pooling."""
+
     max_connections: int = 20
     max_keepalive_connections: int = 10
     keepalive_expiry: float = 30.0  # seconds
@@ -62,6 +65,7 @@ class ConnectionConfig:
 @dataclass
 class ConnectionStats:
     """Statistics for connection usage."""
+
     total_connections_created: int = 0
     active_connections: int = 0
     connections_reused: int = 0
@@ -80,9 +84,13 @@ class ConnectionStats:
             "connections_closed": self.connections_closed,
             "total_requests": self.total_requests,
             "failed_requests": self.failed_requests,
-            "success_rate": (self.total_requests - self.failed_requests) / self.total_requests if self.total_requests > 0 else 0.0,
+            "success_rate": (
+                (self.total_requests - self.failed_requests) / self.total_requests
+                if self.total_requests > 0
+                else 0.0
+            ),
             "avg_response_time": self.avg_response_time,
-            "pool_exhaustion_events": self.pool_exhaustion_events
+            "pool_exhaustion_events": self.pool_exhaustion_events,
         }
 
 
@@ -137,9 +145,7 @@ class HTTPConnectionPool(ConnectionPool):
 
             timeout = aiohttp.ClientTimeout(total=self.config.timeout)
             self._session = aiohttp.ClientSession(
-                connector=self._connector,
-                timeout=timeout,
-                base_url=self.base_url
+                connector=self._connector, timeout=timeout, base_url=self.base_url
             )
 
             self.stats.total_connections_created += 1
@@ -180,13 +186,11 @@ class HTTPXConnectionPool(ConnectionPool):
         if self._client is None or self._client.is_closed:
             limits = httpx.Limits(
                 max_connections=self.config.max_connections,
-                max_keepalive_connections=self.config.max_keepalive_connections
+                max_keepalive_connections=self.config.max_keepalive_connections,
             )
 
             self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                limits=limits,
-                timeout=self.config.timeout
+                base_url=self.base_url, limits=limits, timeout=self.config.timeout
             )
 
             self.stats.total_connections_created += 1
@@ -229,11 +233,11 @@ class RequestsConnectionPool(ConnectionPool):
                 pool_connections=self.config.max_connections,
                 pool_maxsize=self.config.max_connections,
                 max_retries=self.config.retry_attempts,
-                pool_block=False
+                pool_block=False,
             )
 
-            self._session.mount('http://', adapter)
-            self._session.mount('https://', adapter)
+            self._session.mount("http://", adapter)
+            self._session.mount("https://", adapter)
 
             self.stats.total_connections_created += 1
 
@@ -266,13 +270,15 @@ class PooledAdapter:
         self,
         base_adapter: Any,
         pool_config: Optional[ConnectionConfig] = None,
-        pool_type: str = "auto"  # auto, aiohttp, httpx, requests
+        pool_type: str = "auto",  # auto, aiohttp, httpx, requests
     ):
         self.base_adapter = base_adapter
         self.pool_config = pool_config or ConnectionConfig()
         self.pool_type = pool_type
         self._pool: Optional[ConnectionPool] = None
-        self._base_url = getattr(base_adapter, 'base_url', None) or getattr(base_adapter, 'api_base', None)
+        self._base_url = getattr(base_adapter, "base_url", None) or getattr(
+            base_adapter, "api_base", None
+        )
 
         # Initialize the appropriate pool
         self._init_pool()
@@ -304,14 +310,11 @@ class PooledAdapter:
             logger.warning(f"Requested pool type {self.pool_type} not available")
             return
 
-        logger.info(f"Initialized {self.pool_type} connection pool for adapter {self.base_adapter.__class__.__name__}")
+        logger.info(
+            f"Initialized {self.pool_type} connection pool for adapter {self.base_adapter.__class__.__name__}"
+        )
 
-    async def make_request(
-        self,
-        method: str,
-        url: str,
-        **kwargs: Any
-    ) -> Any:
+    async def make_request(self, method: str, url: str, **kwargs: Any) -> Any:
         """
         Make an HTTP request using the connection pool.
 
@@ -346,21 +349,23 @@ class PooledAdapter:
             elif isinstance(self._pool, RequestsConnectionPool):
                 # requests (run in thread pool)
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(self._sync_request, connection, method, url, kwargs)
                     return future.result()
+
+        except Exception:
+            if self._pool:
+                self._pool.stats.failed_requests += 1
+            raise
 
         finally:
             await self._pool.release(connection)
             response_time = time.time() - start_time
             self._pool.stats.avg_response_time = (
-                (self._pool.stats.avg_response_time * (self._pool.stats.total_requests - 1)) + response_time
+                (self._pool.stats.avg_response_time * (self._pool.stats.total_requests - 1))
+                + response_time
             ) / self._pool.stats.total_requests
-
-        except Exception as e:
-            if self._pool:
-                self._pool.stats.failed_requests += 1
-            raise
 
     async def _fallback_request(self, method: str, url: str, **kwargs: Any) -> Any:
         """Fallback request method when pooling is not available."""
@@ -377,7 +382,9 @@ class PooledAdapter:
         else:
             raise RuntimeError("No HTTP client available for requests")
 
-    def _sync_request(self, session: requests.Session, method: str, url: str, kwargs: Dict[str, Any]) -> str:
+    def _sync_request(
+        self, session: requests.Session, method: str, url: str, kwargs: Dict[str, Any]
+    ) -> str:
         """Synchronous request for requests library."""
         response = session.request(method, url, **kwargs)
         return response.text
@@ -386,18 +393,21 @@ class PooledAdapter:
         """Generate method with connection pooling."""
         # This would be implemented based on the specific adapter's API
         # For now, delegate to base adapter
-        if hasattr(self.base_adapter, 'generate'):
+        if hasattr(self.base_adapter, "generate"):
             return self.base_adapter.generate(prompt, **kwargs)
         else:
             raise NotImplementedError("Base adapter does not implement generate method")
 
     async def agenerate(self, prompt: str, **kwargs: Any) -> str:
         """Async generate method."""
-        if hasattr(self.base_adapter, 'agenerate') and asyncio.iscoroutinefunction(self.base_adapter.agenerate):
+        if hasattr(self.base_adapter, "agenerate") and asyncio.iscoroutinefunction(
+            self.base_adapter.agenerate
+        ):
             return await self.base_adapter.agenerate(prompt, **kwargs)
         else:
             # Fallback to sync method in thread pool
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(self.base_adapter.generate, prompt, **kwargs)
                 return future.result()
@@ -408,7 +418,7 @@ class PooledAdapter:
             return {
                 "pool_type": self.pool_type,
                 "pool_stats": self._pool.get_stats(),
-                "base_adapter": self.base_adapter.__class__.__name__
+                "base_adapter": self.base_adapter.__class__.__name__,
             }
         else:
             return {"pool_type": "none", "base_adapter": self.base_adapter.__class__.__name__}
@@ -421,9 +431,7 @@ class PooledAdapter:
 
 @asynccontextmanager
 async def pooled_adapter_context(
-    adapter: Any,
-    pool_config: Optional[ConnectionConfig] = None,
-    pool_type: str = "auto"
+    adapter: Any, pool_config: Optional[ConnectionConfig] = None, pool_type: str = "auto"
 ) -> AsyncContextManager[PooledAdapter]:
     """
     Context manager for pooled adapters.
@@ -458,7 +466,7 @@ class ConnectionPoolManager:
         adapter_key: str,
         adapter_factory: Callable[[], Any],
         pool_config: Optional[ConnectionConfig] = None,
-        pool_type: str = "auto"
+        pool_type: str = "auto",
     ) -> PooledAdapter:
         """
         Get or create a pooled adapter.
@@ -503,7 +511,7 @@ def get_pooled_adapter(
     adapter_key: str,
     adapter_factory: Callable[[], Any],
     pool_config: Optional[ConnectionConfig] = None,
-    pool_type: str = "auto"
+    pool_type: str = "auto",
 ) -> PooledAdapter:
     """
     Convenience function to get a pooled adapter from the global manager.
@@ -524,7 +532,7 @@ def benchmark_connection_pooling(
     adapter_factory: Callable[[], Any],
     urls: List[str],
     iterations: int = 100,
-    enable_pooling: bool = True
+    enable_pooling: bool = True,
 ) -> Dict[str, Any]:
     """
     Benchmark the performance improvement from connection pooling.
@@ -540,11 +548,7 @@ def benchmark_connection_pooling(
     """
     import time
 
-    results = {
-        "with_pooling": {},
-        "without_pooling": {},
-        "improvement": {}
-    }
+    results = {"with_pooling": {}, "without_pooling": {}, "improvement": {}}
 
     # Benchmark with pooling
     if enable_pooling:
@@ -559,7 +563,7 @@ def benchmark_connection_pooling(
         results["with_pooling"] = {
             "total_time": pooled_time,
             "avg_time": pooled_time / iterations,
-            "stats": pooled_adapter.get_stats()
+            "stats": pooled_adapter.get_stats(),
         }
 
     # Benchmark without pooling
@@ -570,17 +574,14 @@ def benchmark_connection_pooling(
         time.sleep(0.001)
     no_pool_time = time.time() - start_time
 
-    results["without_pooling"] = {
-        "total_time": no_pool_time,
-        "avg_time": no_pool_time / iterations
-    }
+    results["without_pooling"] = {"total_time": no_pool_time, "avg_time": no_pool_time / iterations}
 
     # Calculate improvement
     if enable_pooling:
         improvement = (no_pool_time - pooled_time) / no_pool_time * 100
         results["improvement"] = {
             "percentage": improvement,
-            "factor": no_pool_time / pooled_time if pooled_time > 0 else float('inf')
+            "factor": no_pool_time / pooled_time if pooled_time > 0 else float("inf"),
         }
 
     return results

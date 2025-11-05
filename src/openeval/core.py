@@ -46,7 +46,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .utils import set_seed, hash_file, retry_call, run_with_timeout, hash_prompt
 from .cache import PredictionCache, CacheStats
 from .prompt import PromptTemplate
-from .enhanced_logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 

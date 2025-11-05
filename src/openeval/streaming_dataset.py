@@ -33,7 +33,7 @@ try:
 except ImportError:
     HAS_PYARROW = False
 
-from .enhanced_logging import get_logger
+from .logging import get_logger
 from .core import Example, Dataset
 
 logger = get_logger(__name__)

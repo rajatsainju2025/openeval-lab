@@ -24,7 +24,7 @@ except ImportError:
     SKLEARN_AVAILABLE = False
 
 from .core import Task, Dataset, Adapter, Metric
-from .enhanced_logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 

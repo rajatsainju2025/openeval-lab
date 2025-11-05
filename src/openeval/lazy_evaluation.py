@@ -21,7 +21,7 @@ except ImportError:
     HAS_DASK = False
     dask = None
 
-from .enhanced_logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 

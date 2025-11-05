@@ -24,7 +24,7 @@ try:
 except ImportError:
     BLACK_AVAILABLE = False
 
-from .enhanced_logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -376,7 +376,7 @@ class TestRunner:
 
         try:
             # Import performance profiler
-            from .performance_profiler import PerformanceProfiler
+            from .optimization import PerformanceProfiler
 
             # Run performance tests on key components
             performance_tests = [

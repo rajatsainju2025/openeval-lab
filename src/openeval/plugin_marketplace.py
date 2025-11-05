@@ -52,7 +52,7 @@ except ImportError:
     pkg_version = MockVersionModule()
 
 try:
-    from .enhanced_logging import get_logger
+    from .logging import get_logger
     from .security import SecurityManager as RealSecurityManager
     from .observability import record_metric, log_event
 except ImportError:

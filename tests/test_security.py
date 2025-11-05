@@ -19,7 +19,7 @@ from openeval.security import (
     SecurityManager,
 )
 
-from openeval.unified_config import SecurityConfig
+from openeval.config import SecurityConfig
 
 
 class TestSecretStoreType:

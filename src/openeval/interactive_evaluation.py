@@ -20,7 +20,7 @@ from rich.live import Live
 from rich.table import Table
 from rich.panel import Panel
 
-from .enhanced_logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 

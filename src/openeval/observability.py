@@ -41,8 +41,8 @@ try:
 except ImportError:
     HAS_PROMETHEUS = False
 
-from .enhanced_logging import get_logger
-from .unified_config import ObservabilityConfig
+from .logging import get_logger
+from .config import ObservabilityConfig
 
 logger = get_logger(__name__)
 
@@ -728,7 +728,7 @@ def get_observability_platform(
     global _observability_platform
     if _observability_platform is None:
         if config is None:
-            from .unified_config import load_config
+            from .config import load_config
 
             unified_config = load_config()
             config = unified_config.observability

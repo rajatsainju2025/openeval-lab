@@ -1,7 +1,7 @@
 """Test observability configuration functionality."""
 
 import pytest
-from openeval.unified_config import ObservabilityConfig
+from openeval.config import ObservabilityConfig
 
 
 class TestObservabilityConfig:
@@ -44,7 +44,7 @@ class TestObservabilityConfig:
 
     def test_observability_config_with_unified_config(self):
         """Test ObservabilityConfig as part of unified configuration."""
-        from openeval.unified_config import UnifiedConfig
+        from openeval.config import UnifiedConfig
 
         unified_config = UnifiedConfig()
         assert hasattr(unified_config, "observability")

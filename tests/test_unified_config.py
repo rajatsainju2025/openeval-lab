@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 import pytest
 
-from openeval.unified_config import (
+from openeval.config import (
     UnifiedConfig,
     ConfigValidator,
     ConfigManager,
