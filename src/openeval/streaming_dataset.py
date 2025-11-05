@@ -12,16 +12,15 @@ import gzip
 import bz2
 import lzma
 import asyncio
-import threading
 import time
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Iterator, Union, Callable, TextIO, AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import csv
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
-import heapq
 
 try:
     import pandas as pd
@@ -191,6 +190,7 @@ class MemoryMonitor:
         # Get system memory info
         try:
             import psutil
+
             system_memory = psutil.virtual_memory()
             return (system_memory.percent / 100.0) > self.pressure_threshold
         except ImportError:
@@ -202,6 +202,308 @@ class MemoryMonitor:
         if self.is_under_pressure():
             return max(100, base_size // 2)  # Reduce chunk size
         return base_size
+
+
+class IntelligentBatchSizer:
+    """Intelligent batch sizer that adapts based on multiple factors."""
+
+    def __init__(
+        self,
+        base_batch_size: int = 1000,
+        min_batch_size: int = 10,
+        max_batch_size: int = 10000,
+        adaptation_interval: float = 30.0,  # Adapt every 30 seconds
+        performance_window: int = 10,  # Keep last 10 measurements
+    ):
+        self.base_batch_size = base_batch_size
+        self.min_batch_size = min_batch_size
+        self.max_batch_size = max_batch_size
+        self.adaptation_interval = adaptation_interval
+        self.performance_window = performance_window
+
+        self.current_batch_size = base_batch_size
+        self.last_adaptation = time.time()
+        self.performance_history: List[Dict[str, float]] = []
+        self._lock = threading.Lock()
+
+    def record_performance(
+        self,
+        batch_size: int,
+        processing_time: float,
+        throughput: float,
+        memory_usage: float,
+        cpu_usage: float,
+    ) -> None:
+        """Record performance metrics for a batch."""
+        with self._lock:
+            self.performance_history.append(
+                {
+                    "batch_size": batch_size,
+                    "processing_time": processing_time,
+                    "throughput": throughput,
+                    "memory_usage": memory_usage,
+                    "cpu_usage": cpu_usage,
+                    "timestamp": time.time(),
+                }
+            )
+
+            # Keep only recent history
+            if len(self.performance_history) > self.performance_window:
+                self.performance_history.pop(0)
+
+    def get_optimal_batch_size(
+        self,
+        current_memory_pressure: float,
+        current_cpu_usage: float,
+        target_throughput: Optional[float] = None,
+    ) -> int:
+        """Calculate optimal batch size based on current conditions and history."""
+        current_time = time.time()
+
+        with self._lock:
+            # Check if we should adapt
+            if current_time - self.last_adaptation < self.adaptation_interval:
+                return self.current_batch_size
+
+            if not self.performance_history:
+                return self.current_batch_size
+
+            # Analyze performance history
+            optimal_size = self._analyze_performance_history(
+                current_memory_pressure, current_cpu_usage, target_throughput
+            )
+
+            # Apply bounds
+            optimal_size = max(self.min_batch_size, min(self.max_batch_size, optimal_size))
+
+            # Smooth transitions - don't change by more than 50% at once
+            max_change = self.current_batch_size * 0.5
+            if abs(optimal_size - self.current_batch_size) > max_change:
+                if optimal_size > self.current_batch_size:
+                    optimal_size = self.current_batch_size + max_change
+                else:
+                    optimal_size = self.current_batch_size - max_change
+
+            self.current_batch_size = int(optimal_size)
+            self.last_adaptation = current_time
+
+            return self.current_batch_size
+
+    def _analyze_performance_history(
+        self,
+        memory_pressure: float,
+        cpu_usage: float,
+        target_throughput: Optional[float],
+    ) -> float:
+        """Analyze performance history to find optimal batch size."""
+        if not self.performance_history:
+            return self.base_batch_size
+
+        # Weight recent performance more heavily
+        weights = [
+            i / len(self.performance_history) for i in range(1, len(self.performance_history) + 1)
+        ]
+
+        # Calculate weighted averages
+        total_weight = sum(weights)
+        avg_throughput = (
+            sum(p["throughput"] * w for p, w in zip(self.performance_history, weights))
+            / total_weight
+        )
+        # avg_memory and avg_cpu calculated but not used directly in this version
+
+        # Find best performing batch sizes
+        best_sizes = sorted(
+            self.performance_history,
+            key=lambda x: x["throughput"]
+            / (x["processing_time"] * (1 + x["memory_usage"] + x["cpu_usage"])),
+            reverse=True,
+        )[
+            :3
+        ]  # Top 3 performers
+
+        # Calculate optimal size based on current conditions
+        optimal_size = self.base_batch_size
+
+        # Memory pressure adjustment
+        if memory_pressure > 0.8:
+            optimal_size *= 0.5  # Reduce batch size under high memory pressure
+        elif memory_pressure < 0.3:
+            optimal_size *= 1.5  # Increase batch size when memory is plentiful
+
+        # CPU usage adjustment
+        if cpu_usage > 0.9:
+            optimal_size *= 0.7  # Reduce batch size under high CPU usage
+        elif cpu_usage < 0.5:
+            optimal_size *= 1.3  # Increase batch size when CPU is underutilized
+
+        # Throughput target adjustment
+        if target_throughput and avg_throughput > 0:
+            throughput_ratio = target_throughput / avg_throughput
+            optimal_size *= throughput_ratio**0.5  # Square root for smoother adjustment
+
+        # Bias toward historically good sizes
+        if best_sizes:
+            historical_optimal = sum(s["batch_size"] for s in best_sizes) / len(best_sizes)
+            optimal_size = (optimal_size + historical_optimal) / 2  # Average with historical
+
+        return optimal_size
+
+
+class ResourceAwareBatcher:
+    """Resource-aware batch processor that optimizes for multiple constraints."""
+
+    def __init__(
+        self,
+        batch_sizer: IntelligentBatchSizer,
+        memory_monitor: MemoryMonitor,
+        max_concurrent_batches: int = 4,
+    ):
+        self.batch_sizer = batch_sizer
+        self.memory_monitor = memory_monitor
+        self.max_concurrent_batches = max_concurrent_batches
+
+        self._active_batches = 0
+        self._batch_semaphore = threading.Semaphore(max_concurrent_batches)
+        self._performance_stats: Dict[str, List[float]] = {
+            "throughput": [],
+            "latency": [],
+            "memory_usage": [],
+            "cpu_usage": [],
+        }
+
+    async def process_batches(
+        self,
+        items: List[Any],
+        processor_func: Callable[[List[Any]], Any],
+        target_throughput: Optional[float] = None,
+    ) -> List[Any]:
+        """Process items in optimally-sized batches."""
+        results = []
+        batch_start_times: Dict[int, float] = {}
+
+        i = 0
+        while i < len(items):
+            # Get current resource usage
+            memory_pressure = self._get_memory_pressure()
+            cpu_usage = self._get_cpu_usage()
+
+            # Calculate optimal batch size
+            batch_size = self.batch_sizer.get_optimal_batch_size(
+                memory_pressure, cpu_usage, target_throughput
+            )
+
+            # Adjust for concurrency limits
+            effective_batch_size = min(batch_size, len(items) - i)
+
+            # Wait for available batch slot
+            await asyncio.get_event_loop().run_in_executor(None, self._batch_semaphore.acquire)
+
+            batch = items[i : i + effective_batch_size]
+            batch_start_times[len(results)] = time.time()
+
+            # Process batch asynchronously
+            task = asyncio.create_task(
+                self._process_single_batch(batch, processor_func, len(results), batch_start_times)
+            )
+            results.append(task)
+
+            i += effective_batch_size
+
+        # Wait for all batches to complete
+        completed_results = []
+        for task in results:
+            result = await task
+            completed_results.append(result)
+
+        return completed_results
+
+    async def _process_single_batch(
+        self,
+        batch: List[Any],
+        processor_func: Callable[[List[Any]], Any],
+        batch_idx: int,
+        start_times: Dict[int, float],
+    ) -> Any:
+        """Process a single batch and record performance."""
+        try:
+            start_time = start_times[batch_idx]
+
+            # Process the batch
+            result = processor_func(batch)
+
+            batch_end = time.time()
+            processing_time = batch_end - start_time
+
+            # Record performance metrics
+            throughput = len(batch) / processing_time if processing_time > 0 else 0
+            memory_usage = self._get_memory_pressure()
+            cpu_usage = self._get_cpu_usage()
+
+            self.batch_sizer.record_performance(
+                len(batch), processing_time, throughput, memory_usage, cpu_usage
+            )
+
+            # Update stats
+            self._update_performance_stats(throughput, processing_time, memory_usage, cpu_usage)
+
+            return result
+
+        finally:
+            self._batch_semaphore.release()
+
+    def _get_memory_pressure(self) -> float:
+        """Get current memory pressure (0-1)."""
+        try:
+            import psutil
+
+            return psutil.virtual_memory().percent / 100.0
+        except ImportError:
+            return self.memory_monitor.is_under_pressure() * 0.8  # Rough estimate
+
+    def _get_cpu_usage(self) -> float:
+        """Get current CPU usage (0-1)."""
+        try:
+            import psutil
+
+            return psutil.cpu_percent(interval=0.1) / 100.0
+        except ImportError:
+            return 0.5  # Default estimate
+
+    def _update_performance_stats(
+        self,
+        throughput: float,
+        latency: float,
+        memory_usage: float,
+        cpu_usage: float,
+    ) -> None:
+        """Update rolling performance statistics."""
+        max_samples = 100
+
+        for key, value in [
+            ("throughput", throughput),
+            ("latency", latency),
+            ("memory_usage", memory_usage),
+            ("cpu_usage", cpu_usage),
+        ]:
+            self._performance_stats[key].append(value)
+            if len(self._performance_stats[key]) > max_samples:
+                self._performance_stats[key].pop(0)
+
+    def get_performance_summary(self) -> Dict[str, float]:
+        """Get summary of recent performance metrics."""
+        summary = {}
+        for key, values in self._performance_stats.items():
+            if values:
+                summary[f"avg_{key}"] = sum(values) / len(values)
+                summary[f"max_{key}"] = max(values)
+                summary[f"min_{key}"] = min(values)
+            else:
+                summary[f"avg_{key}"] = 0.0
+                summary[f"max_{key}"] = 0.0
+                summary[f"min_{key}"] = 0.0
+
+        return summary
 
 
 class ProgressTracker:
@@ -281,7 +583,23 @@ class StreamingDataset(Dataset):
         self._adaptive_chunk_size = self.config.chunk_size
         self._memory_monitor = MemoryMonitor(self.config.memory_pressure_threshold)
         self._progress_tracker = ProgressTracker() if self.config.progress_tracking else None
-        self._thread_pool = ThreadPoolExecutor(max_workers=self.config.max_workers) if self.config.parallel_processing else None
+        self._thread_pool = (
+            ThreadPoolExecutor(max_workers=self.config.max_workers)
+            if self.config.parallel_processing
+            else None
+        )
+
+        # Initialize intelligent batching components
+        self._intelligent_batch_sizer = IntelligentBatchSizer(
+            base_batch_size=self.config.chunk_size,
+            min_batch_size=10,
+            max_batch_size=self.config.chunk_size * 10,
+        )
+        self._resource_aware_batcher = ResourceAwareBatcher(
+            self._intelligent_batch_sizer,
+            self._memory_monitor,
+            max_concurrent_batches=self.config.max_workers or 4,
+        )
 
         if not self.file_path.exists():
             raise FileNotFoundError(f"Dataset file not found: {file_path}")
@@ -522,7 +840,9 @@ class StreamingDataset(Dataset):
 
                     if len(chunk) >= chunk_size:
                         # Submit chunk for parallel processing
-                        future = self._thread_pool.submit(self._process_chunk_parallel, chunk.copy())
+                        future = self._thread_pool.submit(
+                            self._process_chunk_parallel, chunk.copy()
+                        )
                         futures.append(future)
                         chunk = []
 
@@ -548,11 +868,37 @@ class StreamingDataset(Dataset):
 
         return chunk
 
+    async def evaluate_with_streaming_async(
+        self,
+        evaluator_func: Callable[[List[Example]], Any],
+        batch_size: Optional[int] = None,
+        parallel: bool = True,
+        target_throughput: Optional[float] = None,
+    ) -> AsyncIterator[Any]:
+        """Evaluate dataset using streaming with intelligent batching."""
+        # Collect all examples first (in a real implementation, this would be streaming)
+        all_examples = []
+        if parallel and self.config.parallel_processing and self._thread_pool:
+            chunk_iter = self.iter_chunks_parallel()
+        else:
+            chunk_iter = self.iter_chunks()
+
+        for chunk in chunk_iter:
+            all_examples.extend(chunk)
+
+        # Use intelligent batching for processing
+        batch_results = await self._resource_aware_batcher.process_batches(
+            all_examples, evaluator_func, target_throughput
+        )
+
+        for result in batch_results:
+            yield result
+
     def evaluate_with_streaming(
         self,
         evaluator_func: Callable[[List[Example]], Any],
         batch_size: Optional[int] = None,
-        parallel: bool = True
+        parallel: bool = True,
     ) -> Iterator[Any]:
         """Evaluate dataset using streaming with automatic batching."""
         batch_size = batch_size or self._get_adaptive_chunk_size()
@@ -566,7 +912,7 @@ class StreamingDataset(Dataset):
             if len(chunk) > 0:
                 # Adaptive batching: split large chunks if needed
                 for i in range(0, len(chunk), batch_size):
-                    batch = chunk[i:i + batch_size]
+                    batch = chunk[i : i + batch_size]
                     yield evaluator_func(batch)
 
     def sample(self, n: int, seed: Optional[int] = None) -> List[Example]:
@@ -638,6 +984,22 @@ class StreamingDataset(Dataset):
             "estimated_cache_memory_mb": cache_memory / (1024 * 1024),
             "chunk_size": self.config.chunk_size,
             "compression": self.config.compression,
+        }
+
+    def get_batching_performance_stats(self) -> Dict[str, Any]:
+        """Get intelligent batching performance statistics."""
+        batcher_stats = self._resource_aware_batcher.get_performance_summary()
+        sizer_stats = {
+            "current_batch_size": self._intelligent_batch_sizer.current_batch_size,
+            "performance_history_size": len(self._intelligent_batch_sizer.performance_history),
+            "last_adaptation": self._intelligent_batch_sizer.last_adaptation,
+        }
+
+        return {
+            "batcher_stats": batcher_stats,
+            "sizer_stats": sizer_stats,
+            "adaptive_batching_enabled": self.config.adaptive_batching,
+            "intelligent_batching_enabled": True,
         }
 
 
