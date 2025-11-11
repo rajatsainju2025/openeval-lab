@@ -20,7 +20,6 @@ import json
 import sqlite3
 import threading
 import time
-import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple, Union
@@ -28,17 +27,47 @@ import hashlib
 from collections import defaultdict, deque
 import statistics
 
-try:
-    import numpy as np
-
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
-    np = None
-
 from .logging import get_logger
 
 logger = get_logger(__name__)
+
+# Lazy-loaded modules for better startup performance
+_COMPRESSION_MODULES = {}
+HAS_NUMPY = False
+np = None
+
+
+def _get_compression_module(name: str):
+    """Lazy-load compression modules on demand."""
+    if name not in _COMPRESSION_MODULES:
+        if name == "zlib":
+            import zlib
+
+            _COMPRESSION_MODULES["zlib"] = zlib
+        elif name == "lzma":
+            import lzma
+
+            _COMPRESSION_MODULES["lzma"] = lzma
+        elif name == "bzip2":
+            import bz2
+
+            _COMPRESSION_MODULES["bzip2"] = bz2
+    return _COMPRESSION_MODULES.get(name)
+
+
+def _ensure_numpy():
+    """Lazy-load numpy on demand."""
+    global np, HAS_NUMPY
+    if HAS_NUMPY or np is not None:
+        return np
+    try:
+        import numpy as np_module
+
+        np = np_module
+        HAS_NUMPY = True
+        return np
+    except ImportError:
+        return None
 
 
 class CompressionAlgorithm:
@@ -481,7 +510,11 @@ class PredictionCache:
                 # Decompress if needed
                 if compressed:
                     try:
-                        value = zlib.decompress(value.encode("latin-1")).decode("utf-8")
+                        zlib = _get_compression_module("zlib")
+                        if zlib:
+                            value = zlib.decompress(value.encode("latin-1")).decode("utf-8")
+                        else:
+                            return  # Compression module not available
                     except Exception:
                         return  # Corrupted data
 
@@ -532,12 +565,14 @@ class PredictionCache:
             return original_bytes, False
 
         try:
-            compressed = zlib.compress(original_bytes, level=6)
-            # Only use compression if it saves significant space (>10%)
-            if len(compressed) < len(original_bytes) * 0.9:
-                savings = len(original_bytes) - len(compressed)
-                self.cache_stats.compression_savings += savings
-                return compressed, True
+            zlib = _get_compression_module("zlib")
+            if zlib:
+                compressed = zlib.compress(original_bytes, level=6)
+                # Only use compression if it saves significant space (>10%)
+                if len(compressed) < len(original_bytes) * 0.9:
+                    savings = len(original_bytes) - len(compressed)
+                    self.cache_stats.compression_savings += savings
+                    return compressed, True
         except Exception:
             pass
 
@@ -554,7 +589,11 @@ class PredictionCache:
                 data_bytes = data.encode("latin-1")
             else:
                 data_bytes = bytes(data)
-            return zlib.decompress(data_bytes).decode("utf-8")
+            zlib = _get_compression_module("zlib")
+            if zlib:
+                return zlib.decompress(data_bytes).decode("utf-8")
+            else:
+                return str(data)
         except Exception:
             if isinstance(data, str):
                 return data
@@ -616,7 +655,11 @@ class PredictionCache:
         # Decompress if needed
         if compressed:
             try:
-                value = zlib.decompress(value.encode("latin-1")).decode("utf-8")
+                zlib = _get_compression_module("zlib")
+                if zlib:
+                    value = zlib.decompress(value.encode("latin-1")).decode("utf-8")
+                else:
+                    return None
             except Exception:
                 return None  # Corrupted compressed data
 
@@ -665,10 +708,12 @@ class PredictionCache:
         compressed = 0
         if self.compress and len(payload) > 1024:  # Compress payloads > 1KB
             try:
-                compressed_payload = zlib.compress(payload.encode("utf-8"))
-                if len(compressed_payload) < len(payload):  # Only use if smaller
-                    payload = compressed_payload.decode("latin-1")
-                    compressed = 1
+                zlib = _get_compression_module("zlib")
+                if zlib:
+                    compressed_payload = zlib.compress(payload.encode("utf-8"))
+                    if len(compressed_payload) < len(payload):  # Only use if smaller
+                        payload = compressed_payload.decode("latin-1")
+                        compressed = 1
             except Exception:
                 pass  # Fall back to uncompressed
 
@@ -739,10 +784,12 @@ class PredictionCache:
             compressed = 0
             if self.compress and len(payload) > 1024:
                 try:
-                    compressed_payload = zlib.compress(payload.encode("utf-8"))
-                    if len(compressed_payload) < len(payload):
-                        payload = compressed_payload.decode("latin-1")
-                        compressed = 1
+                    zlib = _get_compression_module("zlib")
+                    if zlib:
+                        compressed_payload = zlib.compress(payload.encode("utf-8"))
+                        if len(compressed_payload) < len(payload):
+                            payload = compressed_payload.decode("latin-1")
+                            compressed = 1
                 except Exception:
                     pass
 
