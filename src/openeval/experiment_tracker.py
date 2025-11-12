@@ -1,20 +1,36 @@
 """
-Experiment Tracking and Management System for OpenEval Lab
+Unified Experiment Tracking and Management System for OpenEval Lab
 
 This module provides comprehensive experiment tracking, versioning, and management
 capabilities for evaluation experiments, ensuring reproducibility and organization.
+
+Features:
+- Experiment lifecycle management (create, run, track, finish)
+- Reproducibility through environment capture
+- Comprehensive artifact and log management
+- Experiment comparison and analysis
+- Export/import capabilities
+- Decorator-based tracking for functions
+- Thread-safe operations
+
+This module consolidates experiment_tracking.py and experiment_tracker.py
+for a unified interface.
 """
 
 from __future__ import annotations
 
 import json
 import uuid
+import time
+import platform
+import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 import shutil
+import functools
 
 from .logging import get_logger
 
@@ -431,18 +447,20 @@ class ExperimentTracker:
         for experiment in self.list_experiments():
             match = False
 
-            for field in fields:
-                if field == "name" and query_lower in experiment.name.lower():
+            for field_name in fields:
+                if field_name == "name" and query_lower in experiment.name.lower():
                     match = True
                     break
                 elif (
-                    field == "description"
+                    field_name == "description"
                     and experiment.description
                     and query_lower in experiment.description.lower()
                 ):
                     match = True
                     break
-                elif field == "tags" and any(query_lower in tag.lower() for tag in experiment.tags):
+                elif field_name == "tags" and any(
+                    query_lower in tag.lower() for tag in experiment.tags
+                ):
                     match = True
                     break
 
@@ -677,3 +695,163 @@ def quick_experiment(
 
     tracker = ExperimentTracker(experiments_dir)
     return tracker.create_experiment(name, config)
+
+
+def capture_environment() -> Dict[str, Any]:
+    """
+    Capture current environment information for reproducibility.
+
+    Returns:
+        Dictionary with environment details
+    """
+    import sys
+    import os
+
+    env_info = {
+        "python_version": sys.version,
+        "python_executable": sys.executable,
+        "platform": platform.platform(),
+        "hostname": platform.node(),
+        "pid": os.getpid(),
+    }
+
+    # Capture git information if available
+    try:
+        git_commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
+        env_info["git_commit"] = git_commit
+
+        git_branch = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
+        env_info["git_branch"] = git_branch
+
+        # Check if working directory is dirty
+        git_status = (
+            subprocess.check_output(["git", "status", "--porcelain"], stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
+        env_info["git_dirty"] = bool(git_status)
+
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass  # Git not available or not a git repository
+
+    # Capture important environment variables (masking secrets)
+    important_vars = [
+        "PYTHONPATH",
+        "PATH",
+        "CUDA_VISIBLE_DEVICES",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+    ]
+
+    env_vars = {}
+    for var in important_vars:
+        value = os.environ.get(var)
+        if value:
+            # Mask API keys
+            if "API_KEY" in var:
+                value = "***masked***"
+            env_vars[var] = value
+
+    env_info["environment_variables"] = env_vars
+
+    return env_info
+
+
+# Global experiment tracker instance
+_global_tracker: Optional[ExperimentTracker] = None
+_global_current_experiment: Optional[Experiment] = None
+_global_start_time: Optional[float] = None
+
+
+def get_global_tracker() -> ExperimentTracker:
+    """Get or create the global experiment tracker."""
+    global _global_tracker
+    if _global_tracker is None:
+        _global_tracker = ExperimentTracker()
+    return _global_tracker
+
+
+def track_experiment(
+    name: str,
+    description: str = "",
+    tags: Optional[List[str]] = None,
+    capture_env: bool = True,
+) -> Callable:
+    """
+    Decorator for tracking experiments.
+
+    Args:
+        name: Experiment name
+        description: Experiment description
+        tags: Tags for the experiment
+        capture_env: Whether to capture environment information
+
+    Returns:
+        Decorator function
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            tracker = get_global_tracker()
+
+            # Create experiment
+            config = ExperimentConfig(
+                task=func.__name__,
+                model={},
+                dataset={},
+                metrics=[],
+            )
+
+            experiment = tracker.create_experiment(
+                name=name,
+                config=config,
+                description=description,
+                tags=tags or [],
+            )
+
+            # Add environment info if requested
+            if capture_env:
+                env_info = capture_environment()
+                experiment.metadata["environment"] = env_info
+
+            # Update start time
+            start_time = time.time()
+
+            try:
+                # Run function
+                result = func(*args, **kwargs)
+
+                # Log result if it has metrics
+                if hasattr(result, "metrics"):
+                    experiment.result = ExperimentResult(
+                        metrics=result.metrics if isinstance(result.metrics, dict) else {},
+                        duration=time.time() - start_time,
+                    )
+
+                # Mark as completed
+                tracker.update_experiment_status(
+                    experiment.id, ExperimentStatus.COMPLETED, experiment.result
+                )
+
+                return result
+
+            except Exception as e:
+                # Mark as failed
+                result = ExperimentResult(error_message=str(e), duration=time.time() - start_time)
+                tracker.update_experiment_status(experiment.id, ExperimentStatus.FAILED, result)
+                raise
+
+        return wrapper
+
+    return decorator

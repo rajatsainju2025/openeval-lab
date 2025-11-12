@@ -15,13 +15,19 @@ Optimizations:
 from __future__ import annotations
 
 import time
+import statistics
+import heapq
 from typing import Any, Dict, List, Optional, Callable, AsyncIterator, Tuple
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from collections import deque
-import statistics
-import heapq
+
+from .logging import get_logger
+from .cache import PredictionCache, CacheStats
+from .utils import hash_prompt
+
+logger = get_logger(__name__)
 
 # Lazy import asyncio for faster startup
 _asyncio = None
@@ -44,12 +50,6 @@ try:
 except ImportError:
     aiofiles = None  # type: ignore
     HAS_AIOFILES = False
-
-from .logging import get_logger
-from .cache import PredictionCache, CacheStats
-from .utils import hash_prompt
-
-logger = get_logger(__name__)
 
 
 @dataclass
@@ -92,9 +92,9 @@ class AdaptiveConcurrencyConfig:
     target_response_time: float = 2.0  # seconds
     adaptation_interval: float = 10.0  # seconds
     cpu_threshold_high: float = 0.8  # scale down when CPU > 80%
-    cpu_threshold_low: float = 0.3   # scale up when CPU < 30%
+    cpu_threshold_low: float = 0.3  # scale up when CPU < 30%
     memory_threshold_high: float = 0.85  # scale down when memory > 85%
-    memory_threshold_low: float = 0.4   # scale up when memory < 40%
+    memory_threshold_low: float = 0.4  # scale up when memory < 40%
     scale_up_factor: float = 1.5
     scale_down_factor: float = 0.7
     stabilization_window: int = 5  # measurements to consider stable
@@ -219,7 +219,7 @@ class AdaptiveConcurrencyController:
         recent_changes = []
         history_list = list(self.concurrency_history)
         for i in range(1, len(history_list)):
-            change = abs(history_list[i] - history_list[i-1])
+            change = abs(history_list[i] - history_list[i - 1])
             recent_changes.append(change)
 
         if recent_changes:
@@ -253,9 +253,15 @@ class AdaptiveConcurrencyController:
         """Get controller statistics."""
         return {
             "current_concurrency": self.current_concurrency,
-            "avg_response_time": statistics.mean(self.response_times) if self.response_times else 0.0,
-            "avg_cpu_usage": statistics.mean(self.cpu_measurements) if self.cpu_measurements else 0.0,
-            "avg_memory_usage": statistics.mean(self.memory_measurements) if self.memory_measurements else 0.0,
+            "avg_response_time": (
+                statistics.mean(self.response_times) if self.response_times else 0.0
+            ),
+            "avg_cpu_usage": (
+                statistics.mean(self.cpu_measurements) if self.cpu_measurements else 0.0
+            ),
+            "avg_memory_usage": (
+                statistics.mean(self.memory_measurements) if self.memory_measurements else 0.0
+            ),
             "response_time_count": len(self.response_times),
             "concurrency_history": list(self.concurrency_history),
         }
@@ -956,7 +962,11 @@ class AsyncEvaluationEngine:
         if self.concurrency_controller:
             concurrency_stats = self.concurrency_controller.get_stats()
             cache_stats["concurrency_controller"] = concurrency_stats
-            cache_stats["current_semaphore_limit"] = self.semaphore.limit if isinstance(self.semaphore, DynamicSemaphore) else self.config.max_concurrent_requests
+            cache_stats["current_semaphore_limit"] = (
+                self.semaphore.limit
+                if isinstance(self.semaphore, DynamicSemaphore)
+                else self.config.max_concurrent_requests
+            )
 
         if len(self.latency_history) > 0:
             cache_stats["avg_latency"] = statistics.mean(self.latency_history)
