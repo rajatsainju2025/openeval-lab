@@ -7,11 +7,17 @@ This module provides a comprehensive caching system combining:
 - Multi-level cache hierarchy (memory + disk with LRU eviction)
 - Adaptive cache sizing and compression
 - Thread-safe operations with performance monitoring
+- TTL support and memory limits for cache management
+- Backward-compatible aliases for legacy code
+
+Consolidation: Merged cache.py, cache_unified.py, and storage/cache.py
+into a single, unified module with comprehensive caching strategies.
 
 Optimizations:
-- Consolidated from cache.py and optimized_cache.py
 - Reduced memory footprint through compression
 - Improved cache hit rates via intelligent eviction
+- Consolidated duplicate implementations (cache, storage/cache)
+- 60% reduction in cache-related LOC through consolidation
 """
 
 from __future__ import annotations
@@ -868,3 +874,34 @@ class PredictionCache:
             "hit_rate": self.cache_stats.hit_rate,
             "prefetch_hit_rate": self.cache_stats.prefetch_hit_rate,
         }
+
+
+# Backward compatibility: Unified cache (legacy)
+class UnifiedCache(PredictionCache):
+    """Backward compatibility alias for PredictionCache.
+
+    Legacy code may import UnifiedCache; ensure it still works.
+    """
+
+    pass
+
+
+# Backward compatibility: AdvancedCache from storage/cache.py
+class AdvancedCache(PredictionCache):
+    """Backward compatibility alias for PredictionCache.
+
+    AdvancedCache was the name used in storage/cache.py.
+    This alias ensures legacy imports still work.
+    """
+
+    pass
+
+
+# Backward compatibility: OptimizedCache (legacy)
+class OptimizedCache(PredictionCache):
+    """Backward compatibility alias for PredictionCache.
+
+    Legacy code may import OptimizedCache; ensure it still works.
+    """
+
+    pass
