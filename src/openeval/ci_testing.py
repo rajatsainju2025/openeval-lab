@@ -525,7 +525,7 @@ class TestRunner:
 
     def _test_config_validation(self) -> None:
         """Test configuration validation."""
-        from openeval.config_validator import ConfigurationValidator
+        from openeval.validation import ConfigurationValidator
 
         validator = ConfigurationValidator()
         config = {
@@ -535,9 +535,9 @@ class TestRunner:
             "metrics": ["accuracy"],
         }
 
-        result = validator.validate_configuration(config)
+        result = validator.validate(config)
         if not result.is_valid:
-            raise ValueError(f"Configuration validation failed: {result.summary()}")
+            raise ValueError(f"Configuration validation failed: {result.errors}")
 
     def _test_basic_evaluation(self) -> None:
         """Test basic evaluation functionality."""
