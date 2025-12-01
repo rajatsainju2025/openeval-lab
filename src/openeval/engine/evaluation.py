@@ -7,7 +7,7 @@ import time
 
 from ..core import Task, Dataset, Adapter, Metric
 from ..utils import set_seed
-from ..enhanced_logging import get_logger
+from ..logging import get_logger
 
 logger = get_logger(__name__)
 

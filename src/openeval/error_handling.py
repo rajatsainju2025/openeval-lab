@@ -59,6 +59,7 @@ __all__ = [
     # Graceful degradation
     "GracefulDegradation",
     # Recovery
+    "ErrorRecovery",  # Alias for ErrorRecoveryManager
     "ErrorRecoveryManager",
     "ErrorRecoveryStrategy",
     "attempt_error_recovery",
@@ -116,7 +117,6 @@ class ErrorSeverity(Enum):
 # =============================================================================
 
 
-@dataclass
 class ErrorContext:
     """Rich contextual information about an error.
 
@@ -140,21 +140,6 @@ class ErrorContext:
         "retry_count",
         "recoverable",
     )
-
-    category: ErrorCategory
-    severity: ErrorSeverity
-    message: str
-    error_code: str = "E0000"
-    details: Optional[str] = None
-    suggestions: List[str] = field(default_factory=list)
-    documentation_url: str = ""
-    component: Optional[str] = None
-    operation: Optional[str] = None
-    user_data: Optional[Dict[str, Any]] = None
-    stack_trace: Optional[str] = None
-    timestamp: float = field(default_factory=time.time)
-    retry_count: int = 0
-    recoverable: bool = True
 
     def __init__(
         self,
@@ -1005,3 +990,7 @@ def create_robust_evaluation_context() -> Dict[str, Any]:
         "circuit_breaker": service_breaker,
         "recovery_manager": _global_recovery_manager,
     }
+
+
+# Backward compatibility alias
+ErrorRecovery = ErrorRecoveryManager
