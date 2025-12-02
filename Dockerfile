@@ -20,9 +20,9 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt pyproject.toml ./
+COPY pyproject.toml ./
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt && \
+
     pip install .
 
 # Production stage

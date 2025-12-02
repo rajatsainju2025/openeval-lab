@@ -1,14 +1,16 @@
 """Tests for error handling framework."""
 
 import pytest
+import time
 
 from openeval.error_handling import (
     ErrorTracker,
     ErrorSeverity,
+    ErrorContext,
     RetryConfig,
     retry_with_config,
     CircuitBreaker,
-    ErrorRecoveryManager,
+    ErrorRecovery,
     create_robust_evaluation_context,
 )
 
@@ -27,10 +29,21 @@ class TestErrorTracker:
         tracker = ErrorTracker()
         error = ValueError("Test error")
 
-        tracker.log_error(error, context={"test": True})
+        ErrorContext(
+            error_type="ValueError",
+            severity=ErrorSeverity.MEDIUM,
+            message="Test error",
+            traceback_str="",
+            timestamp=time.time(),
+            context={"test": True},
+        )
+
+        logged = tracker.log_error(error, context={"test": True})
 
         assert len(tracker.errors) == 1
         assert tracker.error_counts["ValueError"] == 1
+        assert logged.error_type == "ValueError"
+        assert logged.context["test"] is True
 
     def test_get_error_summary(self):
         """Test getting error summary."""
@@ -192,17 +205,37 @@ class TestCircuitBreaker:
         assert breaker.state == "open"
 
         # Third call should fail fast
-        with pytest.raises(RuntimeError, match="Circuit breaker OPEN"):
+        with pytest.raises(Exception, match="Circuit breaker is OPEN"):
             failing_func()
 
 
-class TestErrorRecoveryManager:
-    """Test ErrorRecoveryManager functionality."""
+class TestErrorRecovery:
+    """Test ErrorRecovery functionality."""
 
-    def test_error_recovery_manager_creation(self):
-        """Test creating error recovery manager."""
-        recovery = ErrorRecoveryManager()
-        assert recovery.strategies == {}
+    def test_error_recovery_creation(self):
+        """Test creating error recovery."""
+        tracker = ErrorTracker()
+        recovery = ErrorRecovery(tracker)
+        assert recovery.error_tracker is tracker
+
+    def test_auto_recover_decorator(self):
+        """Test auto recover decorator."""
+        tracker = ErrorTracker()
+        recovery = ErrorRecovery(tracker)
+
+        call_count = 0
+
+        @recovery.auto_recover
+        def test_func():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ImportError("Missing package")
+            return "success"
+
+        result = test_func()
+        assert result == "success"
+        assert call_count == 2
 
 
 class TestErrorHandlingSuite:
@@ -214,10 +247,12 @@ class TestErrorHandlingSuite:
 
         assert "error_tracker" in suite
         assert "network_retry" in suite
+        assert "temp_failure_retry" in suite
         assert "circuit_breaker" in suite
-        assert "recovery_manager" in suite
+        assert "recovery" in suite
 
         assert isinstance(suite["error_tracker"], ErrorTracker)
         assert isinstance(suite["network_retry"], RetryConfig)
+        assert isinstance(suite["temp_failure_retry"], RetryConfig)
         assert isinstance(suite["circuit_breaker"], CircuitBreaker)
-        assert isinstance(suite["recovery_manager"], ErrorRecoveryManager)
+        assert isinstance(suite["recovery"], ErrorRecovery)

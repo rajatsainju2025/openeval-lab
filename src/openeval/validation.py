@@ -729,7 +729,3 @@ class ValidationResult(AdapterValidationResult):
     """Backward compatibility alias for AdapterValidationResult."""
 
     pass
-
-
-# Alias for config_validator compatibility
-ConfigurationValidator = SpecValidator
