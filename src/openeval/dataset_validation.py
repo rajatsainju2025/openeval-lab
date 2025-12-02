@@ -1,5 +1,10 @@
-"""Dataset validation and quality assessment utilities."""
+"""Dataset validation and quality assessment utilities.
 
+DEPRECATED: This module is being replaced by validation_unified.py
+Use openeval.validation_unified for new code.
+"""
+
+import warnings
 from typing import List, Optional, Tuple
 from pathlib import Path
 import json
@@ -7,6 +12,12 @@ import re
 from dataclasses import dataclass, asdict
 
 from .core import Dataset, Example
+
+warnings.warn(
+    "dataset_validation is deprecated. Use validation_unified instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 @dataclass
