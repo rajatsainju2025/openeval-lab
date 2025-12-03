@@ -4,9 +4,9 @@ import os
 import random
 import hashlib
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTimeoutError
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTimeoutError, as_completed
 from pathlib import Path
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Iterable, Iterator, List, Optional, Tuple, TypeVar
 
 
 def set_seed(seed: Optional[int]) -> None:
@@ -119,3 +119,170 @@ def get_project_root(env_var: str = "OPENEVAL_PROJECT_ROOT") -> Path:
 
     # 3) Fallback to CWD
     return Path.cwd()
+
+
+# =============================================================================
+# Batch Processing Utilities
+# =============================================================================
+
+R = TypeVar("R")
+
+
+def batch_items(items: Iterable[T], batch_size: int) -> Iterator[List[T]]:
+    """Split items into batches of specified size.
+
+    Args:
+        items: Iterable of items to batch.
+        batch_size: Maximum number of items per batch.
+
+    Yields:
+        Lists of items, each with at most batch_size elements.
+
+    Example:
+        >>> list(batch_items([1, 2, 3, 4, 5], 2))
+        [[1, 2], [3, 4], [5]]
+    """
+    batch: List[T] = []
+    for item in items:
+        batch.append(item)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
+def parallel_map(
+    fn: Callable[[T], R],
+    items: Iterable[T],
+    *,
+    max_workers: int = 4,
+    timeout: Optional[float] = None,
+    on_error: Optional[Callable[[T, Exception], Optional[R]]] = None,
+) -> List[Tuple[T, Optional[R], Optional[Exception]]]:
+    """Apply function to items in parallel with error handling.
+
+    Args:
+        fn: Function to apply to each item.
+        items: Iterable of items to process.
+        max_workers: Maximum number of concurrent workers.
+        timeout: Overall timeout for all operations (None for no timeout).
+        on_error: Optional callback for handling errors. If returns a value,
+                  it will be used as the result. If None, the error is recorded.
+
+    Returns:
+        List of tuples (item, result, error) for each item.
+        - On success: (item, result, None)
+        - On error: (item, None, exception) or (item, fallback_result, None) if on_error returns
+
+    Example:
+        >>> def process(x): return x * 2
+        >>> results = parallel_map(process, [1, 2, 3], max_workers=2)
+        >>> [(item, result) for item, result, _ in results]
+        [(1, 2), (2, 4), (3, 6)]
+    """
+    items_list = list(items)
+    results: List[Tuple[T, Optional[R], Optional[Exception]]] = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_item = {executor.submit(fn, item): item for item in items_list}
+
+        # Collect results
+        for future in as_completed(future_to_item, timeout=timeout):
+            item = future_to_item[future]
+            try:
+                result = future.result()
+                results.append((item, result, None))
+            except Exception as e:
+                if on_error:
+                    try:
+                        fallback = on_error(item, e)
+                        results.append((item, fallback, None))
+                    except Exception as e2:
+                        results.append((item, None, e2))
+                else:
+                    results.append((item, None, e))
+
+    return results
+
+
+def timed_operation(operation_name: str = "operation"):
+    """Decorator to time a function and log duration.
+
+    Args:
+        operation_name: Name of the operation for logging.
+
+    Returns:
+        Decorator that times the wrapped function.
+
+    Example:
+        >>> @timed_operation("data_loading")
+        ... def load_data():
+        ...     return [1, 2, 3]
+    """
+
+    def decorator(fn: Callable[..., R]) -> Callable[..., R]:
+        def wrapper(*args, **kwargs) -> R:
+            start = time.perf_counter()
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                elapsed = time.perf_counter() - start
+                # Use print for simplicity; could integrate with logging
+                if elapsed > 1.0:
+                    print(f"[TIMING] {operation_name}: {elapsed:.2f}s")
+
+        return wrapper
+
+    return decorator
+
+
+def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
+    """Safely divide two numbers, returning default on division by zero.
+
+    Args:
+        numerator: The dividend.
+        denominator: The divisor.
+        default: Value to return if denominator is zero.
+
+    Returns:
+        The result of division or default.
+
+    Example:
+        >>> safe_divide(10, 2)
+        5.0
+        >>> safe_divide(10, 0)
+        0.0
+    """
+    if denominator == 0:
+        return default
+    return numerator / denominator
+
+
+def format_duration(seconds: float) -> str:
+    """Format a duration in seconds to human-readable string.
+
+    Args:
+        seconds: Duration in seconds.
+
+    Returns:
+        Human-readable duration string.
+
+    Example:
+        >>> format_duration(3661.5)
+        '1h 1m 1.50s'
+        >>> format_duration(45.3)
+        '45.30s'
+    """
+    if seconds < 60:
+        return f"{seconds:.2f}s"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}m {secs:.2f}s"
+    else:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        return f"{hours}h {minutes}m {secs:.2f}s"
