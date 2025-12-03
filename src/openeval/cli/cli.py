@@ -114,6 +114,85 @@ def perf_tips():
     cli_help.show_performance_tips()
 
 
+@app.command("startup-check")
+def startup_check():
+    """Check CLI startup performance and report timing breakdown.
+
+    Useful for diagnosing slow startup times and identifying
+    which imports or initializations are taking longest.
+    """
+    import time
+
+    console.print("[bold]OpenEval CLI Startup Performance Check[/bold]\n")
+
+    timings = []
+
+    # Time core imports
+    start = time.perf_counter()
+    from ..core import Task, Dataset, Adapter, Metric  # noqa: F401
+
+    timings.append(("Core abstractions import", time.perf_counter() - start))
+
+    # Time spec import
+    start = time.perf_counter()
+    from ..spec import EvalSpec  # noqa: F401
+
+    timings.append(("EvalSpec import", time.perf_counter() - start))
+
+    # Time validation import
+    start = time.perf_counter()
+    from ..validation import SpecValidator  # noqa: F401
+
+    timings.append(("Validation import", time.perf_counter() - start))
+
+    # Time cache import
+    start = time.perf_counter()
+    from ..cache import PredictionCache  # noqa: F401
+
+    timings.append(("Cache import", time.perf_counter() - start))
+
+    # Time optional heavy imports
+    start = time.perf_counter()
+    try:
+        import numpy  # noqa: F401
+
+        timings.append(("NumPy import", time.perf_counter() - start))
+    except ImportError:
+        timings.append(("NumPy import (not available)", 0.0))
+
+    start = time.perf_counter()
+    try:
+        import pandas  # noqa: F401
+
+        timings.append(("Pandas import", time.perf_counter() - start))
+    except ImportError:
+        timings.append(("Pandas import (not available)", 0.0))
+
+    # Display results
+    total = sum(t for _, t in timings)
+
+    console.print("[cyan]Component Timing Breakdown:[/cyan]")
+    for name, duration in sorted(timings, key=lambda x: -x[1]):
+        bar_len = int(duration / total * 30) if total > 0 else 0
+        bar = "█" * bar_len + "░" * (30 - bar_len)
+        pct = (duration / total * 100) if total > 0 else 0
+        console.print(f"  {name:35} {bar} {duration*1000:6.1f}ms ({pct:4.1f}%)")
+
+    console.print(f"\n[bold]Total measured time:[/bold] {total*1000:.1f}ms")
+
+    # Performance rating
+    if total < 0.2:
+        rating = "[green]Excellent[/green] ✓"
+    elif total < 0.5:
+        rating = "[yellow]Good[/yellow]"
+    elif total < 1.0:
+        rating = "[orange1]Fair[/orange1] - Consider lazy loading"
+    else:
+        rating = "[red]Slow[/red] - Needs optimization"
+
+    console.print(f"[bold]Performance rating:[/bold] {rating}")
+
+
 @app.command()
 def advanced():
     """Show advanced features and use cases."""
