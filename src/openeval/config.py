@@ -297,7 +297,11 @@ class ConfigManager:
             elif path.suffix == ".json":
                 data = json.load(f)
             else:
-                raise ValueError(f"Unsupported config file format: {path.suffix}")
+                raise ValueError(
+                    f"Unsupported config file format: {path.suffix}. "
+                    f"Supported formats: .yaml, .yml, .json. "
+                    f"Try renaming your file or converting to a supported format."
+                )
 
         return self._dict_to_config(data)
 
@@ -348,13 +352,21 @@ class ConfigManager:
             if hasattr(current, part):
                 current = getattr(current, part)
             else:
-                raise ValueError(f"Invalid config key: {key}")
+                available_attrs = [a for a in dir(current) if not a.startswith("_")]
+                raise ValueError(
+                    f"Invalid config key: '{key}'. "
+                    f"'{part}' not found. Available keys: {', '.join(available_attrs[:10])}"
+                )
 
         final_key = parts[-1]
         if hasattr(current, final_key):
             setattr(current, final_key, value)
         else:
-            raise ValueError(f"Invalid config key: {key}")
+            available_attrs = [a for a in dir(current) if not a.startswith("_")]
+            raise ValueError(
+                f"Invalid config key: '{key}'. "
+                f"'{final_key}' not found. Available keys: {', '.join(available_attrs[:10])}"
+            )
 
 
 class EnhancedConfigManager:
@@ -427,7 +439,12 @@ class EnhancedConfigManager:
     ) -> Dict[str, Any]:
         """Build a complete configuration from a profile."""
         if profile_name not in self.profiles:
-            raise ValueError(f"Profile '{profile_name}' not found")
+            available_profiles = list(self.profiles.keys())
+            raise ValueError(
+                f"Profile '{profile_name}' not found. "
+                f"Available profiles: {', '.join(available_profiles) if available_profiles else 'none'}. "
+                f"Use register_profile() to add a new profile."
+            )
 
         profile = self.profiles[profile_name]
 
@@ -437,7 +454,12 @@ class EnhancedConfigManager:
         # Apply templates in order
         for template_name in profile.templates:
             if template_name not in self.templates:
-                raise ValueError(f"Template '{template_name}' not found")
+                available_templates = list(self.templates.keys())
+                raise ValueError(
+                    f"Template '{template_name}' not found in profile '{profile_name}'. "
+                    f"Available templates: {', '.join(available_templates) if available_templates else 'none'}. "
+                    f"Use register_template() to add a new template."
+                )
 
             template_config = self._resolve_template(template_name)
             self._deep_merge(config, template_config)
@@ -468,7 +490,12 @@ class EnhancedConfigManager:
     def _resolve_template(self, template_name: str) -> Dict[str, Any]:
         """Resolve a template with inheritance."""
         if template_name not in self.templates:
-            raise ValueError(f"Template '{template_name}' not found")
+            available_templates = list(self.templates.keys())
+            raise ValueError(
+                f"Template '{template_name}' not found. "
+                f"Available templates: {', '.join(available_templates) if available_templates else 'none'}. "
+                f"Use register_template() to add a new template."
+            )
 
         template = self.templates[template_name]
 
@@ -503,7 +530,12 @@ class EnhancedConfigManager:
     def _get_loader(self, extension: str) -> ConfigLoader:
         """Get appropriate loader for file extension."""
         if extension not in self.loaders:
-            raise ValueError(f"No loader registered for extension: {extension}")
+            available_extensions = list(self.loaders.keys())
+            raise ValueError(
+                f"No loader registered for extension: '{extension}'. "
+                f"Supported extensions: {', '.join(available_extensions)}. "
+                f"Use register_loader() to add support for new formats."
+            )
         return self.loaders[extension]
 
     def save_config(self, config: Dict[str, Any], file_path: Union[str, Path]) -> None:
