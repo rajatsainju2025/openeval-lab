@@ -102,6 +102,16 @@ def troubleshoot():
     cli_help.show_troubleshooting()
 
 
+@app.command("common-errors")
+def common_errors():
+    """Show common errors with their solutions.
+
+    Displays a categorized list of frequently encountered errors
+    and their recommended solutions. Useful when debugging issues.
+    """
+    cli_help.show_common_errors()
+
+
 @app.command("registry-help")
 def registry_help():
     """Show help for using the component registry."""

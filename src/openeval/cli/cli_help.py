@@ -421,3 +421,84 @@ openeval run spec.json --interactive
 """
 
     console.print(Markdown(features_md))
+
+
+def show_common_errors():
+    """Show common errors and their solutions."""
+
+    errors_data = [
+        {
+            "error": "ModuleNotFoundError: No module named 'openai'",
+            "cause": "OpenAI adapter requires the openai package",
+            "solution": "pip install openai",
+            "category": "Installation",
+        },
+        {
+            "error": "OPENAI_API_KEY not set",
+            "cause": "OpenAI adapter requires API key in environment",
+            "solution": "export OPENAI_API_KEY='your-key-here'",
+            "category": "Configuration",
+        },
+        {
+            "error": "Rate limit exceeded (429)",
+            "cause": "Too many concurrent API requests",
+            "solution": "Reduce --max-concurrent or add --retry-delay",
+            "category": "API Limits",
+        },
+        {
+            "error": "FileNotFoundError: dataset.jsonl",
+            "cause": "Dataset file path is incorrect",
+            "solution": "Check dataset_kwargs.path in spec file",
+            "category": "File Paths",
+        },
+        {
+            "error": "ValidationError: missing 'task' field",
+            "cause": "Spec file is missing required fields",
+            "solution": "Run 'openeval validate spec.json' for details",
+            "category": "Validation",
+        },
+        {
+            "error": "TimeoutError: Operation timed out",
+            "cause": "API call exceeded timeout limit",
+            "solution": "Increase --timeout or check network connection",
+            "category": "Timeouts",
+        },
+        {
+            "error": "MemoryError during evaluation",
+            "cause": "Dataset too large for available memory",
+            "solution": "Use --streaming or reduce --batch-size",
+            "category": "Resources",
+        },
+        {
+            "error": "JSONDecodeError in results",
+            "cause": "Invalid JSON in dataset or model output",
+            "solution": "Validate dataset with 'openeval validate-data'",
+            "category": "Data Format",
+        },
+    ]
+
+    console.print("\n[bold cyan]Common OpenEval Errors & Solutions[/bold cyan]\n")
+
+    # Group by category
+    categories: dict = {}
+    for err in errors_data:
+        cat = err["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(err)
+
+    for category, errors in categories.items():
+        table = Table(
+            title=f"[bold]{category}[/bold]", show_header=True, header_style="bold magenta"
+        )
+        table.add_column("Error", style="red", width=40)
+        table.add_column("Solution", style="green", width=40)
+
+        for err in errors:
+            table.add_row(err["error"][:40], err["solution"])
+
+        console.print(table)
+        console.print()
+
+    console.print("[dim]💡 Tip: Run 'openeval doctor' for automated diagnosis[/dim]")
+    console.print("[dim]💡 Tip: Use --verbose flag for detailed error information[/dim]")
