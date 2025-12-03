@@ -233,3 +233,90 @@ def get_cpu_info() -> Optional[Dict]:
 def get_resource_warnings() -> Dict:
     """Get current resource warnings."""
     return _monitor.get_warnings()
+
+
+def check_resources_before_operation(
+    memory_threshold_percent: float = 85.0,
+    cpu_threshold_percent: float = 90.0,
+    raise_on_threshold: bool = False,
+) -> Dict[str, Any]:
+    """Check resource availability before starting an operation.
+
+    Args:
+        memory_threshold_percent: Memory usage threshold to trigger warning.
+        cpu_threshold_percent: CPU usage threshold to trigger warning.
+        raise_on_threshold: If True, raise ResourceWarning on threshold breach.
+
+    Returns:
+        Dictionary with resource status and any warnings.
+
+    Raises:
+        ResourceWarning: If raise_on_threshold is True and thresholds exceeded.
+
+    Example:
+        >>> status = check_resources_before_operation(memory_threshold_percent=80)
+        >>> if status['warnings']:
+        ...     print("Warning:", status['warnings'])
+    """
+    status = {
+        "memory_ok": True,
+        "cpu_ok": True,
+        "warnings": [],
+        "memory_info": None,
+        "cpu_info": None,
+    }
+
+    # Check memory
+    memory_info = get_memory_info()
+    if memory_info:
+        status["memory_info"] = memory_info
+        if memory_info["percent"] > memory_threshold_percent:
+            status["memory_ok"] = False
+            warning = (
+                f"Memory usage ({memory_info['percent']:.1f}%) exceeds threshold "
+                f"({memory_threshold_percent}%). Available: {memory_info['available_mb']:.0f}MB"
+            )
+            status["warnings"].append(warning)
+
+    # Check CPU
+    cpu_info = get_cpu_info()
+    if cpu_info:
+        status["cpu_info"] = cpu_info
+        if cpu_info["percent"] > cpu_threshold_percent:
+            status["cpu_ok"] = False
+            warning = (
+                f"CPU usage ({cpu_info['percent']:.1f}%) exceeds threshold "
+                f"({cpu_threshold_percent}%)"
+            )
+            status["warnings"].append(warning)
+
+    # Raise if requested
+    if raise_on_threshold and status["warnings"]:
+        raise ResourceWarning("; ".join(status["warnings"]))
+
+    return status
+
+
+def get_resource_summary() -> str:
+    """Get a one-line summary of current resource usage.
+
+    Returns:
+        Human-readable string with memory and CPU usage.
+
+    Example:
+        >>> print(get_resource_summary())
+        Memory: 45.2% (8.2GB/16.0GB) | CPU: 23.1% (8 cores)
+    """
+    parts = []
+
+    memory_info = get_memory_info()
+    if memory_info:
+        used_gb = memory_info["used_mb"] / 1024
+        total_gb = memory_info["total_mb"] / 1024
+        parts.append(f"Memory: {memory_info['percent']:.1f}% ({used_gb:.1f}GB/{total_gb:.1f}GB)")
+
+    cpu_info = get_cpu_info()
+    if cpu_info:
+        parts.append(f"CPU: {cpu_info['percent']:.1f}% ({cpu_info['cpu_count']} cores)")
+
+    return " | ".join(parts) if parts else "Resource info unavailable (psutil not installed)"
