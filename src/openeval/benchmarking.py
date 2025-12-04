@@ -503,10 +503,26 @@ class StandardBenchmarks:
 
     @staticmethod
     def create_comprehensive_benchmark() -> BenchmarkSuite:
-        """Create a comprehensive benchmark covering multiple domains."""
+        """Create a comprehensive benchmark covering multiple domains.
+
+        This suite combines QA and code benchmarks into a single
+        comprehensive evaluation suite.
+
+        Returns:
+            BenchmarkSuite with tasks, metrics, and datasets across domains
+        """
         suite = BenchmarkSuite("comprehensive_benchmark")
 
-        # This would include multiple tasks, datasets, and metrics
-        # Implementation depends on available components
+        # QA component
+        qa_suite = StandardBenchmarks.create_qa_benchmark()
+        suite.tasks.extend(qa_suite.tasks)
+        suite.metrics.extend(qa_suite.metrics)
+        suite.datasets.extend(qa_suite.datasets)
+
+        # Code component
+        code_suite = StandardBenchmarks.create_code_benchmark()
+        suite.tasks.extend(code_suite.tasks)
+        suite.metrics.extend(code_suite.metrics)
+        suite.datasets.extend(code_suite.datasets)
 
         return suite
