@@ -17,6 +17,17 @@ except ImportError:
     HAS_JINJA2 = False
     jinja2 = None
 
+try:
+    import jsonschema
+    from jsonschema import ValidationError, SchemaError
+
+    HAS_JSONSCHEMA = True
+except ImportError:
+    HAS_JSONSCHEMA = False
+    jsonschema = None
+    ValidationError = Exception
+    SchemaError = Exception
+
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -560,9 +571,42 @@ class EnhancedConfigManager:
 
     def _validate_against_schema(self, config: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
         """Validate config against JSON schema."""
-        # Simplified schema validation
         errors = []
 
+        # Use jsonschema library if available for proper validation
+        if HAS_JSONSCHEMA and jsonschema is not None:
+            try:
+                jsonschema.validate(instance=config, schema=schema)
+                return []
+            except ValidationError as e:
+                # Format the error with path information
+                path = ".".join(str(p) for p in e.path) if e.path else "root"
+                error_msg = f"Validation error at '{path}': {e.message}"
+
+                # Add context about the failing value if available
+                if e.instance is not None:
+                    error_msg += f" (got: {type(e.instance).__name__})"
+
+                errors.append(error_msg)
+
+                # Add schema information if helpful
+                if e.schema_path:
+                    schema_path = ".".join(str(p) for p in e.schema_path)
+                    errors.append(f"  Schema path: {schema_path}")
+
+                # Add any nested errors
+                for suberror in e.context:
+                    sub_path = ".".join(str(p) for p in suberror.path) if suberror.path else path
+                    errors.append(f"  Nested error at '{sub_path}': {suberror.message}")
+
+                return errors
+            except SchemaError as e:
+                return [f"Invalid schema definition: {e.message}"]
+            except Exception as e:
+                logger.warning(f"Schema validation failed unexpectedly: {e}")
+                # Fall back to simple validation
+
+        # Fallback to simplified schema validation
         def validate_section(
             section_config: Dict[str, Any], section_schema: Dict[str, Any], path: str = ""
         ):
@@ -578,15 +622,25 @@ class EnhancedConfigManager:
                     expected_type = rules.get("type")
 
                     if expected_type == "string" and not isinstance(value, str):
-                        errors.append(f"Field {current_path} must be string, got {type(value)}")
+                        errors.append(
+                            f"Field {current_path} must be string, got {type(value).__name__}"
+                        )
                     elif expected_type == "number" and not isinstance(value, (int, float)):
-                        errors.append(f"Field {current_path} must be number, got {type(value)}")
+                        errors.append(
+                            f"Field {current_path} must be number, got {type(value).__name__}"
+                        )
                     elif expected_type == "boolean" and not isinstance(value, bool):
-                        errors.append(f"Field {current_path} must be boolean, got {type(value)}")
+                        errors.append(
+                            f"Field {current_path} must be boolean, got {type(value).__name__}"
+                        )
                     elif expected_type == "array" and not isinstance(value, list):
-                        errors.append(f"Field {current_path} must be array, got {type(value)}")
+                        errors.append(
+                            f"Field {current_path} must be array, got {type(value).__name__}"
+                        )
                     elif expected_type == "object" and not isinstance(value, dict):
-                        errors.append(f"Field {current_path} must be object, got {type(value)}")
+                        errors.append(
+                            f"Field {current_path} must be object, got {type(value).__name__}"
+                        )
 
         validate_section(config, schema)
         return errors
@@ -613,6 +667,142 @@ class EnhancedConfigManager:
                 errors.append(f"Invalid log level: {log_config['level']}")
 
         return errors
+
+
+# JSON Schema definitions for evaluation specs
+def get_evaluation_spec_schema() -> Dict[str, Any]:
+    """Get JSON schema for evaluation specifications."""
+    return {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "required": ["task", "dataset", "adapter"],
+        "properties": {
+            "task": {
+                "type": "string",
+                "enum": ["qa", "code", "summarization", "classification", "multimodal"],
+                "description": "Type of evaluation task",
+            },
+            "dataset": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                    "type": {"type": "string", "enum": ["jsonl", "csv", "huggingface", "custom"]},
+                    "path": {"type": "string"},
+                    "split": {"type": "string", "default": "test"},
+                    "subset": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1},
+                },
+            },
+            "adapter": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["openai", "anthropic", "huggingface", "vllm", "custom"],
+                    },
+                    "model": {"type": "string"},
+                    "api_key": {"type": "string"},
+                    "api_base": {"type": "string"},
+                    "timeout": {"type": "integer", "minimum": 1, "default": 60},
+                    "max_tokens": {"type": "integer", "minimum": 1},
+                    "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+                },
+            },
+            "metrics": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "description": "List of metrics to compute",
+            },
+            "concurrency": {"type": "integer", "minimum": 1, "maximum": 100, "default": 4},
+            "timeout": {"type": "integer", "minimum": 1, "default": 300},
+            "cache": {
+                "type": "object",
+                "properties": {
+                    "enabled": {"type": "boolean", "default": True},
+                    "ttl": {"type": "integer", "minimum": 0},
+                },
+            },
+            "output": {
+                "type": "object",
+                "properties": {
+                    "dir": {"type": "string"},
+                    "format": {"type": "string", "enum": ["json", "jsonl", "csv"]},
+                    "save_predictions": {"type": "boolean", "default": True},
+                },
+            },
+        },
+    }
+
+
+def get_adapter_config_schema() -> Dict[str, Any]:
+    """Get JSON schema for adapter configurations."""
+    return {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+            "type": {"type": "string"},
+            "model": {"type": "string"},
+            "api_key": {"type": "string"},
+            "api_base": {"type": "string"},
+            "timeout": {"type": "integer", "minimum": 1},
+            "max_retries": {"type": "integer", "minimum": 0, "maximum": 10},
+            "retry_delay": {"type": "number", "minimum": 0},
+            "max_tokens": {"type": "integer", "minimum": 1},
+            "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+            "top_p": {"type": "number", "minimum": 0, "maximum": 1},
+            "batch_size": {"type": "integer", "minimum": 1},
+        },
+    }
+
+
+def get_dataset_config_schema() -> Dict[str, Any]:
+    """Get JSON schema for dataset configurations."""
+    return {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+            "type": {"type": "string", "enum": ["jsonl", "csv", "huggingface", "custom"]},
+            "path": {"type": "string"},
+            "split": {"type": "string"},
+            "subset": {"type": "string"},
+            "limit": {"type": "integer", "minimum": 1},
+            "shuffle": {"type": "boolean"},
+            "seed": {"type": "integer"},
+        },
+    }
+
+
+def export_schemas(output_dir: Union[str, Path]) -> List[Path]:
+    """Export all JSON schemas to files.
+
+    Args:
+        output_dir: Directory to save schema files
+
+    Returns:
+        List of paths to exported schema files
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    schemas = {
+        "evaluation_spec.schema.json": get_evaluation_spec_schema(),
+        "adapter_config.schema.json": get_adapter_config_schema(),
+        "dataset_config.schema.json": get_dataset_config_schema(),
+    }
+
+    exported_paths = []
+    for filename, schema in schemas.items():
+        schema_path = output_dir / filename
+        with open(schema_path, "w") as f:
+            json.dump(schema, f, indent=2)
+        exported_paths.append(schema_path)
+        logger.info(f"Exported schema to {schema_path}")
+
+    return exported_paths
 
 
 # Predefined templates and profiles
