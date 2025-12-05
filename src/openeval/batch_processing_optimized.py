@@ -410,23 +410,46 @@ class OptimizedBatchProcessor(Generic[T, R]):
                         job.metadata["results"] = (
                             batch_results[start_idx:end_idx] if batch_results else None
                         )
+                        job.metadata["success"] = True
                         success_count += 1
 
                 except asyncio.TimeoutError:
                     logger.warning(f"Batch timeout for {len(grouped_jobs)} jobs")
-                    # Handle timeout - could retry with smaller batches
+                    # Attempt partial recovery: retry individual jobs if batch timed out
                     for job in grouped_jobs:
                         if job.retries < job.max_retries:
                             job.retries += 1
+                            logger.info(
+                                f"Requeuing job {job.id} after timeout "
+                                f"(retry {job.retries}/{job.max_retries})"
+                            )
                             await self.queue.put(job)
+                        else:
+                            job.metadata["success"] = False
+                            job.metadata["error"] = "Max retries exceeded after timeout"
+                            logger.error(f"Job {job.id} failed permanently after timeout")
 
-            except Exception as e:
-                logger.error(f"Batch processing error: {e}")
-                # Handle failed jobs
+                except Exception as e:
+                    logger.error(f"Batch processing error: {e}")
+                    # Attempt partial success: retry failed jobs individually
+                    for job in grouped_jobs:
+                        if job.retries < job.max_retries:
+                            job.retries += 1
+                            logger.info(
+                                f"Requeuing job {job.id} after error "
+                                f"(retry {job.retries}/{job.max_retries})"
+                            )
+                            await self.queue.put(job)
+                        else:
+                            job.metadata["success"] = False
+                            job.metadata["error"] = str(e)
+                            logger.error(f"Job {job.id} failed permanently: {e}")
+
+            except Exception as outer_e:
+                logger.error(f"Fatal error processing job group: {outer_e}")
                 for job in grouped_jobs:
-                    if job.retries < job.max_retries:
-                        job.retries += 1
-                        await self.queue.put(job)
+                    job.metadata["success"] = False
+                    job.metadata["error"] = f"Fatal: {outer_e}"
 
         # Update performance metrics
         processing_time = time.time() - start_time
