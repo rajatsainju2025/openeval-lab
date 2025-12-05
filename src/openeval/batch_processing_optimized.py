@@ -107,28 +107,74 @@ class AdaptiveBatchSizer:
         self.last_adjustment = time.time()
         self.adjustment_cooldown = 1.0  # seconds
 
+        # Warmup phase tracking
+        self.warmup_complete = False
+        self.warmup_batch_count = 0
+        self.warmup_sizes = []
+        self.warmup_throughputs = []
+
+        # Latency tracking for better tuning
+        self.latency_history: deque = deque(maxlen=20)
+        self.latency_threshold_ms = 1000  # 1 second
+
     def record_batch_performance(
-        self, batch_size: int, processing_time: float, success_rate: float
+        self,
+        batch_size: int,
+        processing_time: float,
+        success_rate: float,
+        latency_ms: Optional[float] = None,
     ):
-        """Record batch performance metrics."""
+        """Record batch performance metrics with enhanced tracking."""
         throughput = batch_size / processing_time if processing_time > 0 else 0
-        self.performance_history.append(
-            {
-                "batch_size": batch_size,
-                "processing_time": processing_time,
-                "success_rate": success_rate,
-                "throughput": throughput,
-                "timestamp": time.time(),
-            }
+        metric = {
+            "batch_size": batch_size,
+            "processing_time": processing_time,
+            "success_rate": success_rate,
+            "throughput": throughput,
+            "timestamp": time.time(),
+        }
+
+        if latency_ms is not None:
+            metric["latency_ms"] = latency_ms
+            self.latency_history.append(latency_ms)
+
+        self.performance_history.append(metric)
+
+        # Track warmup phase
+        if not self.warmup_complete:
+            self.warmup_batch_count += 1
+            self.warmup_sizes.append(batch_size)
+            self.warmup_throughputs.append(throughput)
+
+            if self.warmup_batch_count >= self.config.warmup_batches:
+                self._complete_warmup()
+
+    def _complete_warmup(self):
+        """Complete warmup and determine optimal initial batch size."""
+        if self.warmup_complete or not self.warmup_throughputs:
+            return
+
+        # Find batch size with best throughput during warmup
+        best_idx = self.warmup_throughputs.index(max(self.warmup_throughputs))
+        optimal_warmup_size = self.warmup_sizes[best_idx]
+
+        logger.info(
+            f"Warmup complete. Optimal batch size from warmup: {optimal_warmup_size} "
+            f"(max throughput: {max(self.warmup_throughputs):.2f} items/sec)"
         )
 
+        # Use warmup findings for initial size
+        self.current_size = optimal_warmup_size
+        self.warmup_complete = True
+
     def get_optimal_batch_size(self, queue_length: int, memory_pressure: float = 0.0) -> int:
-        """Calculate optimal batch size based on current conditions."""
+        """Calculate optimal batch size based on current conditions with enhanced tuning."""
         if not self.config.adaptive_sizing:
             return self.config.target_batch_size
 
-        if len(self.performance_history) < self.config.warmup_batches:
-            return self.config.target_batch_size
+        # During warmup, gradually test different sizes
+        if not self.warmup_complete:
+            return self._get_warmup_batch_size()
 
         # Calculate recent performance trend
         recent_metrics = list(self.performance_history)[-10:]
@@ -138,29 +184,48 @@ class AdaptiveBatchSizer:
         avg_throughput = statistics.mean(m["throughput"] for m in recent_metrics)
         avg_success_rate = statistics.mean(m["success_rate"] for m in recent_metrics)
 
+        # Calculate latency trend if available
+        avg_latency = 0.0
+        if self.latency_history:
+            avg_latency = statistics.mean(self.latency_history)
+
         # Adjust based on multiple factors
         new_size = self.current_size
 
         # Factor 1: Success rate (reduce size if failures increase)
         if avg_success_rate < 0.9:
             new_size = max(self.config.min_batch_size, int(new_size * 0.8))
+            logger.debug(f"Reducing batch size due to low success rate: {avg_success_rate:.2%}")
         elif avg_success_rate > 0.98 and avg_throughput > 0:
-            new_size = min(self.config.max_batch_size, int(new_size * 1.2))
+            new_size = min(self.config.max_batch_size, int(new_size * 1.1))
 
         # Factor 2: Queue pressure (increase size if backlog building)
         if queue_length > self.config.backpressure_threshold:
-            new_size = min(self.config.max_batch_size, int(new_size * 1.5))
+            new_size = min(self.config.max_batch_size, int(new_size * 1.3))
+            logger.debug(f"Increasing batch size due to queue backlog: {queue_length}")
         elif queue_length < self.config.target_batch_size:
-            new_size = max(self.config.min_batch_size, int(new_size * 0.9))
+            new_size = max(self.config.min_batch_size, int(new_size * 0.95))
 
-        # Factor 3: Memory pressure
-        if memory_pressure > 0.8:
-            new_size = max(self.config.min_batch_size, int(new_size * 0.7))
+        # Factor 3: Memory pressure (aggressive reduction)
+        if memory_pressure > 0.85:
+            new_size = max(self.config.min_batch_size, int(new_size * 0.6))
+            logger.warning(f"Reducing batch size due to memory pressure: {memory_pressure:.1%}")
+        elif memory_pressure > 0.75:
+            new_size = max(self.config.min_batch_size, int(new_size * 0.8))
+
+        # Factor 4: Latency-based adjustment
+        if avg_latency > self.latency_threshold_ms * 1.5:
+            new_size = max(self.config.min_batch_size, int(new_size * 0.85))
+            logger.debug(f"Reducing batch size due to high latency: {avg_latency:.0f}ms")
 
         # Apply rate limiting to avoid oscillation
         now = time.time()
         if now - self.last_adjustment < self.adjustment_cooldown:
             return self.current_size
+
+        # Log adjustment if significant
+        if abs(new_size - self.current_size) > 2:
+            logger.info(f"Adjusting batch size: {self.current_size} -> {new_size}")
 
         self.current_size = max(
             self.config.min_batch_size, min(self.config.max_batch_size, new_size)
@@ -168,6 +233,23 @@ class AdaptiveBatchSizer:
         self.last_adjustment = now
 
         return self.current_size
+
+    def _get_warmup_batch_size(self) -> int:
+        """Get batch size during warmup phase with gradual exploration."""
+        # Start conservative, gradually increase
+        progress = self.warmup_batch_count / self.config.warmup_batches
+
+        # Test different sizes: start small, ramp up, then settle
+        if progress < 0.3:
+            # Test min size
+            return self.config.min_batch_size
+        elif progress < 0.6:
+            # Gradually increase
+            mid_size = (self.config.min_batch_size + self.config.target_batch_size) // 2
+            return mid_size
+        else:
+            # Test target and max
+            return self.config.target_batch_size if progress < 0.8 else self.config.max_batch_size
 
 
 class ResourceMonitor:
