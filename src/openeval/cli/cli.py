@@ -40,14 +40,40 @@ from .. import version_utils
 app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
-    help="OpenEval Lab - Enterprise-grade LLM Evaluation Framework\n\n"
-    "Evaluate language models, multimodal models, and AI agents with "
-    "reproducible, extensible, and production-ready workflows.\n\n"
-    "Quick Start:\n"
-    "  openeval run examples/qa_spec.json\n"
-    "  openeval tutorial\n"
-    "  openeval doctor\n\n"
-    "For detailed help on any command, use: openeval <command> --help",
+    help="""🚀 OpenEval Lab - Enterprise-grade LLM Evaluation Framework
+
+Evaluate language models, multimodal models, and AI agents with
+reproducible, extensible, and production-ready workflows.
+
+📚 QUICK START EXAMPLES:
+  • Run basic evaluation:
+    $ openeval run spec examples/qa_spec.json
+
+  • Run with custom settings:
+    $ openeval run spec examples/qa_spec.json --concurrency 4 --verbose
+
+  • Validate your spec file:
+    $ openeval validate examples/qa_spec.json
+
+  • Check system health:
+    $ openeval doctor
+
+  • Launch interactive tutorial:
+    $ openeval tutorial
+
+  • Start web dashboard:
+    $ openeval web --reload
+
+💡 COMMON WORKFLOWS:
+  1. First time: openeval tutorial && openeval doctor
+  2. Validate config: openeval validate <spec>
+  3. Run evaluation: openeval run spec <spec>
+  4. Analyze results: openeval compare run1.json run2.json
+
+📖 DOCUMENTATION:
+  For detailed help on any command: openeval <command> --help
+  Full docs: https://github.com/openeval-lab/openeval-lab
+""",
 )
 
 console = Console()
