@@ -92,6 +92,18 @@ class CacheStats:
     Tracks hits, misses, evictions, and compression savings for cache operations.
     """
 
+    __slots__ = (
+        "hits",
+        "misses",
+        "bloom_filter_hits",
+        "prefetch_hits",
+        "prefetch_misses",
+        "evictions",
+        "compression_savings",
+        "total_access_time",
+        "sets",
+    )
+
     hits: int = 0
     misses: int = 0
     bloom_filter_hits: int = 0
@@ -180,6 +192,8 @@ class BloomFilter:
 @dataclass(order=True)
 class CacheEntry:
     """Cache entry with priority for LRU eviction."""
+
+    __slots__ = ("key", "access_count", "last_accessed", "size", "priority")
 
     key: str
     access_count: int

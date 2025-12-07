@@ -275,6 +275,8 @@ class Example:
         ... )
     """
 
+    __slots__ = ("id", "input", "reference", "meta")
+
     id: str
     input: Any
     reference: Any
