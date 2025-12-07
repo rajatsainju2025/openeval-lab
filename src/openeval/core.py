@@ -35,7 +35,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Mapping, Optional, Protocol, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Protocol,
+    Union,
+    Sequence,
+    TypeVar,
+)
 from pathlib import Path
 import time
 import sys
@@ -47,6 +59,10 @@ from .utils import set_seed, hash_file, retry_call, run_with_timeout, hash_promp
 from .cache import PredictionCache, CacheStats
 from .prompt import PromptTemplate
 from .logging import get_logger
+
+# Type variables for improved type safety
+T = TypeVar("T")
+ScoreDict = Dict[str, Union[float, int, Dict[str, float]]]
 
 logger = get_logger(__name__)
 
@@ -205,7 +221,9 @@ class Metric(Protocol):
 
     name: str
 
-    def compute(self, predictions: Iterable[Any], references: Iterable[Any]) -> Mapping[str, float]:
+    def compute(
+        self, predictions: Iterable[str], references: Iterable[Union[str, Sequence[str]]]
+    ) -> ScoreDict:
         """Compute evaluation scores comparing predictions to references.
 
         Both inputs must be iterables of the same length. The metric may compute
