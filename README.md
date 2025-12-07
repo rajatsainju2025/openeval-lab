@@ -11,27 +11,66 @@
 
 > **State-of-the-art evaluation framework for LLMs, multimodal models, and AI agents with enterprise-grade reproducibility and extensibility.**
 
-## 🚀 Quick Start
+---
+
+## 🚀 Quick Start (< 2 minutes)
 
 ```bash
-# Install with development dependencies
+# 1. Install OpenEval Lab
 pip install -e '.[dev]'
 
-# Run your first evaluation
+# 2. Run your first evaluation (uses built-in example)
 openeval run spec examples/qa_spec.json --verbose
 
-# Launch the dashboard (optional)
+# 3. (Optional) Launch the web dashboard
 openeval web --reload
+# → Open http://localhost:8000 in your browser
 
-# Validate your environment
-openeval doctor --json
+# 4. Verify your installation
+openeval doctor
 ```
 
-Or use the Makefile shortcut:
+**✨ First time user?** Run `openeval tutorial` for an interactive walkthrough!
+
+---
+
+## 💡 30-Second Example
+
+Create a simple QA evaluation:
+
+```python
+# evaluate.py
+from openeval import EvalSpec
+
+# Load evaluation specification
+spec = EvalSpec.from_file("examples/qa_spec.json")
+
+# Run evaluation
+results = spec.run()
+
+# Check results
+print(f"Accuracy: {results['metrics']['exact_match']['accuracy']:.1%}")
+```
+
+Or use the CLI:
 
 ```bash
-make quickstart
+# Create a spec file (qa_eval.json)
+{
+  "task": "qa",
+  "dataset": "examples/qa_toy.jsonl",
+  "adapter": {
+    "type": "openai",
+    "model": "gpt-4"
+  },
+  "metrics": ["exact_match", "f1"]
+}
+
+# Run it
+openeval run spec qa_eval.json
 ```
+
+---
 
 ## 📋 Table of Contents
 
