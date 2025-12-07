@@ -20,7 +20,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar
+import time
+import functools
+from random import random
+
+T = TypeVar("T")
 
 
 class ErrorCategory(Enum):
@@ -250,3 +255,109 @@ def should_abort(category: ErrorCategory) -> bool:
         ErrorCategory.CONFIGURATION,
     }
     return category in abort_categories
+
+
+def exponential_backoff(
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+    exponential_base: float = 2.0,
+    jitter: bool = True,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    """Decorator for retrying functions with exponential backoff.
+
+    Automatically retries failed function calls with increasing delays between attempts.
+    Useful for handling transient failures in API calls, network operations, etc.
+
+    Args:
+        max_retries: Maximum number of retry attempts (default: 3)
+        base_delay: Initial delay in seconds (default: 1.0)
+        max_delay: Maximum delay between retries in seconds (default: 60.0)
+        exponential_base: Base for exponential calculation (default: 2.0)
+        jitter: Add random jitter to prevent thundering herd (default: True)
+
+    Returns:
+        Decorated function that will retry on retryable errors.
+
+    Example:
+        >>> @exponential_backoff(max_retries=5, base_delay=2.0)
+        ... def call_api(endpoint: str) -> dict:
+        ...     return requests.get(endpoint).json()
+        >>>
+        >>> # Will retry up to 5 times with delays: 2s, 4s, 8s, 16s, 32s
+        >>> result = call_api("https://api.example.com/data")
+    """
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> T:
+            last_exception: Optional[Exception] = None
+
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    error_category = categorize_error(e)
+
+                    # Don't retry if not retryable or if this was the last attempt
+                    if not is_retryable(error_category) or attempt == max_retries:
+                        raise
+
+                    # Calculate delay with exponential backoff
+                    delay = min(base_delay * (exponential_base**attempt), max_delay)
+
+                    # Add jitter to prevent thundering herd
+                    if jitter:
+                        delay *= 0.5 + random()  # Random factor between 0.5 and 1.5
+
+                    time.sleep(delay)
+
+            # Should never reach here, but just in case
+            if last_exception:
+                raise last_exception
+            raise RuntimeError("Retry logic failed unexpectedly")
+
+        return wrapper
+
+    return decorator
+
+
+def retry_with_backoff(
+    func: Callable[..., T],
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+    *args: Any,
+    **kwargs: Any,
+) -> T:
+    """Retry a function call with exponential backoff (functional version).
+
+    Similar to exponential_backoff decorator but can be used directly on function calls.
+
+    Args:
+        func: The function to call
+        max_retries: Maximum number of retry attempts
+        base_delay: Initial delay in seconds
+        max_delay: Maximum delay between retries in seconds
+        *args: Positional arguments to pass to func
+        **kwargs: Keyword arguments to pass to func
+
+    Returns:
+        The return value of the successful function call.
+
+    Raises:
+        The last exception if all retries fail.
+
+    Example:
+        >>> result = retry_with_backoff(
+        ...     requests.get,
+        ...     max_retries=5,
+        ...     base_delay=2.0,
+        ...     url="https://api.example.com/data"
+        ... )
+    """
+    decorated = exponential_backoff(
+        max_retries=max_retries, base_delay=base_delay, max_delay=max_delay
+    )(func)
+    return decorated(*args, **kwargs)
