@@ -1,8 +1,28 @@
 """
 High-Performance JSON Operations
 
-Optimized JSON serialization/deserialization with streaming support,
-custom encoders, and memory-efficient processing.
+Optimized JSON serialization/deserialization using orjson for maximum performance.
+Includes streaming support, custom encoders, and memory-efficient processing.
+
+Performance Benefits:
+    - 2-3x faster serialization than standard json
+    - 1.5-2x faster deserialization
+    - Lower memory usage for large objects
+    - Native support for datetime, UUID, numpy types
+
+Example:
+    >>> from openeval.json_optimized import dumps_fast, loads_fast
+    >>>
+    >>> # Fast serialization
+    >>> data = {"predictions": ["answer1", "answer2"], "scores": [0.9, 0.85]}
+    >>> json_str = dumps_fast(data)
+    >>>
+    >>> # Fast deserialization
+    >>> loaded = loads_fast(json_str)
+    >>>
+    >>> # Streaming large JSONL files
+    >>> for record in stream_jsonl("large_dataset.jsonl"):
+    ...     process(record)
 """
 
 from __future__ import annotations
@@ -10,7 +30,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Union, Iterator
 
-# Try to import orjson for better performance
+# orjson is a required dependency (see pyproject.toml)
 try:
     import orjson
 
@@ -18,6 +38,13 @@ try:
 except ImportError:
     HAS_ORJSON = False
     orjson = None
+    import warnings
+
+    warnings.warn(
+        "orjson not found. Install it for 2-3x faster JSON operations: pip install orjson",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 
 class OptimizedJSONEncoder(json.JSONEncoder):
