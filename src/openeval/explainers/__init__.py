@@ -13,6 +13,15 @@ from .base import (
     get_global_registry,
 )
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
+from .prompt_templates import (
+    PromptStyle,
+    PromptTemplate,
+    PromptTemplateManager,
+    DirectPromptTemplate,
+    ChainOfThoughtPromptTemplate,
+    SocraticPromptTemplate,
+    ExpertPromptTemplate,
+)
 from .types import (
     AnalysisResult,
     CodeElement,
@@ -34,6 +43,14 @@ __all__ = [
     "CacheManager",
     "InMemoryCacheManager",
     "NoOpCacheManager",
+    # Prompt templates
+    "PromptStyle",
+    "PromptTemplate",
+    "PromptTemplateManager",
+    "DirectPromptTemplate",
+    "ChainOfThoughtPromptTemplate",
+    "SocraticPromptTemplate",
+    "ExpertPromptTemplate",
     # Type definitions
     "CodeElement",
     "CodeElementType",

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from .base import CodeExplainer
 from .cache_manager import CacheManager, InMemoryCacheManager
+from .prompt_templates import PromptTemplateManager
 from .types import CodeElement, ExplainLevel, ExplanationResult
 
 
@@ -23,6 +24,7 @@ class LLMCodeExplainer(CodeExplainer):
         cache_enabled: bool = True,
         max_tokens: int = 1000,
         cache_manager: Optional[CacheManager] = None,
+        template_manager: Optional[PromptTemplateManager] = None,
     ) -> None:
         """Initialize the LLM explainer.
 
@@ -32,12 +34,14 @@ class LLMCodeExplainer(CodeExplainer):
             cache_enabled: Whether to cache explanations.
             max_tokens: Maximum tokens in explanation.
             cache_manager: CacheManager instance (defaults to InMemoryCacheManager).
+            template_manager: PromptTemplateManager instance (creates default if not provided).
         """
         self.adapter_name = adapter_name
         self.model = model
         self.cache_enabled = cache_enabled
         self.max_tokens = max_tokens
         self._cache_manager = cache_manager or (InMemoryCacheManager() if cache_enabled else None)
+        self._template_manager = template_manager or PromptTemplateManager()
         self._adapter = None
 
     def set_cache_manager(self, cache_manager: CacheManager) -> None:
@@ -47,6 +51,25 @@ class LLMCodeExplainer(CodeExplainer):
             cache_manager: CacheManager instance to use.
         """
         self._cache_manager = cache_manager
+
+    def set_prompt_template(self, template_name: str) -> None:
+        """Set the prompt template to use.
+
+        Args:
+            template_name: Name of the registered template.
+
+        Raises:
+            ValueError: If template not found.
+        """
+        self._template_manager.set_default(template_name)
+
+    def get_template_manager(self) -> PromptTemplateManager:
+        """Get the prompt template manager.
+
+        Returns:
+            PromptTemplateManager instance.
+        """
+        return self._template_manager
 
     def explain(
         self,
@@ -167,7 +190,7 @@ class LLMCodeExplainer(CodeExplainer):
         level: ExplainLevel,
         context: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Build a prompt for the LLM.
+        """Build a prompt for the LLM using template manager.
 
         Args:
             element: Code element to explain.
@@ -177,50 +200,7 @@ class LLMCodeExplainer(CodeExplainer):
         Returns:
             Prompt string for LLM.
         """
-        base_prompt = f"""Please explain the following {element.type.value}:
-
-```python
-{element.source_code}
-```
-
-"""
-
-        # Add level-specific instructions
-        if level == ExplainLevel.SUMMARY:
-            base_prompt += "Provide a brief 2-3 sentence summary of what this code does."
-        elif level == ExplainLevel.DETAILED:
-            base_prompt += (
-                "Provide a detailed explanation including:\n"
-                "1. What the code does\n"
-                "2. How it works\n"
-                "3. Key variables and their purposes\n"
-                "4. Any important patterns or techniques"
-            )
-        elif level == ExplainLevel.EXPERT:
-            base_prompt += (
-                "Provide a comprehensive expert-level explanation including:\n"
-                "1. What the code does and its purpose\n"
-                "2. Implementation details and design decisions\n"
-                "3. Variables, parameters, and return values\n"
-                "4. Algorithm complexity and efficiency considerations\n"
-                "5. Edge cases, error handling, and potential improvements\n"
-                "6. Relevant design patterns or best practices"
-            )
-
-        # Add context if provided
-        if context:
-            if context.get("documentation"):
-                base_prompt += f"\n\nDocumentation: {context['documentation']}"
-            if context.get("surrounding_code"):
-                base_prompt += (
-                    f"\n\nRelated code for context:\n```python\n{context['surrounding_code']}\n```"
-                )
-
-        base_prompt += (
-            "\n\nBe concise but comprehensive. Use clear language suitable for developers."
-        )
-
-        return base_prompt
+        return self._template_manager.build_prompt(element, level, context)
 
     def _call_llm(self, prompt: str) -> str:
         """Call the LLM with a prompt.
