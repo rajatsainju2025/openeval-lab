@@ -13,9 +13,10 @@ from .base import (
     ExplanationFormatter,
     get_global_registry,
 )
+from .cache_backends import MemcachedCacheManager, RedisCacheManager
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
-from .cache_backends import RedisCacheManager, MemcachedCacheManager
 from .chain import ChainStrategy, ExplainerChain
+from .cli_commands import ExplainerCLI, get_explainer_cli
 from .factory import ExplainerFactory, get_explainer_factory
 from .metrics_plugin import (
     ClarityMetric,
@@ -74,6 +75,9 @@ __all__ = [
     # Factory
     "ExplainerFactory",
     "get_explainer_factory",
+    # CLI
+    "ExplainerCLI",
+    "get_explainer_cli",
     # Quality metrics
     "QualityMetric",
     "ClarityMetric",
