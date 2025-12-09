@@ -13,14 +13,15 @@ from .base import (
     get_global_registry,
 )
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
+from .chain import ChainStrategy, ExplainerChain
 from .prompt_templates import (
+    ChainOfThoughtPromptTemplate,
+    DirectPromptTemplate,
+    ExpertPromptTemplate,
     PromptStyle,
     PromptTemplate,
     PromptTemplateManager,
-    DirectPromptTemplate,
-    ChainOfThoughtPromptTemplate,
     SocraticPromptTemplate,
-    ExpertPromptTemplate,
 )
 from .types import (
     AnalysisResult,
@@ -43,6 +44,9 @@ __all__ = [
     "CacheManager",
     "InMemoryCacheManager",
     "NoOpCacheManager",
+    # Explainer chaining
+    "ExplainerChain",
+    "ChainStrategy",
     # Prompt templates
     "PromptStyle",
     "PromptTemplate",
