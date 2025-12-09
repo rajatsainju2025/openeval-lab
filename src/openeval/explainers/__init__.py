@@ -31,6 +31,7 @@ from .middleware import (
     MiddlewareChain,
     ValidationMiddleware,
 )
+from .model_selector import ModelSelector
 from .prompt_templates import (
     ChainOfThoughtPromptTemplate,
     DirectPromptTemplate,
@@ -81,6 +82,8 @@ __all__ = [
     "EnrichmentMiddleware",
     "CachingMiddleware",
     "MiddlewareChain",
+    # Model selection
+    "ModelSelector",
     # Prompt templates
     "PromptStyle",
     "PromptTemplate",
