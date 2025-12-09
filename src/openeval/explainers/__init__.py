@@ -14,6 +14,7 @@ from .base import (
     get_global_registry,
 )
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
+from .cache_backends import RedisCacheManager, MemcachedCacheManager
 from .chain import ChainStrategy, ExplainerChain
 from .factory import ExplainerFactory, get_explainer_factory
 from .metrics_plugin import (
@@ -65,6 +66,8 @@ __all__ = [
     "CacheManager",
     "InMemoryCacheManager",
     "NoOpCacheManager",
+    "RedisCacheManager",
+    "MemcachedCacheManager",
     # Explainer chaining
     "ExplainerChain",
     "ChainStrategy",
