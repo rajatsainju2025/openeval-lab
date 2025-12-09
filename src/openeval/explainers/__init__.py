@@ -12,6 +12,7 @@ from .base import (
     ExplanationFormatter,
     get_global_registry,
 )
+from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
 from .types import (
     AnalysisResult,
     CodeElement,
@@ -29,6 +30,10 @@ __all__ = [
     "ExplanationFormatter",
     "ExplanationEvaluator",
     "ExplainerRegistry",
+    # Cache management
+    "CacheManager",
+    "InMemoryCacheManager",
+    "NoOpCacheManager",
     # Type definitions
     "CodeElement",
     "CodeElementType",

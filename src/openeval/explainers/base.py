@@ -4,7 +4,7 @@ This module provides the core interfaces that all explainers must implement.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .types import (
     AnalysisResult,
@@ -13,6 +13,9 @@ from .types import (
     ExplainLevel,
     ExplanationResult,
 )
+
+if TYPE_CHECKING:
+    from .cache_manager import CacheManager
 
 
 class CodeAnalyzer(ABC):
@@ -66,6 +69,7 @@ class CodeExplainer(ABC):
     """Abstract base class for code explanation.
 
     Subclasses implement different explanation strategies (LLM-based, rule-based, etc).
+    Supports pluggable cache managers for flexible caching strategies.
     """
 
     @abstractmethod
@@ -111,6 +115,22 @@ class CodeExplainer(ABC):
     def reset_cache(self) -> None:
         """Reset any internal caches. Optional override."""
         pass
+
+    def set_cache_manager(self, cache_manager: "CacheManager") -> None:
+        """Set the cache manager for this explainer.
+
+        Args:
+            cache_manager: CacheManager instance to use.
+        """
+        pass
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics. Optional override.
+
+        Returns:
+            Dictionary with cache statistics.
+        """
+        return {}
 
 
 class ComplexityAnalyzer(ABC):

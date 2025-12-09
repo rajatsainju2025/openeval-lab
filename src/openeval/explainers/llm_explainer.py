@@ -6,13 +6,14 @@ Integrates with the adapter system for AI-powered explanations.
 from typing import Any, Dict, List, Optional
 
 from .base import CodeExplainer
+from .cache_manager import CacheManager, InMemoryCacheManager
 from .types import CodeElement, ExplainLevel, ExplanationResult
 
 
 class LLMCodeExplainer(CodeExplainer):
     """Generate code explanations using LLMs.
 
-    Integrates with OpenEval adapters for API calls and caching.
+    Integrates with OpenEval adapters for API calls and pluggable caching.
     """
 
     def __init__(
@@ -21,6 +22,7 @@ class LLMCodeExplainer(CodeExplainer):
         model: str = "gpt-4",
         cache_enabled: bool = True,
         max_tokens: int = 1000,
+        cache_manager: Optional[CacheManager] = None,
     ) -> None:
         """Initialize the LLM explainer.
 
@@ -29,13 +31,22 @@ class LLMCodeExplainer(CodeExplainer):
             model: Model to use for explanation generation.
             cache_enabled: Whether to cache explanations.
             max_tokens: Maximum tokens in explanation.
+            cache_manager: CacheManager instance (defaults to InMemoryCacheManager).
         """
         self.adapter_name = adapter_name
         self.model = model
         self.cache_enabled = cache_enabled
         self.max_tokens = max_tokens
-        self._cache: Dict[str, ExplanationResult] = {}
+        self._cache_manager = cache_manager or (InMemoryCacheManager() if cache_enabled else None)
         self._adapter = None
+
+    def set_cache_manager(self, cache_manager: CacheManager) -> None:
+        """Set the cache manager for this explainer.
+
+        Args:
+            cache_manager: CacheManager instance to use.
+        """
+        self._cache_manager = cache_manager
 
     def explain(
         self,
@@ -59,8 +70,10 @@ class LLMCodeExplainer(CodeExplainer):
         """
         # Check cache first
         cache_key = self._make_cache_key(element, level)
-        if self.cache_enabled and cache_key in self._cache:
-            return self._cache[cache_key]
+        if self.cache_enabled and self._cache_manager:
+            cached = self._cache_manager.get(cache_key)
+            if cached:
+                return cached
 
         # Generate prompt
         prompt = self._build_prompt(element, level, context)
@@ -86,8 +99,8 @@ class LLMCodeExplainer(CodeExplainer):
         )
 
         # Cache result
-        if self.cache_enabled:
-            self._cache[cache_key] = result
+        if self.cache_enabled and self._cache_manager:
+            self._cache_manager.set(cache_key, result)
 
         return result
 
@@ -258,18 +271,18 @@ class LLMCodeExplainer(CodeExplainer):
 
     def reset_cache(self) -> None:
         """Reset the explanation cache."""
-        self._cache.clear()
+        if self._cache_manager:
+            self._cache_manager.clear()
 
-    def get_cache_stats(self) -> Dict[str, int]:
+    def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics.
 
         Returns:
-            Dictionary with cache statistics.
+            Dictionary with cache statistics from the cache manager.
         """
-        return {
-            "cached_explanations": len(self._cache),
-            "cache_size_bytes": sum(len(str(r)) for r in self._cache.values()),
-        }
+        if self._cache_manager:
+            return self._cache_manager.get_stats()
+        return {}
 
 
 class HybridExplainer(CodeExplainer):
