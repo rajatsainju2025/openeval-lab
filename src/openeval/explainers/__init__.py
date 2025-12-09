@@ -15,6 +15,14 @@ from .base import (
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
 from .chain import ChainStrategy, ExplainerChain
 from .factory import ExplainerFactory, get_explainer_factory
+from .metrics_plugin import (
+    ClarityMetric,
+    CompletenessMetric,
+    ConcisennessMetric,
+    MetricsRegistry,
+    QualityMetric,
+    get_metrics_registry,
+)
 from .prompt_templates import (
     ChainOfThoughtPromptTemplate,
     DirectPromptTemplate,
@@ -51,6 +59,13 @@ __all__ = [
     # Factory
     "ExplainerFactory",
     "get_explainer_factory",
+    # Quality metrics
+    "QualityMetric",
+    "ClarityMetric",
+    "CompletenessMetric",
+    "ConcisennessMetric",
+    "MetricsRegistry",
+    "get_metrics_registry",
     # Prompt templates
     "PromptStyle",
     "PromptTemplate",
