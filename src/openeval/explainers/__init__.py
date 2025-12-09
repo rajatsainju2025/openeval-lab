@@ -23,6 +23,14 @@ from .metrics_plugin import (
     QualityMetric,
     get_metrics_registry,
 )
+from .middleware import (
+    CachingMiddleware,
+    EnrichmentMiddleware,
+    ExplainerMiddleware,
+    LoggingMiddleware,
+    MiddlewareChain,
+    ValidationMiddleware,
+)
 from .prompt_templates import (
     ChainOfThoughtPromptTemplate,
     DirectPromptTemplate,
@@ -66,6 +74,13 @@ __all__ = [
     "ConcisennessMetric",
     "MetricsRegistry",
     "get_metrics_registry",
+    # Middleware
+    "ExplainerMiddleware",
+    "LoggingMiddleware",
+    "ValidationMiddleware",
+    "EnrichmentMiddleware",
+    "CachingMiddleware",
+    "MiddlewareChain",
     # Prompt templates
     "PromptStyle",
     "PromptTemplate",
