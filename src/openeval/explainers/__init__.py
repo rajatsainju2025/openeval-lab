@@ -3,6 +3,7 @@
 Provides main API for code explanation functionality.
 """
 
+from .async_explainer import AsyncExplainer
 from .base import (
     CodeAnalyzer,
     CodeExplainer,
@@ -51,6 +52,8 @@ from .types import (
 )
 
 __all__ = [
+    # Async support
+    "AsyncExplainer",
     # Base classes
     "CodeAnalyzer",
     "CodeExplainer",
