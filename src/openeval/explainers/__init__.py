@@ -14,6 +14,7 @@ from .base import (
 )
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
 from .chain import ChainStrategy, ExplainerChain
+from .factory import ExplainerFactory, get_explainer_factory
 from .prompt_templates import (
     ChainOfThoughtPromptTemplate,
     DirectPromptTemplate,
@@ -47,6 +48,9 @@ __all__ = [
     # Explainer chaining
     "ExplainerChain",
     "ChainStrategy",
+    # Factory
+    "ExplainerFactory",
+    "get_explainer_factory",
     # Prompt templates
     "PromptStyle",
     "PromptTemplate",
