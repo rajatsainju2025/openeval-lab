@@ -118,6 +118,24 @@ from .caching_decorators import (
     memoize,
     reset_explainer_cache,
 )
+from .rate_limiter import (
+    ExplainerRateLimiter,
+    FixedWindowLimiter,
+    LeakyBucketLimiter,
+    RateLimitConfig,
+    RateLimitExceeded,
+    RateLimiter,
+    RateLimiterGroup,
+    RateLimitStatus,
+    RateLimitStrategy,
+    SlidingWindowLimiter,
+    TokenBucketLimiter,
+    async_rate_limit,
+    create_rate_limiter,
+    get_explainer_rate_limiter,
+    rate_limit,
+    reset_explainer_rate_limiter,
+)
 
 __all__ = [
     # Async support
@@ -230,6 +248,23 @@ __all__ = [
     "get_explainer_cache",
     "memoize",
     "reset_explainer_cache",
+    # Rate limiting
+    "ExplainerRateLimiter",
+    "FixedWindowLimiter",
+    "LeakyBucketLimiter",
+    "RateLimitConfig",
+    "RateLimitExceeded",
+    "RateLimiter",
+    "RateLimiterGroup",
+    "RateLimitStatus",
+    "RateLimitStrategy",
+    "SlidingWindowLimiter",
+    "TokenBucketLimiter",
+    "async_rate_limit",
+    "create_rate_limiter",
+    "get_explainer_rate_limiter",
+    "rate_limit",
+    "reset_explainer_rate_limiter",
     # Type definitions
     "CodeElement",
     "CodeElementType",
