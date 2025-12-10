@@ -26,6 +26,17 @@ from .cache_backends import MemcachedCacheManager, RedisCacheManager
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
 from .chain import ChainStrategy, ExplainerChain
 from .cli_commands import ExplainerCLI, get_explainer_cli
+from .diff_explainer import (
+    ChangeSignificance,
+    DiffLine,
+    DiffSection,
+    DiffTracker,
+    DiffType,
+    ExplanationDiff,
+    compare_explanation_texts,
+    compare_explanations,
+    get_diff_tracker,
+)
 from .event_hooks import (
     EventEmitter,
     EventSubscriber,
@@ -117,6 +128,19 @@ __all__ = [
     "CacheManager",
     "InMemoryCacheManager",
     "NoOpCacheManager",
+    "RedisCacheManager",
+    "MemcachedCacheManager",
+    # Diff system
+    "ChangeSignificance",
+    "DiffLine",
+    "DiffSection",
+    "DiffTracker",
+    "DiffType",
+    "ExplanationDiff",
+    "compare_explanations",
+    "compare_explanation_texts",
+    "get_diff_tracker",
+    # Explainer chaining
     "RedisCacheManager",
     "MemcachedCacheManager",
     # Explainer chaining
