@@ -79,6 +79,12 @@ from .types import (
     ExplainLevel,
     ExplanationResult,
 )
+from .versioning import (
+    ExplanationVersion,
+    VersionedExplainer,
+    VersionTracker,
+    get_version_tracker,
+)
 
 __all__ = [
     # Async support
@@ -153,6 +159,11 @@ __all__ = [
     "RetryableExplainer",
     "retry_decorator",
     "get_retry_config",
+    # Versioning
+    "ExplanationVersion",
+    "VersionTracker",
+    "VersionedExplainer",
+    "get_version_tracker",
     # Type definitions
     "CodeElement",
     "CodeElementType",
