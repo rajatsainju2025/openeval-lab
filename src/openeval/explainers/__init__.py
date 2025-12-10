@@ -26,6 +26,16 @@ from .event_hooks import (
     get_event_subscriber,
 )
 from .factory import ExplainerFactory, get_explainer_factory
+from .health_check import (
+    ComponentHealth,
+    HealthChecker,
+    HealthStatus,
+    SystemHealth,
+    create_cache_health_check,
+    create_explainer_health_check,
+    create_memory_health_check,
+    get_health_checker,
+)
 from .metrics_plugin import (
     ClarityMetric,
     CompletenessMetric,
@@ -99,6 +109,15 @@ __all__ = [
     # Factory
     "ExplainerFactory",
     "get_explainer_factory",
+    # Health check
+    "HealthChecker",
+    "HealthStatus",
+    "ComponentHealth",
+    "SystemHealth",
+    "create_explainer_health_check",
+    "create_cache_health_check",
+    "create_memory_health_check",
+    "get_health_checker",
     # CLI
     "ExplainerCLI",
     "get_explainer_cli",
