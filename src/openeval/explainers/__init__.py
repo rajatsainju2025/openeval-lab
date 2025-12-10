@@ -17,6 +17,14 @@ from .cache_backends import MemcachedCacheManager, RedisCacheManager
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
 from .chain import ChainStrategy, ExplainerChain
 from .cli_commands import ExplainerCLI, get_explainer_cli
+from .event_hooks import (
+    EventEmitter,
+    EventSubscriber,
+    ExplainerEvent,
+    ExplainerEventType,
+    get_event_emitter,
+    get_event_subscriber,
+)
 from .factory import ExplainerFactory, get_explainer_factory
 from .metrics_plugin import (
     ClarityMetric,
@@ -72,6 +80,13 @@ __all__ = [
     # Explainer chaining
     "ExplainerChain",
     "ChainStrategy",
+    # Event system
+    "ExplainerEvent",
+    "ExplainerEventType",
+    "EventEmitter",
+    "EventSubscriber",
+    "get_event_emitter",
+    "get_event_subscriber",
     # Factory
     "ExplainerFactory",
     "get_explainer_factory",
