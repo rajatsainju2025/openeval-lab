@@ -13,6 +13,15 @@ from .base import (
     ExplanationFormatter,
     get_global_registry,
 )
+from .batch_processor import (
+    BatchItem,
+    BatchProcessor,
+    BatchResult,
+    BatchStatus,
+    ConcurrencyLimiter,
+    ExplainerBatchProcessor,
+    run_batch_async,
+)
 from .cache_backends import MemcachedCacheManager, RedisCacheManager
 from .cache_manager import CacheManager, InMemoryCacheManager, NoOpCacheManager
 from .chain import ChainStrategy, ExplainerChain
@@ -89,6 +98,14 @@ from .versioning import (
 __all__ = [
     # Async support
     "AsyncExplainer",
+    # Batch processing
+    "BatchItem",
+    "BatchProcessor",
+    "BatchResult",
+    "BatchStatus",
+    "ConcurrencyLimiter",
+    "ExplainerBatchProcessor",
+    "run_batch_async",
     # Base classes
     "CodeAnalyzer",
     "CodeExplainer",
