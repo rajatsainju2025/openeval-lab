@@ -52,6 +52,15 @@ from .prompt_templates import (
     PromptTemplateManager,
     SocraticPromptTemplate,
 )
+from .retry_policy import (
+    RetryableExplainer,
+    RetryConfig,
+    RetryPolicy,
+    RetryResult,
+    RetryStrategy,
+    get_retry_config,
+    retry_decorator,
+)
 from .types import (
     AnalysisResult,
     CodeElement,
@@ -117,6 +126,14 @@ __all__ = [
     "ChainOfThoughtPromptTemplate",
     "SocraticPromptTemplate",
     "ExpertPromptTemplate",
+    # Retry policy
+    "RetryConfig",
+    "RetryPolicy",
+    "RetryResult",
+    "RetryStrategy",
+    "RetryableExplainer",
+    "retry_decorator",
+    "get_retry_config",
     # Type definitions
     "CodeElement",
     "CodeElementType",
