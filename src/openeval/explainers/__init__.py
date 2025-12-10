@@ -105,6 +105,19 @@ from .versioning import (
     VersionTracker,
     get_version_tracker,
 )
+from .caching_decorators import (
+    CacheEntry,
+    CacheNamespace,
+    CacheStats,
+    ExplainerCache,
+    LRUCache,
+    async_cache,
+    cache,
+    conditional_cache,
+    get_explainer_cache,
+    memoize,
+    reset_explainer_cache,
+)
 
 __all__ = [
     # Async support
@@ -205,6 +218,18 @@ __all__ = [
     "VersionTracker",
     "VersionedExplainer",
     "get_version_tracker",
+    # Caching decorators
+    "CacheEntry",
+    "CacheNamespace",
+    "CacheStats",
+    "ExplainerCache",
+    "LRUCache",
+    "async_cache",
+    "cache",
+    "conditional_cache",
+    "get_explainer_cache",
+    "memoize",
+    "reset_explainer_cache",
     # Type definitions
     "CodeElement",
     "CodeElementType",
