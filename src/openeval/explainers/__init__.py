@@ -265,6 +265,25 @@ from .ab_testing import (
     reset_ab_testing_manager,
     run_ab_test,
 )
+from .cost_tracker import (
+    Budget,
+    BudgetStatus,
+    CostBackend,
+    CostContext,
+    CostEntry,
+    CostReporter,
+    CostSummary,
+    CostTracker,
+    CostType,
+    CostUnit,
+    InMemoryCostBackend,
+    PricingTier,
+    TokenUsage,
+    create_cost_tracker,
+    get_cost_tracker,
+    reset_cost_tracker,
+    track_cost,
+)
 
 __all__ = [
     # Async support
@@ -516,6 +535,24 @@ __all__ = [
     "get_ab_testing_manager",
     "reset_ab_testing_manager",
     "run_ab_test",
+    # Cost tracking
+    "Budget",
+    "BudgetStatus",
+    "CostBackend",
+    "CostContext",
+    "CostEntry",
+    "CostReporter",
+    "CostSummary",
+    "CostTracker",
+    "CostType",
+    "CostUnit",
+    "InMemoryCostBackend",
+    "PricingTier",
+    "TokenUsage",
+    "create_cost_tracker",
+    "get_cost_tracker",
+    "reset_cost_tracker",
+    "track_cost",
     # Type definitions
     "CodeElement",
     "CodeElementType",
