@@ -160,6 +160,22 @@ from .config_presets import (
     staging_config,
     testing_config,
 )
+from .telemetry import (
+    ExplainerTelemetry,
+    InMemoryBackend,
+    LatencyStats,
+    LoggingBackend,
+    MetricType,
+    MetricValue,
+    TelemetryBackend,
+    TelemetryExporter,
+    ThroughputStats,
+    UsageStats,
+    async_timed,
+    get_telemetry,
+    reset_telemetry,
+    timed,
+)
 
 __all__ = [
     # Async support
@@ -312,6 +328,21 @@ __all__ = [
     "register_preset",
     "staging_config",
     "testing_config",
+    # Telemetry
+    "ExplainerTelemetry",
+    "InMemoryBackend",
+    "LatencyStats",
+    "LoggingBackend",
+    "MetricType",
+    "MetricValue",
+    "TelemetryBackend",
+    "TelemetryExporter",
+    "ThroughputStats",
+    "UsageStats",
+    "async_timed",
+    "get_telemetry",
+    "reset_telemetry",
+    "timed",
     # Type definitions
     "CodeElement",
     "CodeElementType",
