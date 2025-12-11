@@ -202,6 +202,24 @@ from .streaming_explainer import (
     stream_to_callback,
     stream_to_callback_async,
 )
+from .pipeline import (
+    BranchStage,
+    ConditionalPipeline,
+    EnrichmentStage,
+    ExplainerPipeline,
+    ExplainerStage,
+    FilterStage,
+    ParallelPipeline,
+    Pipeline,
+    PipelineResult,
+    PipelineStage,
+    StageResult,
+    StageStatus,
+    TransformStage,
+    ValidateStage,
+    compose,
+    create_pipeline,
+)
 
 __all__ = [
     # Async support
@@ -393,6 +411,23 @@ __all__ = [
     "create_streaming_explainer",
     "stream_to_callback",
     "stream_to_callback_async",
+    # Pipeline system
+    "BranchStage",
+    "ConditionalPipeline",
+    "EnrichmentStage",
+    "ExplainerPipeline",
+    "ExplainerStage",
+    "FilterStage",
+    "ParallelPipeline",
+    "Pipeline",
+    "PipelineResult",
+    "PipelineStage",
+    "StageResult",
+    "StageStatus",
+    "TransformStage",
+    "ValidateStage",
+    "compose",
+    "create_pipeline",
     # Type definitions
     "CodeElement",
     "CodeElementType",
