@@ -176,6 +176,18 @@ from .telemetry import (
     reset_telemetry,
     timed,
 )
+from .explanation_templates import (
+    ClassTemplate,
+    ExplanationTemplate,
+    FunctionTemplate,
+    LoopTemplate,
+    PatternMatch,
+    PatternType,
+    TemplateRegistry,
+    TemplateSection,
+    generate_from_template,
+    get_template_registry,
+)
 
 __all__ = [
     # Async support
@@ -343,6 +355,17 @@ __all__ = [
     "get_telemetry",
     "reset_telemetry",
     "timed",
+    # Explanation templates
+    "ClassTemplate",
+    "ExplanationTemplate",
+    "FunctionTemplate",
+    "LoopTemplate",
+    "PatternMatch",
+    "PatternType",
+    "TemplateRegistry",
+    "TemplateSection",
+    "generate_from_template",
+    "get_template_registry",
     # Type definitions
     "CodeElement",
     "CodeElementType",
