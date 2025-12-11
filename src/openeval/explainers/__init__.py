@@ -220,6 +220,26 @@ from .pipeline import (
     compose,
     create_pipeline,
 )
+from .result_aggregator import (
+    AggregatedResult,
+    AggregationStats,
+    AggregationStrategy,
+    AggregatorComparison,
+    BulkAggregator,
+    ComparisonResult,
+    ExplanationAggregator,
+    GroupedStats,
+    ResultAggregator,
+    ResultCollector,
+    StatsReporter,
+    aggregate_results,
+    collect_results,
+    compute_result_stats,
+    create_reporter,
+    get_default_collector,
+    merge_explanations,
+    reset_default_collector,
+)
 
 __all__ = [
     # Async support
@@ -428,6 +448,25 @@ __all__ = [
     "ValidateStage",
     "compose",
     "create_pipeline",
+    # Result aggregation
+    "AggregatedResult",
+    "AggregationStats",
+    "AggregationStrategy",
+    "AggregatorComparison",
+    "BulkAggregator",
+    "ComparisonResult",
+    "ExplanationAggregator",
+    "GroupedStats",
+    "ResultAggregator",
+    "ResultCollector",
+    "StatsReporter",
+    "aggregate_results",
+    "collect_results",
+    "compute_result_stats",
+    "create_reporter",
+    "get_default_collector",
+    "merge_explanations",
+    "reset_default_collector",
     # Type definitions
     "CodeElement",
     "CodeElementType",
