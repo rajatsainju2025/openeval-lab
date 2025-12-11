@@ -305,6 +305,25 @@ from .quality_analyzer import (
     create_analyzer,
     create_quality_gate,
 )
+from .doc_generator import (
+    DocConfig,
+    DocElement,
+    DocFormat,
+    DocFormatter,
+    DocGenerator,
+    DocSection,
+    DocstringFormatter,
+    DocstringGenerator,
+    DocWriter,
+    GeneratedDoc,
+    HTMLFormatter,
+    MarkdownFormatter,
+    RSTFormatter,
+    create_doc_generator,
+    generate_docstring,
+    generate_html,
+    generate_markdown,
+)
 
 __all__ = [
     # Async support
@@ -594,6 +613,24 @@ __all__ = [
     "check_quality",
     "create_analyzer",
     "create_quality_gate",
+    # Documentation generation
+    "DocConfig",
+    "DocElement",
+    "DocFormat",
+    "DocFormatter",
+    "DocGenerator",
+    "DocSection",
+    "DocstringFormatter",
+    "DocstringGenerator",
+    "DocWriter",
+    "GeneratedDoc",
+    "HTMLFormatter",
+    "MarkdownFormatter",
+    "RSTFormatter",
+    "create_doc_generator",
+    "generate_docstring",
+    "generate_html",
+    "generate_markdown",
     # Type definitions
     "CodeElement",
     "CodeElementType",
