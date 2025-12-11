@@ -188,6 +188,20 @@ from .explanation_templates import (
     generate_from_template,
     get_template_registry,
 )
+from .streaming_explainer import (
+    ChunkedStreamingExplainer,
+    SectionStreamingExplainer,
+    StreamChunk,
+    StreamEventType,
+    StreamingExplainer,
+    StreamMultiplexer,
+    StreamProgress,
+    StreamResult,
+    WordStreamingExplainer,
+    create_streaming_explainer,
+    stream_to_callback,
+    stream_to_callback_async,
+)
 
 __all__ = [
     # Async support
@@ -366,6 +380,19 @@ __all__ = [
     "TemplateSection",
     "generate_from_template",
     "get_template_registry",
+    # Streaming explainers
+    "ChunkedStreamingExplainer",
+    "SectionStreamingExplainer",
+    "StreamChunk",
+    "StreamEventType",
+    "StreamingExplainer",
+    "StreamMultiplexer",
+    "StreamProgress",
+    "StreamResult",
+    "WordStreamingExplainer",
+    "create_streaming_explainer",
+    "stream_to_callback",
+    "stream_to_callback_async",
     # Type definitions
     "CodeElement",
     "CodeElementType",
