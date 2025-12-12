@@ -392,6 +392,25 @@ from .explanation_validator import (
     reset_validator,
     validate_explanation,
 )
+from .language_support import (
+    DetectionResult,
+    JavaScriptParser,
+    Language,
+    LanguageConfig,
+    LanguageDetector,
+    LanguageFamily,
+    LanguageFeatures,
+    LanguageParser,
+    MultiLanguageExplainer,
+    ParsedElement,
+    PythonParser,
+    detect_language,
+    get_language_detector,
+    get_language_features,
+    get_multi_language_explainer,
+    reset_language_detector,
+    reset_multi_language_explainer,
+)
 
 __all__ = [
     # Async support
@@ -764,6 +783,24 @@ __all__ = [
     "get_validator",
     "reset_validator",
     "validate_explanation",
+    # Language support
+    "DetectionResult",
+    "JavaScriptParser",
+    "Language",
+    "LanguageConfig",
+    "LanguageDetector",
+    "LanguageFamily",
+    "LanguageFeatures",
+    "LanguageParser",
+    "MultiLanguageExplainer",
+    "ParsedElement",
+    "PythonParser",
+    "detect_language",
+    "get_language_detector",
+    "get_language_features",
+    "get_multi_language_explainer",
+    "reset_language_detector",
+    "reset_multi_language_explainer",
     # Type definitions
     "CodeElement",
     "CodeElementType",
