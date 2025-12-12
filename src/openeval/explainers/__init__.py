@@ -435,6 +435,26 @@ from .semantic_cache import (
     get_semantic_cache,
     reset_semantic_cache,
 )
+from .feedback_collector import (
+    FeedbackAggregation,
+    FeedbackAnalyzer,
+    FeedbackCategory,
+    FeedbackCollector,
+    FeedbackCollectorConfig,
+    FeedbackExporter,
+    FeedbackItem,
+    FeedbackReport,
+    FeedbackSentiment,
+    FeedbackStatus,
+    FeedbackStorage,
+    FeedbackType,
+    InMemoryFeedbackStorage,
+    collect_rating,
+    collect_thumbs,
+    create_feedback_collector,
+    get_feedback_collector,
+    reset_feedback_collector,
+)
 
 __all__ = [
     # Async support
@@ -848,6 +868,25 @@ __all__ = [
     "create_semantic_cache",
     "get_semantic_cache",
     "reset_semantic_cache",
+    # Feedback collection
+    "FeedbackAggregation",
+    "FeedbackAnalyzer",
+    "FeedbackCategory",
+    "FeedbackCollector",
+    "FeedbackCollectorConfig",
+    "FeedbackExporter",
+    "FeedbackItem",
+    "FeedbackReport",
+    "FeedbackSentiment",
+    "FeedbackStatus",
+    "FeedbackStorage",
+    "FeedbackType",
+    "InMemoryFeedbackStorage",
+    "collect_rating",
+    "collect_thumbs",
+    "create_feedback_collector",
+    "get_feedback_collector",
+    "reset_feedback_collector",
     # Type definitions
     "CodeElement",
     "CodeElementType",
