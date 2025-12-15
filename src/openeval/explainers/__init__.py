@@ -782,6 +782,29 @@ from .benchmark_runner import (
     get_benchmark_runner,
     reset_benchmark_runner,
 )
+from .explanation_exporter import (
+    ExplanationExporter,
+    ExportDocument,
+    ExportFormat,
+    ExportOptions,
+    ExportRenderer,
+    ExportResult,
+    ExportSection,
+    ExportStyle,
+    HTMLRenderer,
+    JSONRenderer,
+    LaTeXRenderer,
+    MarkdownRenderer,
+    PlainTextRenderer,
+    create_export_document,
+    create_export_section,
+    export_to_file,
+    export_to_html,
+    export_to_json as export_explanation_to_json,
+    export_to_latex,
+    export_to_markdown,
+    export_to_text,
+)
 
 __all__ = [
     # Async support
@@ -1535,6 +1558,28 @@ __all__ = [
     "get_benchmark_history",
     "get_benchmark_runner",
     "reset_benchmark_runner",
+    # Explanation exporter
+    "ExplanationExporter",
+    "ExportDocument",
+    "ExportFormat",
+    "ExportOptions",
+    "ExportRenderer",
+    "ExportResult",
+    "ExportSection",
+    "ExportStyle",
+    "HTMLRenderer",
+    "JSONRenderer",
+    "LaTeXRenderer",
+    "MarkdownRenderer",
+    "PlainTextRenderer",
+    "create_export_document",
+    "create_export_section",
+    "export_explanation_to_json",
+    "export_to_file",
+    "export_to_html",
+    "export_to_latex",
+    "export_to_markdown",
+    "export_to_text",
     # Registry
     "get_global_registry",
 ]
