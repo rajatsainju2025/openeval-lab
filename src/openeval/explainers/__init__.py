@@ -805,6 +805,29 @@ from .explanation_exporter import (
     export_to_markdown,
     export_to_text,
 )
+from .knowledge_base import (
+    ConfidenceLevel,
+    EntryType,
+    FileKnowledgeStorage,
+    InMemoryKnowledgeStorage,
+    KnowledgeBase,
+    KnowledgeEntry,
+    KnowledgeStorage,
+    LearningEngine,
+    LearningFeedback,
+    MatchResult,
+    MatchType,
+    PatternMatcher,
+    QueryContext,
+    Recommendation,
+    RecommendationEngine,
+    add_knowledge_entry,
+    create_knowledge_base,
+    get_explanation_recommendations,
+    get_knowledge_base,
+    learn_from_explanation,
+    reset_knowledge_base,
+)
 
 __all__ = [
     # Async support
@@ -1580,6 +1603,28 @@ __all__ = [
     "export_to_latex",
     "export_to_markdown",
     "export_to_text",
+    # Knowledge base
+    "ConfidenceLevel",
+    "EntryType",
+    "FileKnowledgeStorage",
+    "InMemoryKnowledgeStorage",
+    "KnowledgeBase",
+    "KnowledgeEntry",
+    "KnowledgeStorage",
+    "LearningEngine",
+    "LearningFeedback",
+    "MatchResult",
+    "MatchType",
+    "PatternMatcher",
+    "QueryContext",
+    "Recommendation",
+    "RecommendationEngine",
+    "add_knowledge_entry",
+    "create_knowledge_base",
+    "get_explanation_recommendations",
+    "get_knowledge_base",
+    "learn_from_explanation",
+    "reset_knowledge_base",
     # Registry
     "get_global_registry",
 ]
