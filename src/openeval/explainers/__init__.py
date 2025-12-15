@@ -655,6 +655,24 @@ from .history_tracker import (
     rollback_explanation,
     track_explanation,
 )
+from .prompt_library import (
+    ABTest,
+    LibraryConfig,
+    PromptCategory,
+    PromptLibrary,
+    PromptStatus,
+    PromptTemplate as LibraryPromptTemplate,
+    PromptTone,
+    PromptUsageStats,
+    PromptVariant,
+    VariantSelectionStrategy,
+    create_prompt_library,
+    get_prompt,
+    get_prompt_library,
+    render_prompt,
+    reset_prompt_library,
+    search_prompts,
+)
 
 __all__ = [
     # Async support
@@ -1279,6 +1297,23 @@ __all__ = [
     "reset_history_tracker",
     "rollback_explanation",
     "track_explanation",
+    # Prompt library
+    "ABTest",
+    "LibraryConfig",
+    "PromptCategory",
+    "PromptLibrary",
+    "PromptStatus",
+    "LibraryPromptTemplate",
+    "PromptTone",
+    "PromptUsageStats",
+    "PromptVariant",
+    "VariantSelectionStrategy",
+    "create_prompt_library",
+    "get_prompt",
+    "get_prompt_library",
+    "render_prompt",
+    "reset_prompt_library",
+    "search_prompts",
     # Type definitions
     "CodeElement",
     "CodeElementType",
