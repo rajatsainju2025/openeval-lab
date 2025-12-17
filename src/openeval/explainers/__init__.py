@@ -828,6 +828,27 @@ from .knowledge_base import (
     learn_from_explanation,
     reset_knowledge_base,
 )
+from .test_generator import (
+    BasicTestStrategy,
+    BoundaryTestStrategy,
+    CodeAnalyzer as TestCodeAnalyzer,
+    CoverageType,
+    EdgeCaseTestStrategy,
+    ErrorTestStrategy,
+    FunctionSignature,
+    GenerationResult,
+    TestCase,
+    TestFramework,
+    TestGenerator,
+    TestStrategy,
+    TestSuite,
+    TestType,
+    create_test_generator,
+    generate_test_suite,
+    generate_tests,
+    get_test_generator,
+    reset_test_generator,
+)
 
 __all__ = [
     # Async support
@@ -1625,6 +1646,26 @@ __all__ = [
     "get_knowledge_base",
     "learn_from_explanation",
     "reset_knowledge_base",
+    # Test generator
+    "BasicTestStrategy",
+    "BoundaryTestStrategy",
+    "CoverageType",
+    "EdgeCaseTestStrategy",
+    "ErrorTestStrategy",
+    "FunctionSignature",
+    "GenerationResult",
+    "TestCase",
+    "TestCodeAnalyzer",
+    "TestFramework",
+    "TestGenerator",
+    "TestStrategy",
+    "TestSuite",
+    "TestType",
+    "create_test_generator",
+    "generate_test_suite",
+    "generate_tests",
+    "get_test_generator",
+    "reset_test_generator",
     # Registry
     "get_global_registry",
 ]
