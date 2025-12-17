@@ -953,6 +953,26 @@ from .explanation_cache_sync import (
     reset_cache_sync_manager,
     sync_cache_entry,
 )
+from .code_snippet_manager import (
+    CodeSnippet,
+    FileSnippetStorage,
+    InMemorySnippetStorage,
+    SearchCriteria,
+    SearchResult,
+    SnippetCategory,
+    SnippetCollection,
+    SnippetLanguage,
+    SnippetManager,
+    SnippetStorage,
+    SnippetVersion,
+    SnippetVisibility,
+    create_file_storage,
+    create_snippet,
+    create_snippet_manager,
+    get_snippet_manager,
+    reset_snippet_manager,
+    search_snippets,
+)
 
 __all__ = [
     # Async support
@@ -1869,6 +1889,25 @@ __all__ = [
     "get_cache_sync_manager",
     "reset_cache_sync_manager",
     "sync_cache_entry",
+    # Snippet management
+    "CodeSnippet",
+    "FileSnippetStorage",
+    "InMemorySnippetStorage",
+    "SearchCriteria",
+    "SearchResult",
+    "SnippetCategory",
+    "SnippetCollection",
+    "SnippetLanguage",
+    "SnippetManager",
+    "SnippetStorage",
+    "SnippetVersion",
+    "SnippetVisibility",
+    "create_file_storage",
+    "create_snippet",
+    "create_snippet_manager",
+    "get_snippet_manager",
+    "reset_snippet_manager",
+    "search_snippets",
     # Registry
     "get_global_registry",
 ]
