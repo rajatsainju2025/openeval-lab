@@ -891,6 +891,29 @@ from .collaboration_hub import (
     reset_collaboration_hub,
     share_in_session,
 )
+from .plugin_system import (
+    AnalyzerPlugin,
+    ExplainerPlugin,
+    FormatterPlugin,
+    HookManager,
+    HookPriority,
+    HookRegistration,
+    Plugin,
+    PluginConfig,
+    PluginInfo,
+    PluginLoader,
+    PluginManager,
+    PluginMetadata,
+    PluginStatus,
+    PluginType,
+    create_plugin_manager,
+    enable_plugin,
+    execute_hook,
+    get_plugin_manager,
+    load_plugin,
+    register_hook,
+    reset_plugin_manager,
+)
 
 __all__ = [
     # Async support
@@ -1748,6 +1771,28 @@ __all__ = [
     "join_session",
     "reset_collaboration_hub",
     "share_in_session",
+    # Plugin system
+    "AnalyzerPlugin",
+    "ExplainerPlugin",
+    "FormatterPlugin",
+    "HookManager",
+    "HookPriority",
+    "HookRegistration",
+    "Plugin",
+    "PluginConfig",
+    "PluginInfo",
+    "PluginLoader",
+    "PluginManager",
+    "PluginMetadata",
+    "PluginStatus",
+    "PluginType",
+    "create_plugin_manager",
+    "enable_plugin",
+    "execute_hook",
+    "get_plugin_manager",
+    "load_plugin",
+    "register_hook",
+    "reset_plugin_manager",
     # Registry
     "get_global_registry",
 ]
