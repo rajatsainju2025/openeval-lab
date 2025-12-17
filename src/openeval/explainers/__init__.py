@@ -932,6 +932,27 @@ from .code_summarizer import (
     reset_code_summarizer,
     summarize_code,
 )
+from .explanation_cache_sync import (
+    CacheEntry as SyncCacheEntry,
+    CacheSyncManager,
+    CacheTransport,
+    ConflictResolution,
+    ConflictResolver,
+    InMemoryTransport,
+    NodeInfo,
+    NodeStatus,
+    SyncConfig,
+    SyncEvent,
+    SyncResult,
+    SyncStrategy,
+    VersionVector,
+    create_cache_sync_manager,
+    create_node_info,
+    create_sync_config,
+    get_cache_sync_manager,
+    reset_cache_sync_manager,
+    sync_cache_entry,
+)
 
 __all__ = [
     # Async support
@@ -1828,6 +1849,26 @@ __all__ = [
     "get_code_summarizer",
     "reset_code_summarizer",
     "summarize_code",
+    # Cache synchronization
+    "SyncCacheEntry",
+    "CacheSyncManager",
+    "CacheTransport",
+    "ConflictResolution",
+    "ConflictResolver",
+    "InMemoryTransport",
+    "NodeInfo",
+    "NodeStatus",
+    "SyncConfig",
+    "SyncEvent",
+    "SyncResult",
+    "SyncStrategy",
+    "VersionVector",
+    "create_cache_sync_manager",
+    "create_node_info",
+    "create_sync_config",
+    "get_cache_sync_manager",
+    "reset_cache_sync_manager",
+    "sync_cache_entry",
     # Registry
     "get_global_registry",
 ]
