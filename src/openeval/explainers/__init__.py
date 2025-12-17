@@ -868,6 +868,29 @@ from .performance_profiler import (
     profile_function,
     reset_performance_profiler,
 )
+from .collaboration_hub import (
+    Activity,
+    ActivityType,
+    CollaborationEventHandler,
+    CollaborationHub,
+    CollaborationSession,
+    CollaborationStorage,
+    Comment,
+    DefaultEventHandler,
+    InMemoryCollaborationStorage,
+    Participant,
+    ParticipantRole,
+    SessionInvite,
+    SessionStatus,
+    SharedContent,
+    SharePermission,
+    create_collaboration_hub,
+    create_session,
+    get_collaboration_hub,
+    join_session,
+    reset_collaboration_hub,
+    share_in_session,
+)
 
 __all__ = [
     # Async support
@@ -1703,6 +1726,28 @@ __all__ = [
     "profile_explanation",
     "profile_function",
     "reset_performance_profiler",
+    # Collaboration hub
+    "Activity",
+    "ActivityType",
+    "CollaborationEventHandler",
+    "CollaborationHub",
+    "CollaborationSession",
+    "CollaborationStorage",
+    "Comment",
+    "DefaultEventHandler",
+    "InMemoryCollaborationStorage",
+    "Participant",
+    "ParticipantRole",
+    "SessionInvite",
+    "SessionStatus",
+    "SharedContent",
+    "SharePermission",
+    "create_collaboration_hub",
+    "create_session",
+    "get_collaboration_hub",
+    "join_session",
+    "reset_collaboration_hub",
+    "share_in_session",
     # Registry
     "get_global_registry",
 ]
