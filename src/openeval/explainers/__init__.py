@@ -849,6 +849,25 @@ from .test_generator import (
     get_test_generator,
     reset_test_generator,
 )
+from .performance_profiler import (
+    CProfileBackend,
+    MemoryProfilerBackend,
+    MemoryMetric,
+    MetricCategory,
+    PerformanceProfiler,
+    ProfileLevel,
+    ProfileReport,
+    ProfileSample,
+    ProfileStatistics,
+    ProfilerBackend,
+    TimingMetric,
+    benchmark_operation,
+    create_performance_profiler,
+    get_performance_profiler,
+    profile_explanation,
+    profile_function,
+    reset_performance_profiler,
+)
 
 __all__ = [
     # Async support
@@ -1666,6 +1685,24 @@ __all__ = [
     "generate_tests",
     "get_test_generator",
     "reset_test_generator",
+    # Performance profiler
+    "CProfileBackend",
+    "MemoryMetric",
+    "MemoryProfilerBackend",
+    "MetricCategory",
+    "PerformanceProfiler",
+    "ProfileLevel",
+    "ProfileReport",
+    "ProfileSample",
+    "ProfileStatistics",
+    "ProfilerBackend",
+    "TimingMetric",
+    "benchmark_operation",
+    "create_performance_profiler",
+    "get_performance_profiler",
+    "profile_explanation",
+    "profile_function",
+    "reset_performance_profiler",
     # Registry
     "get_global_registry",
 ]
