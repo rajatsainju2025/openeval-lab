@@ -914,6 +914,24 @@ from .plugin_system import (
     register_hook,
     reset_plugin_manager,
 )
+from .code_summarizer import (
+    CodeElement as SummaryCodeElement,
+    CodeElementExtractor,
+    CodeSummarizer,
+    CodeSummary,
+    ElementSummary,
+    ElementType,
+    RuleBasedSummaryStrategy,
+    SummaryLevel,
+    SummaryOptions,
+    SummaryStrategy,
+    create_code_summarizer,
+    create_summary_options,
+    get_code_one_liner,
+    get_code_summarizer,
+    reset_code_summarizer,
+    summarize_code,
+)
 
 __all__ = [
     # Async support
@@ -1793,6 +1811,23 @@ __all__ = [
     "load_plugin",
     "register_hook",
     "reset_plugin_manager",
+    # Code summarization
+    "SummaryCodeElement",
+    "CodeElementExtractor",
+    "CodeSummarizer",
+    "CodeSummary",
+    "ElementSummary",
+    "ElementType",
+    "RuleBasedSummaryStrategy",
+    "SummaryLevel",
+    "SummaryOptions",
+    "SummaryStrategy",
+    "create_code_summarizer",
+    "create_summary_options",
+    "get_code_one_liner",
+    "get_code_summarizer",
+    "reset_code_summarizer",
+    "summarize_code",
     # Registry
     "get_global_registry",
 ]
