@@ -1049,6 +1049,24 @@ from .notification_system import (
     reset_notification_manager,
     send_notification,
 )
+from .audit_logger import (
+    AuditAction,
+    AuditEvent,
+    AuditEventType,
+    AuditLogger,
+    AuditQuery,
+    AuditSeverity,
+    AuditStats,
+    AuditStorage,
+    FileAuditStorage,
+    InMemoryAuditStorage,
+    create_audit_logger,
+    create_audit_query,
+    create_file_audit_storage,
+    get_audit_logger,
+    log_event,
+    reset_audit_logger,
+)
 
 __all__ = [
     # Async support
@@ -2057,6 +2075,23 @@ __all__ = [
     "get_notification_manager",
     "reset_notification_manager",
     "send_notification",
+    # Audit logging
+    "AuditAction",
+    "AuditEvent",
+    "AuditEventType",
+    "AuditLogger",
+    "AuditQuery",
+    "AuditSeverity",
+    "AuditStats",
+    "AuditStorage",
+    "FileAuditStorage",
+    "InMemoryAuditStorage",
+    "create_audit_logger",
+    "create_audit_query",
+    "create_file_audit_storage",
+    "get_audit_logger",
+    "log_event",
+    "reset_audit_logger",
     # Registry
     "get_global_registry",
 ]
