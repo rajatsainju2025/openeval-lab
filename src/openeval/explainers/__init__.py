@@ -1068,6 +1068,32 @@ from .audit_logger import (
     reset_audit_logger,
 )
 
+# Explanation transformer
+from openeval.explainers.explanation_transformer import (
+    ExplanationData,
+    ExplanationSection,
+    ExplanationTransformer,
+    FormatTransformer,
+    HTMLTransformer,
+    JSONTransformer,
+    MarkdownTransformer,
+    PlainTextTransformer,
+    RSTTransformer,
+    TransformFormat,
+    TransformOptions,
+    TransformResult,
+    TransformStyle,
+    create_explanation_data,
+    create_section,
+    create_transformer,
+    to_html,
+    to_json,
+    to_markdown,
+    to_plain_text,
+    to_rst,
+    transform_explanation,
+)
+
 __all__ = [
     # Async support
     "AsyncExplainer",
@@ -2092,6 +2118,29 @@ __all__ = [
     "get_audit_logger",
     "log_event",
     "reset_audit_logger",
+    # Explanation transformer
+    "ExplanationData",
+    "ExplanationSection",
+    "ExplanationTransformer",
+    "FormatTransformer",
+    "HTMLTransformer",
+    "JSONTransformer",
+    "MarkdownTransformer",
+    "PlainTextTransformer",
+    "RSTTransformer",
+    "TransformFormat",
+    "TransformOptions",
+    "TransformResult",
+    "TransformStyle",
+    "create_explanation_data",
+    "create_section",
+    "create_transformer",
+    "to_html",
+    "to_json",
+    "to_markdown",
+    "to_plain_text",
+    "to_rst",
+    "transform_explanation",
     # Registry
     "get_global_registry",
 ]
