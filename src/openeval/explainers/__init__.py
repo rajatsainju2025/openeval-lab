@@ -1155,6 +1155,35 @@ from openeval.explainers.explanation_differ import (
     word_diff,
 )
 
+# Resource manager
+from openeval.explainers.resource_manager import (
+    AllocationStrategy,
+    CPUTracker,
+    MemoryTracker,
+    ResourceAllocation,
+    ResourceLimiter,
+    ResourceManager,
+    ResourcePool,
+    ResourcePoolConfig,
+    ResourceQuota,
+    ResourceState,
+    ResourceTracker,
+    ResourceType,
+    ResourceUsage,
+    ThreadPoolTracker,
+    allocate_resources,
+    check_resources,
+    create_resource_limiter,
+    create_resource_pool,
+    force_gc,
+    get_cpu_usage,
+    get_memory_usage,
+    get_resource_manager,
+    reset_resource_manager,
+    set_quota,
+    track_memory,
+)
+
 __all__ = [
     # Async support
     "AsyncExplainer",
@@ -2257,6 +2286,32 @@ __all__ = [
     "semantic_diff",
     "side_by_side_diff",
     "word_diff",
+    # Resource manager
+    "AllocationStrategy",
+    "CPUTracker",
+    "MemoryTracker",
+    "ResourceAllocation",
+    "ResourceLimiter",
+    "ResourceManager",
+    "ResourcePool",
+    "ResourcePoolConfig",
+    "ResourceQuota",
+    "ResourceState",
+    "ResourceTracker",
+    "ResourceType",
+    "ResourceUsage",
+    "ThreadPoolTracker",
+    "allocate_resources",
+    "check_resources",
+    "create_resource_limiter",
+    "create_resource_pool",
+    "force_gc",
+    "get_cpu_usage",
+    "get_memory_usage",
+    "get_resource_manager",
+    "reset_resource_manager",
+    "set_quota",
+    "track_memory",
     # Registry
     "get_global_registry",
 ]
