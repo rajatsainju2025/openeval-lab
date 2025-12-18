@@ -1184,6 +1184,32 @@ from openeval.explainers.resource_manager import (
     track_memory,
 )
 
+# Explanation scheduler
+from openeval.explainers.explanation_scheduler import (
+    ExplanationScheduler,
+    FIFOTaskQueue,
+    PriorityTaskQueue,
+    ScheduledTask,
+    SchedulerConfig,
+    SchedulerStats,
+    ScheduleType,
+    TaskExecutor,
+    TaskPriority,
+    TaskQueue,
+    TaskResult,
+    TaskState,
+    cancel_task,
+    create_scheduler,
+    get_explanation_scheduler,
+    get_scheduler_stats,
+    get_task_result,
+    reset_explanation_scheduler,
+    schedule_explanation,
+    schedule_task,
+    start_scheduler,
+    stop_scheduler,
+)
+
 __all__ = [
     # Async support
     "AsyncExplainer",
@@ -2312,6 +2338,29 @@ __all__ = [
     "reset_resource_manager",
     "set_quota",
     "track_memory",
+    # Explanation scheduler
+    "ExplanationScheduler",
+    "FIFOTaskQueue",
+    "PriorityTaskQueue",
+    "ScheduledTask",
+    "SchedulerConfig",
+    "SchedulerStats",
+    "ScheduleType",
+    "TaskExecutor",
+    "TaskPriority",
+    "TaskQueue",
+    "TaskResult",
+    "TaskState",
+    "cancel_task",
+    "create_scheduler",
+    "get_explanation_scheduler",
+    "get_scheduler_stats",
+    "get_task_result",
+    "reset_explanation_scheduler",
+    "schedule_explanation",
+    "schedule_task",
+    "start_scheduler",
+    "stop_scheduler",
     # Registry
     "get_global_registry",
 ]
